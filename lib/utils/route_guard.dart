@@ -5,9 +5,17 @@ import '../providers/auth_provider.dart';
 import '../routes/app_routes.dart';
 import '../services/supabase_service.dart';
 
-/// Route guard middleware to protect admin-only routes
 class RouteGuard {
-  /// Check if user has admin access
+  static const Set<String> _tabRoutes = {
+    AppRoutes.home,
+    AppRoutes.search,
+    AppRoutes.shoppingCart,
+    AppRoutes.orderHistory,
+    AppRoutes.profile,
+  };
+
+  static bool isTabRoute(String route) => _tabRoutes.contains(route);
+
   static bool isAdminRoute(String route) {
     return route.startsWith('/admin-') ||
         route == AppRoutes.adminDashboard ||
@@ -17,11 +25,9 @@ class RouteGuard {
         route == AppRoutes.adminGlobalEditInterface ||
         route == AppRoutes.enhancedOrderManagement ||
         route == AppRoutes.adminAdsManagement ||
-        route == AppRoutes.adminEditOverlaySystem ||
-        route == AppRoutes.globalAdminControlsOverlay;
+        route == AppRoutes.adminEditOverlaySystem;
   }
 
-  /// Check if user has driver access
   static bool isDriverRoute(String route) {
     return route.startsWith('/driver-') ||
         route == AppRoutes.driverLogin ||
@@ -29,14 +35,25 @@ class RouteGuard {
         route == AppRoutes.availableOrdersScreen;
   }
 
-  /// Verify access and redirect if unauthorized
   static Future<bool> verifyAccess(
     BuildContext context,
     String route,
   ) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    // Check if user is verified for protected routes (skip for auth/onboarding routes)
+    // Prevent pushing tab routes. Tabs must be switched via AppRoutes.switchToTab.
+    if (isTabRoute(route)) {
+      final index = _indexForTabRoute(route);
+      AppRoutes.switchToTab(context, index);
+      return false;
+    }
+
+    // Refresh role to reduce race conditions (especially right after login).
+    if (authProvider.isAuthenticated) {
+      await authProvider.refreshUserRole();
+    }
+
+    // Verification check (keep existing behavior, but admins bypass)
     if (route != AppRoutes.emailOtpVerification &&
         route != AppRoutes.phoneOtpVerification &&
         route != AppRoutes.authentication &&
@@ -47,22 +64,16 @@ class RouteGuard {
         if (user != null) {
           final response = await SupabaseService.client
               .from('users')
-              .select('role, is_verified, email_verified, phone_verified')
+              .select('role, email_verified, phone_verified')
               .eq('id', user.id)
               .maybeSingle();
 
           if (response != null) {
-            final role = response['role'] as String?;
+            final role = (response['role'] as String?)?.toLowerCase();
             final emailVerified = response['email_verified'] ?? false;
             final phoneVerified = response['phone_verified'] ?? false;
 
-            // Admin bypass: Allow admins to access app without verification
-            if (role == 'admin') {
-              debugPrint(
-                  '[ROUTE_GUARD] Admin user - bypassing verification check');
-              // Continue to role-based access checks below
-            } else {
-              // For non-admin users: enforce verification
+            if (role != 'admin') {
               if (!emailVerified || !phoneVerified) {
                 if (!emailVerified) {
                   Navigator.of(context)
@@ -75,7 +86,8 @@ class RouteGuard {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text(
-                        'Please complete email and phone verification to access the app'),
+                      'Please complete email and phone verification to access the app',
+                    ),
                     backgroundColor: Colors.orange,
                     duration: Duration(seconds: 3),
                   ),
@@ -85,22 +97,12 @@ class RouteGuard {
             }
           }
         }
-      } catch (e) {
-        debugPrint('[ROUTE_GUARD] Error checking verification: $e');
-      }
+      } catch (_) {}
     }
 
-    // Check admin routes
     if (isAdminRoute(route)) {
       if (!authProvider.isAdmin) {
-        // Redirect to appropriate home based on role
-        String redirectRoute;
-        if (authProvider.isDriver) {
-          redirectRoute = AppRoutes.driverHome;
-        } else {
-          redirectRoute = AppRoutes.home;
-        }
-
+        final redirectRoute = getHomeRouteForRole(authProvider);
         Navigator.of(context).pushReplacementNamed(redirectRoute);
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -114,7 +116,6 @@ class RouteGuard {
       }
     }
 
-    // Check driver routes
     if (isDriverRoute(route)) {
       if (!authProvider.isDriver && !authProvider.isAdmin) {
         Navigator.of(context).pushReplacementNamed(AppRoutes.home);
@@ -133,14 +134,26 @@ class RouteGuard {
     return true;
   }
 
-  /// Get appropriate home route based on user role
   static String getHomeRouteForRole(AuthProvider authProvider) {
-    if (authProvider.isAdmin) {
-      return AppRoutes.adminLandingDashboard;
-    } else if (authProvider.isDriver) {
-      return AppRoutes.driverHome;
-    } else {
-      return AppRoutes.home;
+    if (authProvider.isAdmin) return AppRoutes.adminLandingDashboard;
+    if (authProvider.isDriver) return AppRoutes.driverHome;
+    return AppRoutes.home;
+  }
+
+  static int _indexForTabRoute(String route) {
+    switch (route) {
+      case AppRoutes.home:
+        return 0;
+      case AppRoutes.search:
+        return 1;
+      case AppRoutes.shoppingCart:
+        return 2;
+      case AppRoutes.orderHistory:
+        return 3;
+      case AppRoutes.profile:
+        return 4;
+      default:
+        return 0;
     }
   }
 }

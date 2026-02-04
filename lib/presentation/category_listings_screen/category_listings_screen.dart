@@ -8,26 +8,24 @@ import '../../providers/marketplace_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/admin_action_button.dart';
 import '../../widgets/custom_image_widget.dart';
-import '../marketplace_screen/widgets/marketplace_bottom_nav_widget.dart';
 import '../marketplace_screen/widgets/marketplace_search_bar_widget.dart';
 
 class CategoryListingsScreen extends ConsumerStatefulWidget {
-  const CategoryListingsScreen({super.key});
+  final String categoryId; // Added categoryId as a required parameter
+
+  const CategoryListingsScreen({super.key, required this.categoryId}); // Receive categoryId as an argument
 
   @override
   ConsumerState<CategoryListingsScreen> createState() =>
       _CategoryListingsScreenState();
 }
 
-class _CategoryListingsScreenState
-    extends ConsumerState<CategoryListingsScreen> {
+class _CategoryListingsScreenState extends ConsumerState<CategoryListingsScreen> {
   String _searchQuery = '';
   final Set<String> _favorites = {};
 
   void _onSearchChanged(String query) {
-    setState(() {
-      _searchQuery = query;
-    });
+    setState(() => _searchQuery = query);
   }
 
   void _toggleFavorite(String id) {
@@ -40,8 +38,9 @@ class _CategoryListingsScreenState
     });
   }
 
-  String _getCategoryName(String categoryId) {
-    final categoryNames = {
+  String _getCategoryName(Object categoryId) {
+    const namesByString = <String, String>{
+      // Marketplace-style
       'vehicles': 'Vehicles',
       'properties': 'Properties',
       'mobiles': 'Mobiles & Accessories',
@@ -55,15 +54,65 @@ class _CategoryListingsScreenState
       'jobs': 'Jobs',
       'fashion': 'Fashion & Beauty',
       'services': 'Services',
+
+      // Grocery-style (home featured categories legacy)
+      'fresh_produce': 'Fresh Produce',
+      'dairy_eggs': 'Dairy & Eggs',
+      'meat_seafood': 'Meat & Seafood',
+      'bakery': 'Bakery',
+      'pantry': 'Pantry Staples',
+      'beverages': 'Beverages',
+
+      // Special
+      'marketplace': 'Marketplace',
+      'all': 'All Categories',
     };
-    return categoryNames[categoryId] ?? 'Category';
+
+    const namesByInt = <int, String>{
+      // Home top tiles (your goal list)
+      1: 'Restaurants',
+      2: 'Convenience Store',
+      3: 'Pharmacies',
+      4: 'Marketplace',
+      // FeaturedCategoriesWidget ids
+      5: 'Pantry Staples',
+      6: 'Beverages',
+    };
+
+    if (categoryId is int) return namesByInt[categoryId] ?? 'Category';
+    if (categoryId is String) return namesByString[categoryId] ?? 'Category';
+    return 'Category';
   }
 
   @override
   Widget build(BuildContext context) {
-    final categoryId =
-        ModalRoute.of(context)!.settings.arguments as String? ?? 'electronics';
-    final filters = {'category': categoryId, 'limit': 50, 'offset': 0};
+    final args = ModalRoute.of(context)?.settings.arguments;
+
+    // Required: categories come from Navigator.pushNamed(..., arguments: {'categoryId': ..., 'fromTab': true})
+    final Object categoryId;
+    final bool fromTab;
+
+    if (args is Map) {
+      final dynamic cid = args['categoryId'];
+      categoryId = (cid is int || cid is String) ? cid as Object : 'all';
+      fromTab = args['fromTab'] == true;
+    } else if (args is int) {
+      categoryId = args;
+      fromTab = false;
+    } else if (args is String && args.isNotEmpty) {
+      categoryId = args;
+      fromTab = false;
+    } else {
+      categoryId = 'all';
+      fromTab = false;
+    }
+
+    final filters = {
+      'category': widget.categoryId, // Use the categoryId passed to this screen
+      'limit': 50,
+      'offset': 0,
+    };
+
     final listingsAsync = ref.watch(listingsProvider(filters));
 
     return Scaffold(
@@ -76,12 +125,11 @@ class _CategoryListingsScreenState
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          _getCategoryName(categoryId),
+          _getCategoryName(widget.categoryId), // Use widget.categoryId for dynamic category name
           style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
         actions: [
-          // Admin Controls (visible only to admin)
           provider.Consumer<AuthProvider>(
             builder: (context, authProvider, child) {
               if (!authProvider.isAdmin) return const SizedBox.shrink();
@@ -94,7 +142,8 @@ class _CategoryListingsScreenState
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                            content: Text('Add new item to category')),
+                          content: Text('Add new item to category'),
+                        ),
                       );
                     },
                   ),
@@ -117,30 +166,28 @@ class _CategoryListingsScreenState
       ),
       body: Column(
         children: [
-          MarketplaceSearchBarWidget(
-            onSearchChanged: _onSearchChanged,
-          ),
+          MarketplaceSearchBarWidget(onSearchChanged: _onSearchChanged),
           Expanded(
             child: listingsAsync.when(
               data: (listings) {
-                var filteredListings = listings;
+                var filtered = listings;
                 if (_searchQuery.isNotEmpty) {
-                  filteredListings = listings.where((listing) {
-                    return listing.title
-                        .toLowerCase()
-                        .contains(_searchQuery.toLowerCase());
-                  }).toList();
+                  final q = _searchQuery.toLowerCase();
+                  filtered = listings
+                      .where((l) => l.title.toLowerCase().contains(q))
+                      .toList();
                 }
 
-                if (filteredListings.isEmpty) {
+                if (filtered.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.search_off,
-                            size: 60,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant),
+                        Icon(
+                          Icons.search_off,
+                          size: 60,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         SizedBox(height: 2.h),
                         Text(
                           'No results found',
@@ -155,10 +202,11 @@ class _CategoryListingsScreenState
                         Text(
                           'Try adjusting your search',
                           style: TextStyle(
-                              fontSize: 12.sp,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant),
+                            fontSize: 12.sp,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),
@@ -167,9 +215,9 @@ class _CategoryListingsScreenState
 
                 return ListView.builder(
                   padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-                  itemCount: filteredListings.length,
+                  itemCount: filtered.length,
                   itemBuilder: (context, index) {
-                    final listing = filteredListings[index];
+                    final listing = filtered[index];
                     final isFavorite = _favorites.contains(listing.id);
                     final imageUrl = listing.images.isNotEmpty
                         ? listing.images[0]
@@ -177,6 +225,7 @@ class _CategoryListingsScreenState
 
                     return GestureDetector(
                       onTap: () {
+                        // Non-tab screen navigation is allowed via pushNamed.
                         Navigator.pushNamed(
                           context,
                           AppRoutes.marketplaceListingDetailScreen,
@@ -321,8 +370,11 @@ class _CategoryListingsScreenState
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.error_outline,
-                        size: 60, color: Theme.of(context).colorScheme.error),
+                    Icon(
+                      Icons.error_outline,
+                      size: 60,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                     SizedBox(height: 2.h),
                     Text(
                       'Error loading listings',
@@ -333,13 +385,16 @@ class _CategoryListingsScreenState
                       ),
                     ),
                     SizedBox(height: 1.h),
-                    Text(
-                      error.toString(),
-                      style: TextStyle(
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 6.w),
+                      child: Text(
+                        error.toString(),
+                        style: TextStyle(
                           fontSize: 12.sp,
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant),
-                      textAlign: TextAlign.center,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ],
                 ),
@@ -348,26 +403,11 @@ class _CategoryListingsScreenState
           ),
         ],
       ),
-      bottomNavigationBar: MarketplaceBottomNavWidget(
-        currentIndex: 0,
-        onIndexChanged: (index) {
-          if (index == 0) {
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              AppRoutes.marketplaceScreen,
-              (route) => false,
-            );
-          } else if (index == 1) {
-            Navigator.pushNamed(context, AppRoutes.chatListScreen);
-          } else if (index == 2) {
-            Navigator.pushNamed(context, AppRoutes.createListingScreen);
-          } else if (index == 3) {
-            Navigator.pushNamed(context, '/my-ads-screen');
-          } else if (index == 4) {
-            Navigator.pushNamed(context, '/marketplace-account-screen');
-          }
-        },
-      ),
+
+      // MANDATORY: no duplicated bottom bars.
+      // This screen is opened from Home via Navigator.pushNamed(...), so the persistent bottom
+      // nav from MainLayoutWrapper remains underneath in the stack flow (and must not be duplicated).
+      bottomNavigationBar: null,
     );
   }
 }

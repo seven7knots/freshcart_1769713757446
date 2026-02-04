@@ -249,7 +249,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
         // Navigate to active delivery screen
         Navigator.pushNamed(
           context,
-          AppRoutes.activeDeliveryScreen,
+          AppRoutes.orderTracking,
           arguments: orderId,
         );
       }

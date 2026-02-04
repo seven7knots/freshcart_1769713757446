@@ -82,6 +82,11 @@ class _AdminNavigationDrawerScreenState
                         route: AppRoutes.allCategoriesScreen,
                       ),
                       _buildNavItem(
+                        icon: Icons.admin_panel_settings,
+                        title: 'Admin Categories',
+                        route: AppRoutes.adminCategories,
+                      ),
+                      _buildNavItem(
                         icon: Icons.storefront,
                         title: 'Stores',
                         route: AppRoutes.marketplaceScreen,

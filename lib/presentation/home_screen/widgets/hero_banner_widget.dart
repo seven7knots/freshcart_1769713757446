@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
-import '../../../providers/admin_provider.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../services/ads_service.dart';
 import '../../admin_edit_overlay_system_screen/admin_edit_overlay_system_screen.dart';
 
@@ -38,7 +38,7 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
         _activeAds = ads.where((ad) => ad['format'] == 'carousel').toList();
         _isLoadingAds = false;
       });
-    } catch (e) {
+    } catch (_) {
       setState(() => _isLoadingAds = false);
     }
   }
@@ -54,6 +54,7 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
           "Fresh organic vegetables including broccoli, carrots, and leafy greens arranged in a wooden basket",
       "backgroundColor": Color(0xFFFF3B30),
       "textColor": Colors.white,
+      "routeCategoryId": "fresh_produce",
     },
     {
       "id": 2,
@@ -65,6 +66,7 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
           "Glass bottles of fresh milk and various dairy products on a rustic wooden table",
       "backgroundColor": Color(0xFF2196F3),
       "textColor": Colors.white,
+      "routeCategoryId": "dairy_eggs",
     },
     {
       "id": 3,
@@ -76,12 +78,13 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
           "Colorful assortment of fresh seasonal fruits including apples, oranges, and berries in a wicker basket",
       "backgroundColor": Color(0xFFFF9800),
       "textColor": Colors.white,
+      "routeCategoryId": "fresh_produce",
     },
   ];
 
   @override
   Widget build(BuildContext context) {
-    final adminProvider = Provider.of<AdminProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
     final displayData = _activeAds.isNotEmpty ? _activeAds : _bannerData;
 
     Widget bannerWidget = Container(
@@ -115,9 +118,7 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                           const Duration(milliseconds: 800),
                       autoPlayCurve: Curves.fastOutSlowIn,
                       onPageChanged: (index, reason) {
-                        setState(() {
-                          _currentIndex = index;
-                        });
+                        setState(() => _currentIndex = index);
                         if (_activeAds.isNotEmpty &&
                             index < _activeAds.length) {
                           _adsService.trackImpression(
@@ -135,7 +136,7 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
       ),
     );
 
-    if (adminProvider.isAdmin) {
+    if (authProvider.isAdmin) {
       return AdminEditOverlaySystemScreen(
         contentType: 'carousel',
         child: bannerWidget,
@@ -148,9 +149,9 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
   Widget _buildBannerCard(Map<String, dynamic> banner) {
     final isAdData = banner.containsKey('link_type');
     final imageUrl = isAdData ? banner['image_url'] : banner['image'];
-    final title = isAdData ? banner['title'] : banner['title'];
+    final title = banner['title'];
     final subtitle = isAdData ? banner['description'] : banner['subtitle'];
-    final description = isAdData ? '' : banner['description'];
+    final description = isAdData ? '' : (banner['description'] ?? '');
 
     return Container(
       width: double.infinity,
@@ -215,9 +216,9 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  if (subtitle != null && subtitle.isNotEmpty)
+                  if (subtitle != null && (subtitle as String).isNotEmpty)
                     Text(
-                      subtitle as String,
+                      subtitle,
                       style:
                           AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
                         color: banner["textColor"] as Color? ?? Colors.white,
@@ -235,7 +236,7 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                       height: 1.2,
                     ),
                   ),
-                  if (description.isNotEmpty) ...[
+                  if (description is String && description.isNotEmpty) ...[
                     SizedBox(height: 1.h),
                     Text(
                       description,
@@ -312,34 +313,52 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
 
       final linkType = banner['link_type'];
       final linkTargetId = banner['link_target_id'];
-      final externalUrl = banner['external_url'];
 
       switch (linkType) {
-        case 'store':
+        case 'category':
           if (linkTargetId != null) {
-            Navigator.pushNamed(context, '/search-screen',
-                arguments: {'storeId': linkTargetId});
+            Navigator.pushNamed(
+              context,
+              AppRoutes.categoryListingsScreen,
+              arguments: {'categoryId': linkTargetId},
+            );
+            return;
+          }
+          break;
+        case 'store':
+          // If you have a store landing route, replace this accordingly.
+          if (linkTargetId != null) {
+            Navigator.pushNamed(
+              context,
+              AppRoutes.categoryListingsScreen,
+              arguments: {'categoryId': 'stores', 'storeId': linkTargetId},
+            );
+            return;
           }
           break;
         case 'product':
+          // If you have product detail route, use it here.
           if (linkTargetId != null) {
-            Navigator.pushNamed(context, '/product-detail-screen',
-                arguments: {'productId': linkTargetId});
+            Navigator.pushNamed(
+              context,
+              AppRoutes.productDetailScreen,
+              arguments: {'productId': linkTargetId},
+            );
+            return;
           }
-          break;
-        case 'category':
-          if (linkTargetId != null) {
-            Navigator.pushNamed(context, '/search-screen',
-                arguments: {'category': linkTargetId});
-          }
-          break;
-        case 'external_url':
           break;
         default:
-          Navigator.pushNamed(context, '/search-screen');
+          break;
       }
-    } else {
-      Navigator.pushNamed(context, '/search-screen');
     }
+
+    // Default: use banner's own categoryId if present, otherwise marketplace.
+    final fallbackCategoryId =
+        banner['routeCategoryId'] as String? ?? 'marketplace';
+    Navigator.pushNamed(
+      context,
+      AppRoutes.categoryListingsScreen,
+      arguments: {'categoryId': fallbackCategoryId},
+    );
   }
 }

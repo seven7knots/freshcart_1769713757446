@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../routes/app_routes.dart';
+import '../../widgets/main_layout_wrapper.dart';
 import './widgets/filter_bottom_sheet_widget.dart';
 import './widgets/filter_chips_widget.dart';
 import './widgets/product_grid_widget.dart';
@@ -18,6 +20,7 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
+
   final List<String> _recentSearches = [
     'organic apples',
     'fresh milk',
@@ -44,6 +47,7 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isSearching = false;
   bool _isLoading = false;
   bool _showSuggestions = true;
+
   final bool _showVoiceSearch = false;
   final bool _showBarcodeScanner = false;
 
@@ -153,13 +157,17 @@ class _SearchScreenState extends State<SearchScreen> {
     super.dispose();
   }
 
-  void _handleSearchChange(String query) {
-    _performSearch(query);
-  }
+  bool get _shouldShowBack =>
+      Navigator.of(context).canPop() && MainLayoutWrapper.of(context) == null;
 
-  void _handleSearchSubmit(String query) {
-    _performSearch(query);
-  }
+  void _goToTab(int index) {
+  AppRoutes.switchToTab(context, index);
+}
+
+
+  void _handleSearchChange(String query) => _performSearch(query);
+
+  void _handleSearchSubmit(String query) => _performSearch(query);
 
   void _performSearch(String query) {
     if (query.isEmpty) {
@@ -178,15 +186,11 @@ class _SearchScreenState extends State<SearchScreen> {
       _showSuggestions = false;
     });
 
-    // Add to recent searches if not already present
     if (!_recentSearches.contains(query.toLowerCase())) {
       _recentSearches.insert(0, query.toLowerCase());
-      if (_recentSearches.length > 5) {
-        _recentSearches.removeLast();
-      }
+      if (_recentSearches.length > 5) _recentSearches.removeLast();
     }
 
-    // Simulate search delay
     Future.delayed(const Duration(milliseconds: 800), () {
       if (!mounted) return;
 
@@ -201,7 +205,6 @@ class _SearchScreenState extends State<SearchScreen> {
             brand.contains(searchQuery);
       }).toList();
 
-      // Apply current filters
       final filteredResults = _applyFilters(results);
 
       setState(() {
@@ -214,7 +217,6 @@ class _SearchScreenState extends State<SearchScreen> {
   List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> products) {
     List<Map<String, dynamic>> filtered = List.from(products);
 
-    // Category filter
     final selectedCategories = _currentFilters['categories'] as List<String>?;
     if (selectedCategories?.isNotEmpty == true) {
       filtered = filtered.where((product) {
@@ -222,7 +224,6 @@ class _SearchScreenState extends State<SearchScreen> {
       }).toList();
     }
 
-    // Price filter
     final minPrice = _currentFilters['minPrice'] as double?;
     final maxPrice = _currentFilters['maxPrice'] as double?;
     if (minPrice != null || maxPrice != null) {
@@ -234,7 +235,6 @@ class _SearchScreenState extends State<SearchScreen> {
       }).toList();
     }
 
-    // Brand filter
     final selectedBrands = _currentFilters['brands'] as List<String>?;
     if (selectedBrands?.isNotEmpty == true) {
       filtered = filtered.where((product) {
@@ -242,7 +242,6 @@ class _SearchScreenState extends State<SearchScreen> {
       }).toList();
     }
 
-    // Dietary filter
     final selectedDietary = _currentFilters['dietary'] as List<String>?;
     if (selectedDietary?.isNotEmpty == true) {
       filtered = filtered.where((product) {
@@ -252,7 +251,6 @@ class _SearchScreenState extends State<SearchScreen> {
       }).toList();
     }
 
-    // Rating filter
     final minRating = _currentFilters['minRating'] as int?;
     if (minRating != null) {
       filtered = filtered.where((product) {
@@ -267,7 +265,6 @@ class _SearchScreenState extends State<SearchScreen> {
   void _updateActiveFilters() {
     final List<FilterChip> chips = [];
 
-    // Category chips
     final categories = _currentFilters['categories'] as List<String>?;
     if (categories?.isNotEmpty == true) {
       for (final category in categories!) {
@@ -279,7 +276,6 @@ class _SearchScreenState extends State<SearchScreen> {
       }
     }
 
-    // Price chip
     final minPrice = _currentFilters['minPrice'] as double?;
     final maxPrice = _currentFilters['maxPrice'] as double?;
     if (minPrice != null || maxPrice != null) {
@@ -290,7 +286,6 @@ class _SearchScreenState extends State<SearchScreen> {
       ));
     }
 
-    // Brand chips
     final brands = _currentFilters['brands'] as List<String>?;
     if (brands?.isNotEmpty == true) {
       for (final brand in brands!) {
@@ -302,7 +297,6 @@ class _SearchScreenState extends State<SearchScreen> {
       }
     }
 
-    // Dietary chips
     final dietary = _currentFilters['dietary'] as List<String>?;
     if (dietary?.isNotEmpty == true) {
       for (final diet in dietary!) {
@@ -314,7 +308,6 @@ class _SearchScreenState extends State<SearchScreen> {
       }
     }
 
-    // Rating chip
     final minRating = _currentFilters['minRating'] as int?;
     if (minRating != null) {
       chips.add(FilterChip(
@@ -369,8 +362,6 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _showFilterBottomSheet() {
-    final cs = Theme.of(context).colorScheme;
-
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -378,9 +369,7 @@ class _SearchScreenState extends State<SearchScreen> {
       builder: (context) => FilterBottomSheetWidget(
         currentFilters: _currentFilters,
         onFiltersApplied: (filters) {
-          setState(() {
-            _currentFilters = filters;
-          });
+          setState(() => _currentFilters = filters);
           _updateActiveFilters();
           _performSearch(_searchController.text);
         },
@@ -393,16 +382,10 @@ class _SearchScreenState extends State<SearchScreen> {
         },
       ),
     );
-
-    // If any nested widgets were using a forced light color, this ensures the sheet
-    // inherits the current theme in most setups.
-    // (No-op if your app already wraps MaterialApp theme correctly.)
-    // ignore: unused_local_variable
-    final _ = cs;
   }
 
   void _onProductTap(Map<String, dynamic> product) {
-    Navigator.pushNamed(context, '/product-detail-screen', arguments: product);
+    Navigator.pushNamed(context, AppRoutes.productDetail, arguments: product);
   }
 
   void _onAddToCart(Map<String, dynamic> product) {
@@ -413,8 +396,7 @@ class _SearchScreenState extends State<SearchScreen> {
         duration: const Duration(seconds: 2),
         action: SnackBarAction(
           label: 'View Cart',
-          onPressed: () =>
-              Navigator.pushNamed(context, '/shopping-cart-screen'),
+          onPressed: () => _goToTab(2),
         ),
       ),
     );
@@ -453,14 +435,14 @@ class _SearchScreenState extends State<SearchScreen> {
             SliverOverlapAbsorber(
               handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
               sliver: SliverAppBar(
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () => Navigator.pop(context),
-                ),
+                leading: _shouldShowBack
+                    ? IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => Navigator.pop(context),
+                      )
+                    : null,
                 title: null,
                 pinned: true,
-                floating: false,
-                snap: false,
                 elevation: 0,
                 backgroundColor: cs.surface,
                 foregroundColor: cs.onSurface,
@@ -470,8 +452,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.shopping_cart_outlined),
-                    onPressed: () =>
-                        Navigator.pushNamed(context, '/shopping-cart-screen'),
+                    onPressed: () => _goToTab(2),
                     tooltip: 'Shopping cart',
                   ),
                 ],
@@ -485,10 +466,6 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildMainContent() {
-    // IMPORTANT FIX:
-    // The previous version put an Expanded() inside a Column within SliverToBoxAdapter,
-    // which can cause "unbounded height" layout crashes in scroll views.
-    // SliverFillRemaining provides bounded height so Expanded works safely.
     return Builder(
       builder: (BuildContext context) {
         return CustomScrollView(
@@ -502,29 +479,22 @@ class _SearchScreenState extends State<SearchScreen> {
                 padding: EdgeInsets.only(bottom: 10.h),
                 child: Column(
                   children: [
-                    // Search bar
                     SearchBarWidget(
                       controller: _searchController,
                       onChanged: _handleSearchChange,
                       onSubmitted: _handleSearchSubmit,
                       onVoicePressed: _showVoiceSearch ? () {} : null,
                       onBarcodePressed: _showBarcodeScanner ? () {} : null,
-                      onAIPressed: () => Navigator.pushNamed(
-                        context,
-                        '/ai-chat-assistant-screen',
-                      ),
+                      onAIPressed: () =>
+                          Navigator.pushNamed(context, AppRoutes.aiChatAssistant),
                       isLoading: _isLoading,
                     ),
-
-                    // Filter chips
                     if (_activeFilters.isNotEmpty)
                       FilterChipsWidget(
                         activeFilters: _activeFilters,
                         onFilterPressed: _showFilterBottomSheet,
                         onRemoveFilter: _removeFilter,
                       ),
-
-                    // Content area
                     Expanded(
                       child: _showSuggestions && !_isSearching
                           ? SearchSuggestionsWidget(

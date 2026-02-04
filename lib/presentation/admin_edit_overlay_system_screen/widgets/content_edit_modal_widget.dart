@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
-import '../../../core/app_export.dart';
 import '../../../services/ads_service.dart';
 import '../../../services/marketplace_service.dart';
 import '../../../services/product_service.dart';
 import '../../../services/store_service.dart';
+import '../../../services/supabase_service.dart';
 import '../../../theme/app_theme.dart';
 
 class ContentEditModalWidget extends StatefulWidget {
@@ -28,11 +28,17 @@ class ContentEditModalWidget extends StatefulWidget {
 
 class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
   final _formKey = GlobalKey<FormState>();
+
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
+  final _imageUrlController = TextEditingController();
+  final _linkTargetController = TextEditingController();
+
   bool _isLoading = false;
   bool _isActive = true;
+
+  bool get _isCreate => widget.contentId == null;
 
   @override
   void initState() {
@@ -41,13 +47,44 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
   }
 
   void _loadExistingData() {
-    if (widget.contentData != null) {
-      _titleController.text =
-          widget.contentData!['title'] ?? widget.contentData!['name'] ?? '';
-      _descriptionController.text = widget.contentData!['description'] ?? '';
-      _priceController.text = widget.contentData!['price']?.toString() ?? '';
-      _isActive = widget.contentData!['is_active'] ??
-          widget.contentData!['status'] == 'active';
+    final data = widget.contentData;
+    if (data == null) return;
+
+    _titleController.text = (data['title'] ?? data['name'] ?? '').toString();
+    _descriptionController.text = (data['description'] ?? '').toString();
+
+    final price = data['price'];
+    if (price != null) {
+      _priceController.text = price.toString();
+    }
+
+    _imageUrlController.text =
+        (data['image_url'] ?? data['imageUrl'] ?? data['cover_image_url'] ?? '')
+            .toString();
+
+    _linkTargetController.text =
+        (data['target_route'] ?? data['link_target'] ?? data['deeplink'] ?? '')
+            .toString();
+
+    _isActive = _extractIsActive(widget.contentType, data);
+  }
+
+  bool _extractIsActive(String type, Map<String, dynamic> data) {
+    switch (type) {
+      case 'ad':
+        final status = (data['status'] ?? '').toString().toLowerCase();
+        if (status.isNotEmpty) return status == 'active';
+        return (data['is_active'] ?? true) == true;
+      case 'product':
+        return (data['is_available'] ?? data['is_active'] ?? true) == true;
+      case 'store':
+        return (data['is_active'] ?? true) == true;
+      case 'marketplace':
+        return (data['is_active'] ?? data['status'] == 'active') == true;
+      case 'category':
+        return (data['is_active'] ?? true) == true;
+      default:
+        return true;
     }
   }
 
@@ -56,6 +93,8 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
     _titleController.dispose();
     _descriptionController.dispose();
     _priceController.dispose();
+    _imageUrlController.dispose();
+    _linkTargetController.dispose();
     super.dispose();
   }
 
@@ -78,8 +117,11 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
         case 'marketplace':
           await _saveMarketplaceListing();
           break;
+        case 'category':
+          await _saveCategory();
+          break;
         default:
-          throw Exception('Unsupported content type');
+          throw Exception('Unsupported content type: ${widget.contentType}');
       }
 
       widget.onSaved();
@@ -90,54 +132,145 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   Future<void> _saveAd() async {
     final adsService = AdsService();
-    if (widget.contentId != null) {
-      await adsService.updateAd(widget.contentId!, {
-        'title': _titleController.text,
-        'description': _descriptionController.text,
-        'status': _isActive ? 'active' : 'paused',
-      });
+    final payload = <String, dynamic>{
+      'title': _titleController.text.trim(),
+      'description': _descriptionController.text.trim(),
+      'status': _isActive ? 'active' : 'paused',
+      if (_imageUrlController.text.trim().isNotEmpty)
+        'image_url': _imageUrlController.text.trim(),
+      if (_linkTargetController.text.trim().isNotEmpty)
+        'target_route': _linkTargetController.text.trim(),
+    };
+
+    if (_isCreate) {
+      await adsService.createAd(
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        format: 'banner',
+        imageUrl: _imageUrlController.text.trim().isNotEmpty
+            ? _imageUrlController.text.trim()
+            : '',
+        linkType: 'external',
+        externalUrl: _linkTargetController.text.trim().isNotEmpty
+            ? _linkTargetController.text.trim()
+            : null,
+      );
+      return;
     }
+
+    await adsService.updateAd(widget.contentId!, payload);
   }
 
   Future<void> _saveProduct() async {
-    final productService = ProductService();
-    if (widget.contentId != null) {
-      // ProductService only provides read operations, not update operations
+    final service = ProductService();
+
+    final payload = <String, dynamic>{
+      'name': _titleController.text.trim(),
+      'description': _descriptionController.text.trim(),
+      'price': double.tryParse(_priceController.text.trim()) ?? 0,
+      'is_available': _isActive,
+      if (_imageUrlController.text.trim().isNotEmpty)
+        'image_url': _imageUrlController.text.trim(),
+    };
+
+    if (_isCreate) {
+      final storeId = (widget.contentData?['store_id'] ??
+              widget.contentData?['storeId'] ??
+              '')
+          .toString()
+          .trim();
+      if (storeId.isEmpty) {
+        throw Exception('Missing store_id for product creation');
+      }
+      payload['store_id'] = storeId;
+
+      await service.createProduct(payload);
+      return;
     }
+
+    await service.updateProduct(widget.contentId!, payload);
   }
 
   Future<void> _saveStore() async {
-    final storeService = StoreService();
-    if (widget.contentId != null) {
-      // StoreService only provides read operations, not update operations
+    final service = StoreService();
+
+    final payload = <String, dynamic>{
+      'name': _titleController.text.trim(),
+      'description': _descriptionController.text.trim(),
+      'is_active': _isActive,
+      if (_imageUrlController.text.trim().isNotEmpty)
+        'image_url': _imageUrlController.text.trim(),
+    };
+
+    if (_isCreate) {
+      await service.createStore(payload);
+      return;
     }
+
+    await service.updateStore(widget.contentId!, payload);
   }
 
   Future<void> _saveMarketplaceListing() async {
     final marketplaceService = MarketplaceService();
-    if (widget.contentId != null) {
-      await marketplaceService.updateListing(
-        widget.contentId!,
-        {
-          'title': _titleController.text,
-          'description': _descriptionController.text,
-          'price': double.tryParse(_priceController.text),
-        },
-      );
+
+    if (_isCreate) {
+      throw Exception('Marketplace creation is handled in listing flow');
     }
+
+    await marketplaceService.updateListing(
+      widget.contentId!,
+      {
+        'title': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'price': double.tryParse(_priceController.text.trim()),
+        'is_active': _isActive,
+        if (_imageUrlController.text.trim().isNotEmpty)
+          'image_url': _imageUrlController.text.trim(),
+      },
+    );
+  }
+
+  Future<void> _saveCategory() async {
+    final payload = <String, dynamic>{
+      'name': _titleController.text.trim(),
+      'description': _descriptionController.text.trim(),
+      'is_active': _isActive,
+      if (_imageUrlController.text.trim().isNotEmpty)
+        'image_url': _imageUrlController.text.trim(),
+    };
+
+    if (_isCreate) {
+      await SupabaseService.client.from('categories').insert(payload);
+      return;
+    }
+
+    await SupabaseService.client
+        .from('categories')
+        .update(payload)
+        .eq('id', widget.contentId!);
   }
 
   @override
   Widget build(BuildContext context) {
+    final supportsPrice =
+        widget.contentType == 'product' || widget.contentType == 'marketplace';
+
+    final supportsImage = widget.contentType == 'ad' ||
+        widget.contentType == 'product' ||
+        widget.contentType == 'store' ||
+        widget.contentType == 'category';
+
+    final supportsLinkTarget = widget.contentType == 'ad';
+
     return DraggableScrollableSheet(
-      initialChildSize: 0.7,
-      minChildSize: 0.5,
+      initialChildSize: 0.78,
+      minChildSize: 0.55,
       maxChildSize: 0.95,
       builder: (context, scrollController) => Container(
         decoration: BoxDecoration(
@@ -157,14 +290,24 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 4.w),
-              child: Text(
-                'Edit ${widget.contentType.toUpperCase()}',
-                style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${_isCreate ? 'Create' : 'Edit'} ${widget.contentType.toUpperCase()}',
+                      style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _isLoading ? null : () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
               ),
             ),
-            SizedBox(height: 2.h),
+            SizedBox(height: 1.h),
             Expanded(
               child: SingleChildScrollView(
                 controller: scrollController,
@@ -181,7 +324,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
                           border: OutlineInputBorder(),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
+                          if (value == null || value.trim().isEmpty) {
                             return 'Title is required';
                           }
                           return null;
@@ -196,8 +339,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
                         ),
                         maxLines: 4,
                       ),
-                      if (widget.contentType == 'product' ||
-                          widget.contentType == 'marketplace') ...[
+                      if (supportsPrice) ...[
                         SizedBox(height: 2.h),
                         TextFormField(
                           controller: _priceController,
@@ -209,13 +351,33 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
                           keyboardType: TextInputType.number,
                         ),
                       ],
+                      if (supportsImage) ...[
+                        SizedBox(height: 2.h),
+                        TextFormField(
+                          controller: _imageUrlController,
+                          decoration: const InputDecoration(
+                            labelText: 'Image URL',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
+                      if (supportsLinkTarget) ...[
+                        SizedBox(height: 2.h),
+                        TextFormField(
+                          controller: _linkTargetController,
+                          decoration: const InputDecoration(
+                            labelText: 'Link Target (route/deeplink)',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
                       SizedBox(height: 2.h),
                       SwitchListTile(
-                        title: const Text('Active or Available'),
+                        title: const Text('Active'),
                         value: _isActive,
-                        onChanged: (value) {
-                          setState(() => _isActive = value);
-                        },
+                        onChanged: _isLoading
+                            ? null
+                            : (value) => setState(() => _isActive = value),
                       ),
                       SizedBox(height: 3.h),
                       SizedBox(
@@ -229,7 +391,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
                                   child:
                                       CircularProgressIndicator(strokeWidth: 2),
                                 )
-                              : const Text('Save Changes'),
+                              : Text(_isCreate ? 'Create' : 'Save Changes'),
                         ),
                       ),
                     ],

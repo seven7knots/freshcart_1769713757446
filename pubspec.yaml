@@ -46,6 +46,7 @@ dependencies:
 
   intl: any
 
+  flutter_template: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

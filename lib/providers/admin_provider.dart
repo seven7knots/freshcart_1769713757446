@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+
 import '../services/admin_service.dart';
 import '../services/analytics_service.dart';
 
@@ -9,6 +10,8 @@ class AdminProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  bool _isEditMode = false;
+
   Map<String, dynamic>? _dashboardStats;
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _recentOrders = [];
@@ -16,9 +19,25 @@ class AdminProvider extends ChangeNotifier {
   bool get isAdmin => _isAdmin;
   bool get isLoading => _isLoading;
   String? get error => _error;
+
+  bool get isEditMode => _isEditMode;
+
   Map<String, dynamic>? get dashboardStats => _dashboardStats;
   List<Map<String, dynamic>> get users => _users;
   List<Map<String, dynamic>> get recentOrders => _recentOrders;
+
+  void setEditMode(bool value) {
+    if (_isEditMode == value) return;
+    if (!_isAdmin && value) return;
+    _isEditMode = value;
+    notifyListeners();
+  }
+
+  void toggleEditMode() {
+    if (!_isAdmin) return;
+    _isEditMode = !_isEditMode;
+    notifyListeners();
+  }
 
   Future<void> checkAdminStatus() async {
     try {
@@ -28,11 +47,16 @@ class AdminProvider extends ChangeNotifier {
 
       _isAdmin = await _adminService.isAdmin();
 
+      if (!_isAdmin) {
+        _isEditMode = false;
+      }
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       _error = e.toString();
       _isAdmin = false;
+      _isEditMode = false;
       _isLoading = false;
       notifyListeners();
     }
@@ -110,7 +134,6 @@ class AdminProvider extends ChangeNotifier {
       );
 
       if (success) {
-        // Track wallet adjustment
         await AnalyticsService.logAdminWalletAdjustment(
           userId: userId,
           amount: amount,
@@ -120,7 +143,6 @@ class AdminProvider extends ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
-
       return success;
     } catch (e) {
       _error = e.toString();
@@ -145,7 +167,6 @@ class AdminProvider extends ChangeNotifier {
       );
 
       if (success) {
-        // Track user status update
         await AnalyticsService.logAdminUserManagement(
           action: isActive ? 'activate_user' : 'deactivate_user',
           targetUserId: userId,
@@ -154,7 +175,6 @@ class AdminProvider extends ChangeNotifier {
 
       _isLoading = false;
       notifyListeners();
-
       return success;
     } catch (e) {
       _error = e.toString();

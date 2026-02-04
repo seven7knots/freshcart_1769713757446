@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:sizer/sizer.dart';
 
-import '../../core/app_export.dart';
 import '../../providers/admin_provider.dart';
-import './widgets/admin_edit_button_widget.dart';
+import '../../providers/auth_provider.dart';
 import './widgets/content_edit_modal_widget.dart';
 
-class AdminEditOverlaySystemScreen extends StatefulWidget {
+class AdminEditOverlaySystemScreen extends StatelessWidget {
   final Widget child;
   final String contentType;
   final String? contentId;
@@ -21,34 +19,19 @@ class AdminEditOverlaySystemScreen extends StatefulWidget {
     this.contentData,
   });
 
-  @override
-  State<AdminEditOverlaySystemScreen> createState() =>
-      _AdminEditOverlaySystemScreenState();
-}
-
-class _AdminEditOverlaySystemScreenState
-    extends State<AdminEditOverlaySystemScreen> {
-  bool _isOverlayVisible = false;
-
-  void _toggleOverlay() {
-    setState(() {
-      _isOverlayVisible = !_isOverlayVisible;
-    });
-  }
-
-  void _showEditModal() {
+  void _openEditor(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => ContentEditModalWidget(
-        contentType: widget.contentType,
-        contentId: widget.contentId,
-        contentData: widget.contentData,
+        contentType: contentType,
+        contentId: contentId,
+        contentData: contentData,
         onSaved: () {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Content updated successfully')),
+            const SnackBar(content: Text('Saved')),
           );
         },
       ),
@@ -57,37 +40,43 @@ class _AdminEditOverlaySystemScreenState
 
   @override
   Widget build(BuildContext context) {
-    final adminProvider = Provider.of<AdminProvider>(context);
+    final auth = Provider.of<AuthProvider>(context);
+    if (!auth.isAdmin) return child;
 
-    if (!adminProvider.isAdmin) {
-      return widget.child;
-    }
+    final admin = Provider.of<AdminProvider>(context);
+    if (!admin.isEditMode) return child;
 
     return Stack(
       children: [
-        widget.child,
-        if (_isOverlayVisible)
-          Positioned.fill(
-            child: Container(
-              color: Colors.black.withValues(alpha: 0.3),
-              child: Center(
-                child: AdminEditButtonWidget(
-                  contentType: widget.contentType,
-                  onEdit: _showEditModal,
+        child,
+        Positioned(
+          top: 8,
+          right: 8,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => _openEditor(context),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context)
+                      .colorScheme
+                      .surface
+                      .withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outline
+                        .withValues(alpha: 0.25),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.edit,
+                  size: 20,
                 ),
               ),
-            ),
-          ),
-        Positioned(
-          top: 2.h,
-          right: 4.w,
-          child: FloatingActionButton.small(
-            onPressed: _toggleOverlay,
-            backgroundColor: AppTheme.lightTheme.colorScheme.primary,
-            child: CustomIconWidget(
-              iconName: _isOverlayVisible ? 'close' : 'edit',
-              color: Colors.white,
-              size: 20,
             ),
           ),
         ),

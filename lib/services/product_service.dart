@@ -1,10 +1,14 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/product_model.dart';
 
 class ProductService {
   final SupabaseClient _client = Supabase.instance.client;
 
-  // Get products by store
+  // -----------------------
+  // Customer / Public reads
+  // -----------------------
+
   Future<List<ProductModel>> getProductsByStore(
     String storeId, {
     String? category,
@@ -35,7 +39,6 @@ class ProductService {
     }
   }
 
-  // Get product by ID
   Future<ProductModel?> getProductById(String productId) async {
     try {
       final response = await _client
@@ -51,7 +54,6 @@ class ProductService {
     }
   }
 
-  // Search products
   Future<List<ProductModel>> searchProducts(
     String query, {
     String? storeId,
@@ -82,7 +84,6 @@ class ProductService {
     }
   }
 
-  // Get featured products
   Future<List<ProductModel>> getFeaturedProducts({int limit = 10}) async {
     try {
       final response = await _client
@@ -101,7 +102,6 @@ class ProductService {
     }
   }
 
-  // Get products by barcode
   Future<ProductModel?> getProductByBarcode(String barcode) async {
     try {
       final response = await _client
@@ -115,6 +115,46 @@ class ProductService {
       return ProductModel.fromJson(response);
     } catch (e) {
       throw Exception('Failed to get product by barcode: $e');
+    }
+  }
+
+  // -----------------------
+  // Admin CRUD operations
+  // -----------------------
+
+  Future<ProductModel> createProduct(Map<String, dynamic> data) async {
+    try {
+      final response =
+          await _client.from('products').insert(data).select().single();
+      return ProductModel.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to create product: $e');
+    }
+  }
+
+  Future<ProductModel> updateProduct(
+    String productId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await _client
+          .from('products')
+          .update(data)
+          .eq('id', productId)
+          .select()
+          .single();
+
+      return ProductModel.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to update product: $e');
+    }
+  }
+
+  Future<void> deleteProduct(String productId) async {
+    try {
+      await _client.from('products').delete().eq('id', productId);
+    } catch (e) {
+      throw Exception('Failed to delete product: $e');
     }
   }
 }

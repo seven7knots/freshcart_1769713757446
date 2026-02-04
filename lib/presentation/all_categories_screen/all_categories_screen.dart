@@ -120,7 +120,7 @@ class AllCategoriesScreen extends StatelessWidget {
       onTap: () {
         Navigator.pushNamed(
           context,
-          '/category-listings-screen',
+          AppRoutes.categoryListingsScreen,
           arguments: categoryId,
         );
       },

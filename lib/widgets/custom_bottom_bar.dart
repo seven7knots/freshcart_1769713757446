@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 /// Custom bottom navigation bar implementing Contemporary Minimalist Commerce design
-/// with adaptive navigation and haptic feedback for grocery delivery app
+/// with adaptive navigation and haptic feedback.
 class CustomBottomBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int>? onTap;
@@ -25,7 +25,7 @@ class CustomBottomBar extends StatelessWidget {
         color: _getBackgroundColor(colorScheme),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withValues(alpha: 0.1),
+            color: colorScheme.shadow.withValues(alpha: 0.10),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -33,62 +33,55 @@ class CustomBottomBar extends StatelessWidget {
       ),
       child: SafeArea(
         child: BottomNavigationBar(
-          currentIndex: currentIndex.clamp(0, 4), // Ensure valid index
+          currentIndex: currentIndex.clamp(0, 4),
           onTap: (index) {
-            // Haptic feedback for better user experience
             HapticFeedback.lightImpact();
-
-            // Call the provided onTap callback
             onTap?.call(index);
           },
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.transparent,
           elevation: 0,
-          selectedItemColor: _getSelectedColor(colorScheme),
-          unselectedItemColor: _getUnselectedColor(colorScheme),
+          selectedItemColor: colorScheme.primary,
+          unselectedItemColor: colorScheme.onSurfaceVariant,
           selectedFontSize: 12,
           unselectedFontSize: 12,
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w400),
-          items: _buildNavigationItems(context),
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home_rounded),
+              label: 'Home',
+              tooltip: 'Browse products',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.search_outlined),
+              activeIcon: Icon(Icons.search_rounded),
+              label: 'Search',
+              tooltip: 'Search products',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.shopping_cart_outlined),
+              activeIcon: Icon(Icons.shopping_cart_rounded),
+              label: 'Cart',
+              tooltip: 'Shopping cart',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.receipt_long_outlined),
+              activeIcon: Icon(Icons.receipt_long_rounded),
+              label: 'Orders',
+              tooltip: 'Order history',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline_rounded),
+              activeIcon: Icon(Icons.person_rounded),
+              label: 'Profile',
+              tooltip: 'User profile',
+            ),
+          ],
         ),
       ),
     );
-  }
-
-  List<BottomNavigationBarItem> _buildNavigationItems(BuildContext context) {
-    return [
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.home_outlined),
-        activeIcon: const Icon(Icons.home_rounded),
-        label: 'Home',
-        tooltip: 'Browse products',
-      ),
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.search_outlined),
-        activeIcon: const Icon(Icons.search_rounded),
-        label: 'Search',
-        tooltip: 'Search products',
-      ),
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.shopping_cart_outlined),
-        activeIcon: const Icon(Icons.shopping_cart_rounded),
-        label: 'Cart',
-        tooltip: 'Shopping cart',
-      ),
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.receipt_long_outlined),
-        activeIcon: const Icon(Icons.receipt_long_rounded),
-        label: 'Orders',
-        tooltip: 'Order history',
-      ),
-      BottomNavigationBarItem(
-        icon: const Icon(Icons.person_outline_rounded),
-        activeIcon: const Icon(Icons.person_rounded),
-        label: 'Profile',
-        tooltip: 'User profile',
-      ),
-    ];
   }
 
   Color _getBackgroundColor(ColorScheme colorScheme) {
@@ -99,17 +92,8 @@ class CustomBottomBar extends StatelessWidget {
         return colorScheme.surface.withValues(alpha: 0.95);
     }
   }
-
-  Color _getSelectedColor(ColorScheme colorScheme) {
-    return colorScheme.primary;
-  }
-
-  Color _getUnselectedColor(ColorScheme colorScheme) {
-    return colorScheme.onSurfaceVariant;
-  }
 }
 
-/// Variants for different bottom bar styles
 enum BottomBarVariant {
   primary,
   transparent,

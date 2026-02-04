@@ -16,14 +16,7 @@ class AdminOverlayFabWidget extends StatelessWidget {
     return Positioned(
       bottom: 10.h,
       right: 4.w,
-      child: FloatingActionButton(
-        onPressed: onToggle,
-        backgroundColor: isActive ? Colors.red : Colors.orange,
-        child: Icon(
-          isActive ? Icons.close : Icons.edit,
-          color: Colors.white,
-        ),
-      ),
+      child: SizedBox(),
     );
   }
 }

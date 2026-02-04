@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/notifications_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/role_upgrade_service.dart';
+import '../../widgets/main_layout_wrapper.dart';
 import './widgets/loyalty_rewards_widget.dart';
 import './widgets/profile_header_widget.dart';
 import './widgets/settings_section_widget.dart';
@@ -19,9 +20,7 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen>
-    with TickerProviderStateMixin {
-  late TabController _tabController;
+class _ProfileScreenState extends State<ProfileScreen> {
   final bool _isLoading = false;
 
   final RoleUpgradeService _roleUpgradeService = RoleUpgradeService();
@@ -58,15 +57,20 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _checkRoleUpgradeEligibility();
     _loadUserRequests();
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+  bool get _shouldShowBack =>
+      Navigator.of(context).canPop() && MainLayoutWrapper.of(context) == null;
+
+  void _goToTab(int index) {
+    final wrapper = MainLayoutWrapper.of(context);
+    if (wrapper != null) {
+      wrapper.updateTabIndex(index);
+      return;
+    }
+    Navigator.pushNamed(context, AppRoutes.getRouteForIndex(index));
   }
 
   @override
@@ -81,6 +85,12 @@ class _ProfileScreenState extends State<ProfileScreen>
             SliverOverlapAbsorber(
               handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
               sliver: SliverAppBar(
+                leading: _shouldShowBack
+                    ? IconButton(
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => Navigator.pop(context),
+                      )
+                    : null,
                 title: Text(
                   'Profile',
                   style: theme.textTheme.titleLarge?.copyWith(
@@ -89,8 +99,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ),
                 automaticallyImplyLeading: false,
                 pinned: true,
-                floating: false,
-                snap: false,
                 elevation: 0,
                 backgroundColor: theme.scaffoldBackgroundColor,
                 foregroundColor: theme.colorScheme.onSurface,
@@ -100,9 +108,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.settings_outlined),
-                    onPressed: () {
-                      // Navigate to settings
-                    },
+                    onPressed: _showSettingsMenu,
                     tooltip: 'Settings',
                   ),
                 ],
@@ -126,11 +132,71 @@ class _ProfileScreenState extends State<ProfileScreen>
               handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
             ),
             SliverToBoxAdapter(
-              child: Column(
-                children: [_buildProfileTab(), _buildSettingsTab()],
+              child: Padding(
+                padding: EdgeInsets.all(4.w),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ProfileHeaderWidget(
+                      userData: userData,
+                      onEditPressed: _editProfile,
+                    ),
+                    SizedBox(height: 3.h),
+                    LoyaltyRewardsWidget(
+                      rewardsData: rewardsData,
+                      onViewAllPressed: _viewAllRewards,
+                    ),
+                    SettingsSectionWidget(
+                      title: 'Quick Actions',
+                      items: _getQuickActionItems(),
+                    ),
+                    SizedBox(height: 2.h),
+
+                    // Admin section (only if admin)
+                    Consumer<AuthProvider>(
+                      builder: (context, authProvider, child) {
+                        if (!authProvider.isAdmin) {
+                          return const SizedBox.shrink();
+                        }
+                        return Column(
+                          children: [
+                            SettingsSectionWidget(
+                              title: "Admin Panel",
+                              items: _getAdminItems(),
+                            ),
+                            SizedBox(height: 2.h),
+                          ],
+                        );
+                      },
+                    ),
+
+                    SettingsSectionWidget(
+                      title: "Account",
+                      items: _getAccountItems(),
+                    ),
+                    SettingsSectionWidget(
+                      title: 'Delivery & Addresses',
+                      items: _getDeliveryItems(),
+                    ),
+                    SettingsSectionWidget(
+                      title: 'Payment & Billing',
+                      items: _getPaymentItems(),
+                    ),
+                    SettingsSectionWidget(
+                      title: 'App Preferences',
+                      items: _getPreferenceItems(),
+                    ),
+                    SettingsSectionWidget(
+                      title: 'Help & Support',
+                      items: _getHelpItems(),
+                    ),
+                    SizedBox(height: 2.h),
+                    _buildSignOutButton(),
+                    SizedBox(height: 10.h),
+                  ],
+                ),
               ),
             ),
-            SliverToBoxAdapter(child: SizedBox(height: 10.h)),
           ],
         );
       },
@@ -156,82 +222,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildProfileTab() {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(4.w),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ProfileHeaderWidget(userData: userData, onEditPressed: _editProfile),
-          SizedBox(height: 3.h),
-          LoyaltyRewardsWidget(
-            rewardsData: rewardsData,
-            onViewAllPressed: _viewAllRewards,
-          ),
-          SettingsSectionWidget(
-            title: 'Quick Actions',
-            items: _getQuickActionItems(),
-          ),
-          SettingsSectionWidget(
-            title: 'Account Information',
-            items: _getAccountItems(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSettingsTab() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 4.w),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(height: 2.h),
-
-          // Admin Section - Only show for admin users
-          Consumer<AuthProvider>(
-            builder: (context, authProvider, child) {
-              if (authProvider.isAdmin) {
-                return Column(
-                  children: [
-                    SettingsSectionWidget(
-                      title: "Admin Panel",
-                      items: _getAdminItems(),
-                    ),
-                    SizedBox(height: 2.h),
-                  ],
-                );
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-
-          SettingsSectionWidget(title: "Account", items: _getAccountItems()),
-          SettingsSectionWidget(
-            title: 'Delivery & Addresses',
-            items: _getDeliveryItems(),
-          ),
-          SettingsSectionWidget(
-            title: 'Payment & Billing',
-            items: _getPaymentItems(),
-          ),
-          SettingsSectionWidget(
-            title: 'App Preferences',
-            items: _getPreferenceItems(),
-          ),
-          SettingsSectionWidget(
-            title: 'Help & Support',
-            items: _getHelpItems(),
-          ),
-          SizedBox(height: 2.h),
-          _buildSignOutButton(),
-          SizedBox(height: 4.h),
-        ],
-      ),
-    );
-  }
-
   List<Map<String, dynamic>> _getQuickActionItems() {
     final theme = Theme.of(context);
     return [
@@ -240,14 +230,16 @@ class _ProfileScreenState extends State<ProfileScreen>
         "iconColor": theme.colorScheme.primary,
         "title": "Order History",
         "subtitle": "View past orders and reorder",
-        "route": "/order-history-screen",
+        "route": AppRoutes.orderHistory,
+        "onTap": () => _goToTab(3),
       },
       {
         "icon": "shopping_cart",
         "iconColor": theme.colorScheme.secondary,
         "title": "Shopping Cart",
         "subtitle": "Continue your shopping",
-        "route": "/shopping-cart-screen",
+        "route": AppRoutes.shoppingCart,
+        "onTap": () => _goToTab(2),
       },
       {
         "icon": "favorite",
@@ -301,7 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         "iconColor": theme.colorScheme.primary,
         "title": "Merchant Profile",
         "subtitle": "Manage your business account",
-        "route": "/merchant-profile-screen",
+        "route": AppRoutes.merchantProfile,
       },
       {
         "icon": "person",
@@ -383,7 +375,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         "iconColor": theme.colorScheme.tertiary,
         "title": "Subscription Plans",
         "subtitle": "Manage your subscription",
-        "route": "/subscription-management-screen",
+        "route": AppRoutes.subscriptionManagement,
       },
       {
         "icon": "receipt_long",
@@ -397,7 +389,6 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   List<Map<String, dynamic>> _getPreferenceItems() {
     final theme = Theme.of(context);
-
     return [
       {
         "icon": "language",
@@ -413,8 +404,6 @@ class _ProfileScreenState extends State<ProfileScreen>
         "subtitle": "Allergies, preferences",
         "route": null,
       },
-
-      // Theme: make it 3-state (System/Light/Dark) to avoid mismatches + mixed UI
       {
         "icon": "dark_mode",
         "iconColor": theme.colorScheme.onSurfaceVariant,
@@ -424,24 +413,14 @@ class _ProfileScreenState extends State<ProfileScreen>
         "trailing": Consumer<ThemeProvider>(
           builder: (context, themeProvider, child) {
             final cs = Theme.of(context).colorScheme;
-
             return PopupMenuButton<ThemeMode>(
               tooltip: 'Theme',
               initialValue: themeProvider.themeMode,
               onSelected: (mode) => themeProvider.setThemeMode(mode),
               itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: ThemeMode.system,
-                  child: Text('System'),
-                ),
-                PopupMenuItem(
-                  value: ThemeMode.light,
-                  child: Text('Light'),
-                ),
-                PopupMenuItem(
-                  value: ThemeMode.dark,
-                  child: Text('Dark'),
-                ),
+                PopupMenuItem(value: ThemeMode.system, child: Text('System')),
+                PopupMenuItem(value: ThemeMode.light, child: Text('Light')),
+                PopupMenuItem(value: ThemeMode.dark, child: Text('Dark')),
               ],
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -466,7 +445,6 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   String _themeModeLabel(BuildContext context) {
     final tp = Provider.of<ThemeProvider>(context, listen: false);
-
     switch (tp.themeMode) {
       case ThemeMode.system:
         return Theme.of(context).brightness == Brightness.dark
@@ -642,23 +620,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // Kept (if referenced elsewhere), now theme-aware + does not hardcode mode labels.
-  void _toggleTheme(bool value) {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    themeProvider.setThemeMode(value ? ThemeMode.dark : ThemeMode.light);
-
-    final theme = Theme.of(context);
-    HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(value ? 'Dark theme enabled' : 'Light theme enabled'),
-        backgroundColor: theme.colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
   void _showSettingsMenu() {
     final theme = Theme.of(context);
     HapticFeedback.lightImpact();
@@ -706,6 +667,26 @@ class _ProfileScreenState extends State<ProfileScreen>
                 _exportData();
               },
             ),
+            const SizedBox(height: 8),
+            if (_canRequestUpgrade)
+              ListTile(
+                leading: Icon(Icons.upgrade, color: theme.colorScheme.tertiary),
+                title: const Text('Request Role Upgrade'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showRoleUpgradeDialog();
+                },
+              ),
+            if (_userRequests.isNotEmpty)
+              ListTile(
+                leading: Icon(Icons.list_alt,
+                    color: theme.colorScheme.onSurfaceVariant),
+                title: const Text('View My Upgrade Requests'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showUserRequestsDialog();
+                },
+              ),
             SizedBox(height: 2.h),
           ],
         ),
@@ -739,94 +720,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  void _signOut() {
-    final theme = Theme.of(context);
-    HapticFeedback.lightImpact();
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        content: const Text('Sign out of your account?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Cancel',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                '/authentication-screen',
-                (route) => false,
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.colorScheme.error,
-              foregroundColor: theme.colorScheme.onError,
-            ),
-            child: const Text('Sign Out'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handleLogout() async {
-    final theme = Theme.of(context);
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-
-              final notificationsProvider = Provider.of<NotificationsProvider>(
-                context,
-                listen: false,
-              );
-              notificationsProvider.clearNotifications();
-
-              await authProvider.signOut();
-              if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
-                  '/authentication-screen',
-                  (route) => false,
-                );
-              }
-            },
-            child: Text(
-              'Logout',
-              style: TextStyle(color: theme.colorScheme.error),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _checkRoleUpgradeEligibility() async {
     try {
       final canRequest = await _roleUpgradeService.canRequestRoleUpgrade();
-      if (mounted) {
-        setState(() {
-          _canRequestUpgrade = canRequest;
-        });
-      }
+      if (mounted) setState(() => _canRequestUpgrade = canRequest);
     } catch (e) {
       debugPrint('[PROFILE] Error checking upgrade eligibility: $e');
     }
@@ -835,11 +732,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<void> _loadUserRequests() async {
     try {
       final requests = await _roleUpgradeService.getUserRoleUpgradeRequests();
-      if (mounted) {
-        setState(() {
-          _userRequests = requests;
-        });
-      }
+      if (mounted) setState(() => _userRequests = requests);
     } catch (e) {
       debugPrint('[PROFILE] Error loading requests: $e');
     }
@@ -872,9 +765,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   DropdownMenuItem(value: 'driver', child: Text('Driver')),
                   DropdownMenuItem(value: 'merchant', child: Text('Merchant')),
                 ],
-                onChanged: (value) {
-                  selectedRole = value;
-                },
+                onChanged: (value) => selectedRole = value,
               ),
               SizedBox(height: 2.h),
               TextField(
@@ -913,32 +804,30 @@ class _ProfileScreenState extends State<ProfileScreen>
                         : notesController.text.trim(),
                   );
 
-                  if (context.mounted) {
-                    Navigator.of(context).pop(true);
+                  if (!context.mounted) return;
 
-                    final bool ok = response['success'] == true;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content:
-                            Text(response['message'] ?? 'Request submitted'),
-                        backgroundColor: ok ? cs.primary : cs.error,
-                      ),
-                    );
+                  Navigator.of(context).pop(true);
 
-                    if (ok) {
-                      _checkRoleUpgradeEligibility();
-                      _loadUserRequests();
-                    }
+                  final bool ok = response['success'] == true;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(response['message'] ?? 'Request submitted'),
+                      backgroundColor: ok ? cs.primary : cs.error,
+                    ),
+                  );
+
+                  if (ok) {
+                    _checkRoleUpgradeEligibility();
+                    _loadUserRequests();
                   }
                 } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Error: $e'),
-                        backgroundColor: cs.error,
-                      ),
-                    );
-                  }
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: cs.error,
+                    ),
+                  );
                 }
               },
               child: const Text('Submit Request'),

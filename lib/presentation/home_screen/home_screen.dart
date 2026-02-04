@@ -10,6 +10,7 @@ import '../../providers/cart_provider.dart';
 import '../../services/analytics_service.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/admin_action_button.dart';
+import '../admin_edit_overlay_system_screen/widgets/content_edit_modal_widget.dart';
 import './widgets/categories_widget.dart';
 import './widgets/deals_of_day_widget.dart';
 import './widgets/featured_categories_widget.dart';
@@ -27,6 +28,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
       GlobalKey<RefreshIndicatorState>();
+
   bool _isLoading = false;
   String _userName = "Guest";
   String _currentLocation = "Downtown, Seattle";
@@ -35,15 +37,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     _loadInitialData();
-
-    // Track home screen view
     AnalyticsService.logScreenView(screenName: 'home_screen');
   }
 
   Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
 
-    // Load user data from Supabase if authenticated
     try {
       final user = SupabaseService.client.auth.currentUser;
       if (user != null) {
@@ -51,11 +50,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _userName = user.email?.split('@')[0] ?? "Guest";
         });
       }
-    } catch (e) {
-      // User not authenticated, keep default
-    }
+    } catch (_) {}
 
-    await Future.delayed(const Duration(milliseconds: 800));
+    await Future.delayed(const Duration(milliseconds: 600));
 
     if (mounted) {
       setState(() => _isLoading = false);
@@ -65,7 +62,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _handleRefresh() async {
     HapticFeedback.lightImpact();
 
-    // Refresh cart count
     ref.invalidate(cartItemCountProvider);
 
     await Future.delayed(const Duration(seconds: 1));
@@ -78,6 +74,99 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       );
     }
+  }
+
+  void _openAdminCreateSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.all(4.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 12.w,
+                  height: 0.5.h,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outline
+                        .withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                SizedBox(height: 2.h),
+                ListTile(
+                  leading: const Icon(Icons.category),
+                  title: const Text('Create Category'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _openCreateEditor(contentType: 'category');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.campaign_outlined),
+                  title: const Text('Create Ad'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.pushNamed(context, AppRoutes.adminAdsManagement);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.store_outlined),
+                  title: const Text('Create Store'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _openCreateEditor(contentType: 'store');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.shopping_bag_outlined),
+                  title: const Text('Create Product'),
+                  subtitle:
+                      const Text('Requires store_id in the editor payload'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _openCreateEditor(
+                      contentType: 'product',
+                      contentData: const {'store_id': ''},
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openCreateEditor({
+    required String contentType,
+    Map<String, dynamic>? contentData,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => ContentEditModalWidget(
+        contentType: contentType,
+        contentId: null,
+        contentData: contentData,
+        onSaved: () {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Created')),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -100,8 +189,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
               sliver: SliverAppBar(
                 title: null,
-                leading: Padding(
-                  padding: const EdgeInsets.all(8.0),
+                leading: const Padding(
+                  padding: EdgeInsets.all(8.0),
                   child: SizedBox(),
                 ),
                 automaticallyImplyLeading: false,
@@ -115,7 +204,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 scrolledUnderElevation: 2,
                 shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.1),
                 actions: [
-                  // Admin Dashboard Quick Access
                   provider.Consumer<AuthProvider>(
                     builder: (context, authProvider, child) {
                       if (authProvider.isAdmin) {
@@ -167,8 +255,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   IconButton(
                     icon: const Icon(Icons.search_rounded),
-                    onPressed: () =>
-                        Navigator.pushNamed(context, '/search-screen'),
+                    onPressed: () => AppRoutes.switchToTab(context, 1),
                     tooltip: 'Search products',
                   ),
                   Padding(
@@ -177,10 +264,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       children: [
                         IconButton(
                           icon: const Icon(Icons.shopping_cart_outlined),
-                          onPressed: () => Navigator.pushNamed(
-                            context,
-                            '/shopping-cart-screen',
-                          ),
+                          onPressed: () => AppRoutes.switchToTab(context, 2),
                           tooltip: 'Shopping cart',
                         ),
                         if (cartItemCount > 0)
@@ -254,101 +338,84 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildMainContent() {
     return Builder(
       builder: (BuildContext context) {
-        return CustomScrollView(
-          slivers: [
-            SliverOverlapInjector(
-              handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-            ),
-            // Sticky Header with Greeting and Location
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _StickyHeaderDelegate(child: _buildStickyHeader()),
-            ),
-            // Main Content
-            SliverToBoxAdapter(
-              child: Column(
-                children: [
-                  // Admin Controls (visible only to admin)
-                  provider.Consumer<AuthProvider>(
-                    builder: (context, authProvider, child) {
-                      if (!authProvider.isAdmin) return const SizedBox.shrink();
-                      return Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 4.w,
-                          vertical: 1.h,
-                        ),
-                        color: Colors.orange.withValues(alpha: 0.1),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.admin_panel_settings,
-                              color: Colors.orange,
-                              size: 20,
-                            ),
-                            SizedBox(width: 2.w),
-                            Text(
-                              'Admin Mode',
-                              style: TextStyle(
-                                fontSize: 12.sp,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange,
-                              ),
-                            ),
-                            const Spacer(),
-                            AdminActionButton(
-                              icon: Icons.edit,
-                              label: 'Edit',
-                              isCompact: true,
-                              onPressed: () {
-                                Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.globalAdminControlsOverlay,
-                                );
-                              },
-                            ),
-                            AdminActionButton(
-                              icon: Icons.add,
-                              label: 'Create',
-                              isCompact: true,
-                              onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Create new product'),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                  // Hero Banner
-                  const HeroBannerWidget(),
-
-                  // Categories Section
-                  const CategoriesWidget(),
-
-                  // Quick Add Section
-                  const QuickAddWidget(),
-
-                  // Featured Categories
-                  const FeaturedCategoriesWidget(),
-
-                  // Deals of the Day
-                  const DealsOfDayWidget(),
-
-                  // Recent Orders
-                  const RecentOrdersWidget(),
-
-                  // Bottom Spacing
-                  SizedBox(
-                    height: 10.h,
-                  ), // Increased bottom padding for nav bar
-                ],
+        return RefreshIndicator(
+          key: _refreshIndicatorKey,
+          onRefresh: _handleRefresh,
+          child: CustomScrollView(
+            slivers: [
+              SliverOverlapInjector(
+                handle:
+                    NestedScrollView.sliverOverlapAbsorberHandleFor(context),
               ),
-            ),
-          ],
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _StickyHeaderDelegate(child: _buildStickyHeader()),
+              ),
+              SliverToBoxAdapter(
+                child: Column(
+                  children: [
+                    provider.Consumer<AuthProvider>(
+                      builder: (context, authProvider, child) {
+                        if (!authProvider.isAdmin) {
+                          return const SizedBox.shrink();
+                        }
+                        return Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 4.w,
+                            vertical: 1.h,
+                          ),
+                          color: Colors.orange.withValues(alpha: 0.1),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.admin_panel_settings,
+                                color: Colors.orange,
+                                size: 20,
+                              ),
+                              SizedBox(width: 2.w),
+                              Text(
+                                'Admin Mode',
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.orange,
+                                ),
+                              ),
+                              const Spacer(),
+                              AdminActionButton(
+                                icon: Icons.edit,
+                                label: 'Edit',
+                                isCompact: true,
+                                onPressed: () {
+                                  Navigator.pushNamed(
+                                    context,
+                                    AppRoutes.adminEditOverlaySystem,
+                                  );
+                                },
+                              ),
+                              AdminActionButton(
+                                icon: Icons.add,
+                                label: 'Create',
+                                isCompact: true,
+                                onPressed: _openAdminCreateSheet,
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                    const HeroBannerWidget(),
+                    const CategoriesWidget(),
+                    const QuickAddWidget(),
+                    const FeaturedCategoriesWidget(),
+                    const DealsOfDayWidget(),
+                    const RecentOrdersWidget(),
+                    SizedBox(height: 10.h),
+                  ],
+                ),
+              ),
+            ],
+          ),
         );
       },
     );
@@ -364,7 +431,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Greeting
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -387,7 +453,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ],
                 ),
                 GestureDetector(
-                  onTap: () => Navigator.pushNamed(context, '/profile-screen'),
+                  onTap: () => AppRoutes.switchToTab(context, 4),
                   child: Container(
                     width: 12.w,
                     height: 12.w,
@@ -413,7 +479,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
             ),
             SizedBox(height: 2.h),
-            // Location Selector
             GestureDetector(
               onTap: _showLocationSelector,
               child: Container(
@@ -471,10 +536,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Widget? _buildFloatingSearchButton() {
     final theme = Theme.of(context);
-    // Show FAB only on Android for quick search access
     return theme.platform == TargetPlatform.android
         ? FloatingActionButton(
-            onPressed: () => Navigator.pushNamed(context, '/search-screen'),
+            onPressed: () => AppRoutes.switchToTab(context, 1),
             backgroundColor: theme.colorScheme.primary,
             foregroundColor: Colors.white,
             child: CustomIconWidget(
@@ -488,13 +552,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
-    if (hour < 12) {
-      return 'Good Morning';
-    } else if (hour < 17) {
-      return 'Good Afternoon';
-    } else {
-      return 'Good Evening';
-    }
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
   }
 
   void _showNotifications() {

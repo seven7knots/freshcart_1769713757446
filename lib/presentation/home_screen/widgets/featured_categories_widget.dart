@@ -6,9 +6,10 @@ import '../../../core/app_export.dart';
 class FeaturedCategoriesWidget extends StatelessWidget {
   const FeaturedCategoriesWidget({super.key});
 
-  final List<Map<String, dynamic>> _categories = const [
+  static const List<Map<String, dynamic>> _categories = [
     {
       "id": 1,
+      "categoryId": 1,
       "name": "Fresh Produce",
       "subtitle": "Fruits & Vegetables",
       "image": "https://images.unsplash.com/photo-1667988672217-10a31d5cca30",
@@ -19,6 +20,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
     },
     {
       "id": 2,
+      "categoryId": 2,
       "name": "Dairy & Eggs",
       "subtitle": "Fresh from farm",
       "image": "https://images.unsplash.com/photo-1558475890-1ebfc06edcf5",
@@ -29,6 +31,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
     },
     {
       "id": 3,
+      "categoryId": 3,
       "name": "Meat & Seafood",
       "subtitle": "Premium quality",
       "image": "https://images.unsplash.com/photo-1580980906245-af3b357dcc84",
@@ -39,6 +42,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
     },
     {
       "id": 4,
+      "categoryId": 4,
       "name": "Bakery",
       "subtitle": "Fresh baked daily",
       "image": "https://images.unsplash.com/photo-1596662850405-75dafe9a0338",
@@ -49,6 +53,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
     },
     {
       "id": 5,
+      "categoryId": 5,
       "name": "Pantry Staples",
       "subtitle": "Essentials & more",
       "image": "https://images.unsplash.com/photo-1570384182225-e00c5765cd01",
@@ -59,6 +64,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
     },
     {
       "id": 6,
+      "categoryId": 6,
       "name": "Beverages",
       "subtitle": "Drinks & more",
       "image": "https://images.unsplash.com/photo-1676159434936-9c19c551d262",
@@ -103,8 +109,17 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                   ],
                 ),
                 TextButton(
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/search-screen'),
+                  onPressed: () {
+                    // "See All" is NOT a tab switch. It is a non-tab category listing screen.
+                    Navigator.pushNamed(
+                      context,
+                      AppRoutes.categoryListingsScreen,
+                      arguments: const {
+                        'categoryId': 'all',
+                        'fromTab': true,
+                      },
+                    );
+                  },
                   child: Text(
                     'See All',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -138,7 +153,6 @@ class FeaturedCategoriesWidget extends StatelessWidget {
       BuildContext context, Map<String, dynamic> category) {
     return GestureDetector(
       onTap: () => _handleCategoryTap(context, category),
-      onLongPress: () => _showCategoryOptions(context, category),
       child: Container(
         width: 45.w,
         margin: EdgeInsets.only(right: 3.w),
@@ -157,7 +171,6 @@ class FeaturedCategoriesWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Stack(
             children: [
-              // Background Image
               Positioned.fill(
                 child: CustomImageWidget(
                   imageUrl: category["image"] as String,
@@ -165,7 +178,6 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                   semanticLabel: category["semanticLabel"] as String,
                 ),
               ),
-              // Gradient Overlay
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
@@ -180,27 +192,6 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                   ),
                 ),
               ),
-              // Category Badge
-              Positioned(
-                top: 3.w,
-                right: 3.w,
-                child: Container(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
-                  decoration: BoxDecoration(
-                    color: (category["color"] as Color).withValues(alpha: 0.9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${category["itemCount"]} items',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ),
-              ),
-              // Content
               Positioned(
                 left: 4.w,
                 right: 4.w,
@@ -213,10 +204,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
-                            height: 1.2,
                           ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     SizedBox(height: 0.5.h),
                     Text(
@@ -224,40 +212,6 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Colors.white.withValues(alpha: 0.9),
                           ),
-                    ),
-                    SizedBox(height: 1.h),
-                    Container(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'Shop Now',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelLarge
-                                ?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                          ),
-                          SizedBox(width: 1.w),
-                          CustomIconWidget(
-                            iconName: 'arrow_forward',
-                            color: Colors.white,
-                            size: 4.w,
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 ),
@@ -270,85 +224,16 @@ class FeaturedCategoriesWidget extends StatelessWidget {
   }
 
   void _handleCategoryTap(BuildContext context, Map<String, dynamic> category) {
-    Navigator.pushNamed(context, '/search-screen');
-  }
+    // Categories are NOT tabs. Always open Category Listings (non-tab).
+    final int categoryId = (category["categoryId"] as int?) ?? 0;
 
-  void _showCategoryOptions(
-      BuildContext context, Map<String, dynamic> category) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Container(
-        padding: EdgeInsets.all(4.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 12.w,
-              height: 0.5.h,
-              decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .outline
-                    .withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            SizedBox(height: 3.h),
-            Text(
-              category["name"] as String,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            SizedBox(height: 3.h),
-            ListTile(
-              leading: CustomIconWidget(
-                iconName: 'favorite_border',
-                color: Theme.of(context).colorScheme.primary,
-                size: 6.w,
-              ),
-              title: Text(
-                'Add to Favorites',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${category["name"]} added to favorites'),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: CustomIconWidget(
-                iconName: 'share',
-                color: Theme.of(context).colorScheme.primary,
-                size: 6.w,
-              ),
-              title: Text(
-                'Share Category',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Sharing ${category["name"]} category'),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              },
-            ),
-            SizedBox(height: 2.h),
-          ],
-        ),
-      ),
+    Navigator.pushNamed(
+      context,
+      AppRoutes.categoryListingsScreen,
+      arguments: {
+        'categoryId': categoryId,
+        'fromTab': true,
+      },
     );
   }
 }

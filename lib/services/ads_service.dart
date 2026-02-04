@@ -1,5 +1,8 @@
 import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import './supabase_service.dart';
 
 class AdsService {
@@ -7,7 +10,6 @@ class AdsService {
 
   // ========== AD MANAGEMENT ==========
 
-  // Get active ads for a specific context
   Future<List<Map<String, dynamic>>> getActiveAdsForContext({
     String targetType = 'global_home',
     String? targetId,
@@ -24,7 +26,6 @@ class AdsService {
     }
   }
 
-  // Get all ads (admin only)
   Future<List<Map<String, dynamic>>> getAllAds({
     String? status,
     String? format,
@@ -49,19 +50,16 @@ class AdsService {
     }
   }
 
-  // Get ad by ID
   Future<Map<String, dynamic>?> getAdById(String adId) async {
     try {
       final response =
           await _client.from('ads').select().eq('id', adId).maybeSingle();
-
       return response;
     } catch (e) {
       throw Exception('Failed to get ad: $e');
     }
   }
 
-  // Create ad
   Future<Map<String, dynamic>> createAd({
     required String title,
     String? description,
@@ -111,7 +109,6 @@ class AdsService {
     }
   }
 
-  // Update ad
   Future<Map<String, dynamic>> updateAd(
     String adId,
     Map<String, dynamic> updates,
@@ -130,7 +127,6 @@ class AdsService {
     }
   }
 
-  // Delete ad
   Future<void> deleteAd(String adId) async {
     try {
       await _client.from('ads').delete().eq('id', adId);
@@ -139,7 +135,6 @@ class AdsService {
     }
   }
 
-  // Update ad status
   Future<void> updateAdStatus(String adId, String status) async {
     try {
       await _client.from('ads').update({'status': status}).eq('id', adId);
@@ -148,20 +143,28 @@ class AdsService {
     }
   }
 
-  // Bulk update ad status
   Future<void> bulkUpdateAdStatus(List<String> adIds, String status) async {
     try {
-      await _client
-          .from('ads')
-          .update({'status': status}).inFilter('id', adIds);
+      await _client.from('ads').update({'status': status}).inFilter('id', adIds);
     } catch (e) {
       throw Exception('Failed to bulk update ad status: $e');
     }
   }
 
+  // Optional helper for reorder UI
+  Future<void> updateAdDisplayOrder(String adId, int displayOrder) async {
+    try {
+      await _client.from('ads').update({'display_order': displayOrder}).eq(
+            'id',
+            adId,
+          );
+    } catch (e) {
+      throw Exception('Failed to update ad display order: $e');
+    }
+  }
+
   // ========== TARGETING RULES ==========
 
-  // Get targeting rules for ad
   Future<List<Map<String, dynamic>>> getTargetingRules(String adId) async {
     try {
       final response =
@@ -173,7 +176,6 @@ class AdsService {
     }
   }
 
-  // Add targeting rule
   Future<Map<String, dynamic>> addTargetingRule({
     required String adId,
     required String targetType,
@@ -202,7 +204,6 @@ class AdsService {
     }
   }
 
-  // Delete targeting rule
   Future<void> deleteTargetingRule(String ruleId) async {
     try {
       await _client.from('ad_targeting_rules').delete().eq('id', ruleId);
@@ -211,7 +212,6 @@ class AdsService {
     }
   }
 
-  // Delete all targeting rules for ad
   Future<void> deleteAllTargetingRules(String adId) async {
     try {
       await _client.from('ad_targeting_rules').delete().eq('ad_id', adId);
@@ -222,31 +222,28 @@ class AdsService {
 
   // ========== ANALYTICS ==========
 
-  // Track ad impression
   Future<void> trackImpression(String adId, {String? contextPage}) async {
     try {
       await _client.rpc('track_ad_impression', params: {
         'p_ad_id': adId,
         'p_context_page': contextPage,
       });
-    } catch (e) {
+    } catch (_) {
       // Silent fail for analytics
     }
   }
 
-  // Track ad click
   Future<void> trackClick(String adId, {String? contextPage}) async {
     try {
       await _client.rpc('track_ad_click', params: {
         'p_ad_id': adId,
         'p_context_page': contextPage,
       });
-    } catch (e) {
+    } catch (_) {
       // Silent fail for analytics
     }
   }
 
-  // Get analytics summary
   Future<List<Map<String, dynamic>>> getAnalyticsSummary({
     String? adId,
     int days = 30,
@@ -263,7 +260,6 @@ class AdsService {
     }
   }
 
-  // Get detailed analytics
   Future<List<Map<String, dynamic>>> getDetailedAnalytics({
     required String adId,
     DateTime? startDate,
@@ -288,8 +284,11 @@ class AdsService {
 
   // ========== IMAGE UPLOAD ==========
 
-  // Upload ad image
   Future<String> uploadAdImage(File file) async {
+    if (kIsWeb) {
+      throw UnsupportedError('uploadAdImage(File) is not supported on web.');
+    }
+
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('User not authenticated');
@@ -305,8 +304,11 @@ class AdsService {
     }
   }
 
-  // Upload multiple ad images
   Future<List<String>> uploadAdImages(List<File> files) async {
+    if (kIsWeb) {
+      throw UnsupportedError('uploadAdImages(List<File>) is not supported on web.');
+    }
+
     try {
       final urls = <String>[];
       for (final file in files) {
@@ -319,13 +321,45 @@ class AdsService {
     }
   }
 
-  // Delete ad image
+  /// Deletes an object from the `ads-images` bucket using its PUBLIC URL.
+  /// This fixes the bug where only the last segment was removed (which fails when
+  /// the object path is `userId/filename`).
   Future<void> deleteAdImage(String imageUrl) async {
     try {
-      final fileName = imageUrl.split('/').last;
-      await _client.storage.from('ads-images').remove([fileName]);
+      final objectPath = _extractStorageObjectPathFromPublicUrl(
+        imageUrl,
+        bucket: 'ads-images',
+      );
+
+      if (objectPath == null || objectPath.isEmpty) {
+        throw Exception('Could not resolve storage object path from imageUrl');
+      }
+
+      await _client.storage.from('ads-images').remove([objectPath]);
     } catch (e) {
       throw Exception('Failed to delete ad image: $e');
+    }
+  }
+
+  String? _extractStorageObjectPathFromPublicUrl(
+    String publicUrl, {
+    required String bucket,
+  }) {
+    try {
+      final uri = Uri.parse(publicUrl);
+
+      // Supabase public URL pattern:
+      // .../storage/v1/object/public/<bucket>/<objectPath>
+      final segments = uri.pathSegments;
+      final bucketIndex = segments.indexOf(bucket);
+      if (bucketIndex == -1) return null;
+
+      final objectSegments = segments.sublist(bucketIndex + 1);
+      if (objectSegments.isEmpty) return null;
+
+      return objectSegments.join('/');
+    } catch (_) {
+      return null;
     }
   }
 }

@@ -1,10 +1,14 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/store_model.dart';
 
 class StoreService {
   final SupabaseClient _client = Supabase.instance.client;
 
-  // Get all active stores
+  // -----------------------
+  // Customer / Public reads
+  // -----------------------
+
   Future<List<StoreModel>> getAllStores({
     String? category,
     bool? isFeatured,
@@ -31,7 +35,6 @@ class StoreService {
     }
   }
 
-  // Get store by ID
   Future<StoreModel?> getStoreById(String storeId) async {
     try {
       final response =
@@ -44,7 +47,6 @@ class StoreService {
     }
   }
 
-  // Search stores
   Future<List<StoreModel>> searchStores(String query) async {
     try {
       final response = await _client
@@ -63,7 +65,6 @@ class StoreService {
     }
   }
 
-  // Get stores by category
   Future<List<StoreModel>> getStoresByCategory(String category) async {
     try {
       final response = await _client
@@ -78,6 +79,46 @@ class StoreService {
           .toList();
     } catch (e) {
       throw Exception('Failed to load stores by category: $e');
+    }
+  }
+
+  // -----------------------
+  // Admin CRUD operations
+  // -----------------------
+
+  Future<StoreModel> createStore(Map<String, dynamic> data) async {
+    try {
+      final response =
+          await _client.from('stores').insert(data).select().single();
+      return StoreModel.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to create store: $e');
+    }
+  }
+
+  Future<StoreModel> updateStore(
+    String storeId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await _client
+          .from('stores')
+          .update(data)
+          .eq('id', storeId)
+          .select()
+          .single();
+
+      return StoreModel.fromJson(response);
+    } catch (e) {
+      throw Exception('Failed to update store: $e');
+    }
+  }
+
+  Future<void> deleteStore(String storeId) async {
+    try {
+      await _client.from('stores').delete().eq('id', storeId);
+    } catch (e) {
+      throw Exception('Failed to delete store: $e');
     }
   }
 }

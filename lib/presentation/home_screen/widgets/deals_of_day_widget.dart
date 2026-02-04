@@ -47,9 +47,11 @@ class DealsOfDayWidget extends ConsumerWidget {
                         ),
                       ],
                     ),
+
+                    // ✅ FIX: Search is a TAB, so switch tabs instead of pushing /search-screen
                     TextButton(
                       onPressed: () {
-                        Navigator.pushNamed(context, '/search-screen');
+                        AppRoutes.switchToTab(context, 1);
                       },
                       child: Text(
                         'View All',
@@ -99,7 +101,7 @@ class DealsOfDayWidget extends ConsumerWidget {
                         onTap: () {
                           Navigator.pushNamed(
                             context,
-                            '/product-detail-screen',
+                            AppRoutes.productDetail,
                             arguments: {'productId': product.id},
                           );
                         },
