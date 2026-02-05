@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../providers/admin_provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../widgets/admin_editable_item_wrapper.dart';
 
 class QuickAddWidget extends StatefulWidget {
   const QuickAddWidget({super.key});
@@ -66,6 +70,10 @@ class _QuickAddWidgetState extends State<QuickAddWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final adminProvider = Provider.of<AdminProvider>(context);
+    final isEditMode = authProvider.isAdmin && adminProvider.isEditMode;
+
     return Container(
       margin: EdgeInsets.symmetric(vertical: 2.h),
       child: Column(
@@ -81,11 +89,10 @@ class _QuickAddWidgetState extends State<QuickAddWidget> {
                   children: [
                     Text(
                       'Quick Add',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
                     ),
                     SizedBox(height: 1.h),
                     Text(
@@ -97,7 +104,34 @@ class _QuickAddWidgetState extends State<QuickAddWidget> {
                     ),
                   ],
                 ),
-                SizedBox(),
+                if (isEditMode)
+                  InkWell(
+                    onTap: () => _addNewProduct(context),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add, color: Colors.white, size: 16),
+                          SizedBox(width: 1.w),
+                          Text(
+                            'Add Product',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -110,11 +144,41 @@ class _QuickAddWidgetState extends State<QuickAddWidget> {
               itemCount: _quickAddItems.length,
               itemBuilder: (context, index) {
                 final item = _quickAddItems[index];
-                return _buildQuickAddCard(item);
+                final productCard = _buildQuickAddCard(item);
+
+                // Wrap with admin edit controls if in edit mode
+                if (isEditMode) {
+                  return AdminEditableItemWrapper(
+                    contentType: 'product',
+                    contentId: item['id']?.toString(),
+                    contentData: {
+                      'id': item['id'],
+                      'name': item['name'],
+                      'price': item['price'],
+                      'image_url': item['image'],
+                      'is_available': item['inStock'],
+                      'description': item['unit'],
+                    },
+                    onDeleted: () => setState(() {}),
+                    onUpdated: () => setState(() {}),
+                    child: productCard,
+                  );
+                }
+
+                return productCard;
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _addNewProduct(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Navigate to product creation'),
+        backgroundColor: Colors.orange,
       ),
     );
   }
@@ -132,7 +196,7 @@ class _QuickAddWidgetState extends State<QuickAddWidget> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.08),
+            color: Theme.of(context).colorScheme.shadow.withOpacity(0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -167,7 +231,7 @@ class _QuickAddWidgetState extends State<QuickAddWidget> {
                           color: Theme.of(context)
                               .colorScheme
                               .shadow
-                              .withValues(alpha: 0.5),
+                              .withOpacity(0.5),
                           child: Center(
                             child: Container(
                               padding: EdgeInsets.symmetric(
@@ -226,11 +290,10 @@ class _QuickAddWidgetState extends State<QuickAddWidget> {
                     children: [
                       Text(
                         '\$${(item["price"] as double).toStringAsFixed(2)}',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                       ),
                       isInStock
                           ? _buildQuantitySelector(itemId)
@@ -268,8 +331,7 @@ class _QuickAddWidgetState extends State<QuickAddWidget> {
           )
         : Container(
             decoration: BoxDecoration(
-              color:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -333,3 +395,4 @@ class _QuickAddWidgetState extends State<QuickAddWidget> {
     });
   }
 }
+

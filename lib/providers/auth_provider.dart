@@ -9,12 +9,11 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
-  String? _role; // source of truth from public.users.role
+  String? _role;
   bool _isAdmin = false;
   bool _isDriver = false;
   bool _isMerchant = false;
 
-  // Keeping these as-is; wire later when you implement real verification logic.
   final bool _emailVerified = false;
   final bool _phoneVerified = false;
 
@@ -82,7 +81,10 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _applyRole(String? role) {
+    debugPrint('[AUTH_PROVIDER] _applyRole called with: "$role"');
+    
     final normalized = (role ?? '').trim().toLowerCase();
+    debugPrint('[AUTH_PROVIDER] After normalize: "$normalized"');
 
     _role = normalized.isEmpty ? null : normalized;
 
@@ -90,33 +92,47 @@ class AuthProvider extends ChangeNotifier {
     _isDriver = normalized == 'driver';
     _isMerchant = normalized == 'merchant';
 
-    debugPrint('[AUTH_PROVIDER] Role applied: $_role');
+    debugPrint('[AUTH_PROVIDER] Role flags set:');
+    debugPrint('[AUTH_PROVIDER]    _role = $_role');
+    debugPrint('[AUTH_PROVIDER]    _isAdmin = $_isAdmin');
+    debugPrint('[AUTH_PROVIDER]    _isDriver = $_isDriver');
+    debugPrint('[AUTH_PROVIDER]    _isMerchant = $_isMerchant');
   }
 
-  /// Public method so RouteGuard / screens can force-refresh role state.
-  /// Source of truth: public.users.role
   Future<void> refreshUserRole() async {
+    debugPrint('[AUTH_PROVIDER] ======= refreshUserRole START =======');
     try {
       final userId = _currentUser?.id;
+      debugPrint('[AUTH_PROVIDER] Current user ID: $userId');
+      
       if (userId == null) {
+        debugPrint('[AUTH_PROVIDER] User ID is null, resetting roles');
         _resetRoleFlags();
         return;
       }
 
+      debugPrint('[AUTH_PROVIDER] Querying database for user role...');
       final row = await SupabaseService.client
           .from('users')
           .select('role')
           .eq('id', userId)
           .maybeSingle();
 
+      debugPrint('[AUTH_PROVIDER] Database returned: $row');
+
       if (row == null) {
+        debugPrint('[AUTH_PROVIDER] No row found in database, resetting roles');
         _resetRoleFlags();
         return;
       }
 
-      _applyRole(row['role'] as String?);
+      final roleValue = row['role'];
+      debugPrint('[AUTH_PROVIDER] Role value from database: "$roleValue" (type: ${roleValue.runtimeType})');
+      
+      _applyRole(roleValue as String?);
+      debugPrint('[AUTH_PROVIDER] ======= refreshUserRole END =======');
     } catch (e) {
-      debugPrint('[AUTH_PROVIDER] Error refreshing user role: $e');
+      debugPrint('[AUTH_PROVIDER] ERROR refreshing user role: $e');
       _resetRoleFlags();
     }
   }
@@ -127,26 +143,34 @@ class AuthProvider extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
+      debugPrint('[AUTH_PROVIDER] Attempting sign in for: $email');
+
       final response = await SupabaseService.client.auth.signInWithPassword(
         email: email,
         password: password,
       );
 
       _currentUser = response.user;
+      debugPrint('[AUTH_PROVIDER] Sign in successful, user ID: ${_currentUser?.id}');
+      
       await refreshUserRole();
 
       _isLoading = false;
       notifyListeners();
 
+      debugPrint('[AUTH_PROVIDER] Sign in complete. isAdmin: $_isAdmin');
+
       await AnalyticsService.logLogin(method: 'email', success: true);
       return true;
     } on AuthException catch (e) {
+      debugPrint('[AUTH_PROVIDER] Auth error: ${e.message}');
       _errorMessage = e.message;
       _isLoading = false;
       notifyListeners();
       await AnalyticsService.logLogin(method: 'email', success: false);
       return false;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[AUTH_PROVIDER] Unexpected error: $e');
       _errorMessage = 'An unexpected error occurred';
       _isLoading = false;
       notifyListeners();
@@ -174,8 +198,6 @@ class AuthProvider extends ChangeNotifier {
 
       _currentUser = response.user;
 
-      // Role may not exist yet in public.users (depends on your trigger).
-      // Refresh anyway to keep state consistent.
       await refreshUserRole();
 
       if (_currentUser != null) {

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/analytics_service.dart';
 import '../../services/seed_service.dart';
@@ -25,7 +26,8 @@ class _AdminNavigationDrawerScreenState
   void initState() {
     super.initState();
     AnalyticsService.logScreenView(
-        screenName: 'admin_navigation_drawer_screen');
+      screenName: 'admin_navigation_drawer_screen',
+    );
   }
 
   @override
@@ -164,13 +166,14 @@ class _AdminNavigationDrawerScreenState
                               ? null
                               : _handleSeedDemoData,
                           icon: _isSeeding
-                              ? SizedBox(
+                              ? const SizedBox(
                                   width: 16,
                                   height: 16,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                     valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white),
+                                      Colors.white,
+                                    ),
                                   ),
                                 )
                               : const Icon(Icons.cloud_upload, size: 20),
@@ -191,13 +194,14 @@ class _AdminNavigationDrawerScreenState
                               ? null
                               : _handleResetDemoData,
                           icon: _isResetting
-                              ? SizedBox(
+                              ? const SizedBox(
                                   width: 16,
                                   height: 16,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
                                     valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white),
+                                      Colors.white,
+                                    ),
                                   ),
                                 )
                               : const Icon(Icons.refresh, size: 20),
@@ -268,19 +272,14 @@ class _AdminNavigationDrawerScreenState
       });
 
       if (success && counts.isNotEmpty) {
-        // Show summary dialog
-        if (mounted) {
-          _showSummaryDialog(counts);
-        }
+        if (mounted) _showSummaryDialog(counts);
       } else if (!success) {
-        // Show error details
         final errorDetails = result['errorDetails'] ?? result['error'] ?? '';
         if (mounted && errorDetails.toString().isNotEmpty) {
           _showErrorDialog(message, errorDetails.toString());
         }
       }
 
-      // Auto-clear success message after 5 seconds
       if (success) {
         Future.delayed(const Duration(seconds: 5), () {
           if (mounted) {
@@ -302,7 +301,6 @@ class _AdminNavigationDrawerScreenState
   }
 
   Future<void> _handleResetDemoData() async {
-    // Confirm reset
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -332,7 +330,6 @@ class _AdminNavigationDrawerScreenState
     });
 
     try {
-      // Step 1: Call RPC to reset demo data
       final resetResult = await SeedService.resetDemoData();
       final resetSuccess = resetResult['success'] as bool? ?? false;
       final resetMessage =
@@ -340,7 +337,6 @@ class _AdminNavigationDrawerScreenState
       final resetCounts = resetResult['counts'] as Map<String, dynamic>? ?? {};
 
       if (!resetSuccess) {
-        // Show RPC error
         setState(() {
           _seedMessage = resetMessage;
           _isResetting = false;
@@ -352,12 +348,10 @@ class _AdminNavigationDrawerScreenState
         return;
       }
 
-      // Show RPC reset counts
       if (mounted && resetCounts.isNotEmpty) {
         await _showResetCountsDialog(resetCounts);
       }
 
-      // Step 2: Run seeding
       final seedResult = await SeedService.seedDemoData();
       final seedSuccess = seedResult['success'] as bool? ?? false;
       final seedMessage = seedResult['message'] as String? ?? 'Unknown result';
@@ -371,12 +365,8 @@ class _AdminNavigationDrawerScreenState
       });
 
       if (seedSuccess && seedCounts.isNotEmpty) {
-        // Show final summary
-        if (mounted) {
-          _showSummaryDialog(seedCounts);
-        }
+        if (mounted) _showSummaryDialog(seedCounts);
       } else if (!seedSuccess) {
-        // Show seeding error
         final errorDetails =
             seedResult['errorDetails'] ?? seedResult['error'] ?? '';
         if (mounted && errorDetails.toString().isNotEmpty) {
@@ -384,7 +374,6 @@ class _AdminNavigationDrawerScreenState
         }
       }
 
-      // Auto-clear success message after 5 seconds
       if (seedSuccess) {
         Future.delayed(const Duration(seconds: 5), () {
           if (mounted) {
@@ -714,8 +703,32 @@ class _AdminNavigationDrawerScreenState
               ),
             )
           : const Icon(Icons.chevron_right, color: Colors.grey),
-      onTap: () {
+      onTap: () async {
         Navigator.pop(context);
+
+        final isAdminRoute = route == AppRoutes.adminDashboard ||
+            route == AppRoutes.adminLandingDashboard ||
+            route == AppRoutes.adminUsersManagement ||
+            route == AppRoutes.adminRoleUpgradeManagement ||
+            route == AppRoutes.adminCategories ||
+            route == AppRoutes.adminAdsManagement ||
+            route == AppRoutes.adminLogisticsManagement ||
+            route == AppRoutes.enhancedOrderManagement;
+
+        if (isAdminRoute) {
+          print(
+            '[NAV] going to admin route=$route, isAdmin=${context.read<AdminProvider>().isAdmin}',
+          );
+
+          await context
+              .read<AdminProvider>()
+              .checkAdminStatus(reason: 'nav_drawer_to_$route');
+
+          print(
+            '[NAV] after checkAdminStatus route=$route, isAdmin=${context.read<AdminProvider>().isAdmin}',
+          );
+        }
+
         Navigator.pushNamed(context, route);
       },
     );

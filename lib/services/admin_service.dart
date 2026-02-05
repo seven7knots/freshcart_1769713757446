@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import './supabase_service.dart';
 
@@ -8,29 +9,97 @@ class AdminService {
   Future<bool> isAdmin() async {
     try {
       final userId = _client.auth.currentUser?.id;
-      if (userId == null) return false;
+      debugPrint('[AdminService] Checking admin status for user: $userId');
+      
+      if (userId == null) {
+        debugPrint('[AdminService] No user ID found - not logged in');
+        return false;
+      }
 
+      // Try using the RPC function first (bypasses RLS)
+      try {
+        final rpcResult = await _client.rpc('is_admin');
+        debugPrint('[AdminService] RPC is_admin() returned: $rpcResult');
+        return rpcResult == true;
+      } catch (rpcError) {
+        debugPrint('[AdminService] RPC failed: $rpcError');
+        // Fall back to direct table query
+      }
+
+      // Fallback: direct table query
+      debugPrint('[AdminService] Trying direct table query...');
       final response = await _client
           .from('users')
           .select('role, is_active')
           .eq('id', userId)
           .maybeSingle();
 
-      if (response == null) return false;
-      return response['role'] == 'admin' && response['is_active'] == true;
-    } catch (e) {
+      debugPrint('[AdminService] Direct query response: $response');
+
+      if (response == null) {
+        debugPrint('[AdminService] No user record found in database');
+        return false;
+      }
+
+      final isAdmin = response['role'] == 'admin' && response['is_active'] == true;
+      debugPrint('[AdminService] isAdmin result: $isAdmin (role: ${response['role']}, is_active: ${response['is_active']})');
+      
+      return isAdmin;
+    } catch (e, stackTrace) {
+      debugPrint('[AdminService] ERROR checking admin status: $e');
+      debugPrint('[AdminService] Stack trace: $stackTrace');
       return false;
     }
+  }
+
+  // Get dashboard statistics (alias for compatibility)
+  Future<Map<String, dynamic>> fetchDashboardStats() async {
+    return getDashboardStats();
   }
 
   // Get dashboard statistics
   Future<Map<String, dynamic>> getDashboardStats() async {
     try {
+      debugPrint('[AdminService] Fetching dashboard stats...');
       final response = await _client.rpc('get_admin_dashboard_stats');
+      debugPrint('[AdminService] Dashboard stats response: $response');
+      
+      if (response == null || response.isEmpty) {
+        return {
+          'total_users': 0,
+          'active_users': 0,
+          'total_orders': 0,
+          'total_revenue': 0.0,
+        };
+      }
+      
       return response[0] as Map<String, dynamic>;
     } catch (e) {
+      debugPrint('[AdminService] Error getting dashboard stats: $e');
       throw Exception('Failed to get dashboard stats: $e');
     }
+  }
+
+  // Get recent orders (alias for compatibility)
+  Future<List<Map<String, dynamic>>> fetchRecentOrders({int limit = 10}) async {
+    return getRecentOrders(limit: limit);
+  }
+
+  // Get users list (alias for compatibility)
+  Future<List<Map<String, dynamic>>> fetchUsers({
+    String? searchQuery,
+    String? filterRole,
+    bool? filterStatus,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    return getUsers(
+      searchQuery: searchQuery,
+      filterRole: filterRole,
+      filterStatus: filterStatus,
+      limit: limit,
+      offset: offset,
+    );
   }
 
   // Get users list with filters
@@ -42,6 +111,7 @@ class AdminService {
     int offset = 0,
   }) async {
     try {
+      debugPrint('[AdminService] Fetching users with filters...');
       final response = await _client.rpc('get_users_for_admin', params: {
         'search_query': searchQuery,
         'filter_role': filterRole,
@@ -52,6 +122,7 @@ class AdminService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
+      debugPrint('[AdminService] Error getting users: $e');
       throw Exception('Failed to get users: $e');
     }
   }
@@ -64,6 +135,7 @@ class AdminService {
 
       return response;
     } catch (e) {
+      debugPrint('[AdminService] Error getting user by ID: $e');
       throw Exception('Failed to get user details: $e');
     }
   }
@@ -88,6 +160,7 @@ class AdminService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
+      debugPrint('[AdminService] Error getting user transactions: $e');
       throw Exception('Failed to get user transactions: $e');
     }
   }
@@ -107,6 +180,7 @@ class AdminService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
+      debugPrint('[AdminService] Error getting user orders: $e');
       throw Exception('Failed to get user orders: $e');
     }
   }
@@ -114,19 +188,22 @@ class AdminService {
   // Adjust user wallet balance
   Future<bool> adjustWalletBalance({
     required String userId,
-    required double amount,
-    required String reason,
+    required num amount,
+    String? note,
+    String? reason,
   }) async {
     try {
+      debugPrint('[AdminService] Adjusting wallet balance for user $userId by $amount');
       final response =
           await _client.rpc('admin_adjust_wallet_balance', params: {
         'target_user_id': userId,
-        'adjustment_amount': amount,
-        'adjustment_reason': reason,
+        'adjustment_amount': amount.toDouble(),
+        'adjustment_reason': reason ?? note ?? 'Manual adjustment',
       });
 
       return response == true;
     } catch (e) {
+      debugPrint('[AdminService] Error adjusting wallet balance: $e');
       throw Exception('Failed to adjust wallet balance: $e');
     }
   }
@@ -137,6 +214,7 @@ class AdminService {
     required bool isActive,
   }) async {
     try {
+      debugPrint('[AdminService] Updating user status for $userId to ${isActive ? "active" : "inactive"}');
       final response = await _client.rpc('admin_update_user_status', params: {
         'target_user_id': userId,
         'new_status': isActive,
@@ -144,6 +222,7 @@ class AdminService {
 
       return response == true;
     } catch (e) {
+      debugPrint('[AdminService] Error updating user status: $e');
       throw Exception('Failed to update user status: $e');
     }
   }
@@ -164,6 +243,7 @@ class AdminService {
 
       return response.length;
     } catch (e) {
+      debugPrint('[AdminService] Error getting active orders count: $e');
       return 0;
     }
   }
@@ -179,6 +259,7 @@ class AdminService {
 
       return response.length;
     } catch (e) {
+      debugPrint('[AdminService] Error getting online drivers count: $e');
       return 0;
     }
   }
@@ -207,6 +288,7 @@ class AdminService {
 
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
+      debugPrint('[AdminService] Error getting recent orders: $e');
       throw Exception('Failed to get recent orders: $e');
     }
   }

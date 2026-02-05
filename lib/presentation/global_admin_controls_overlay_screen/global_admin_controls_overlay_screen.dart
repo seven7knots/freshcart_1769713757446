@@ -6,7 +6,7 @@ import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import './widgets/admin_overlay_fab_widget.dart';
 
-class GlobalAdminControlsOverlayScreen extends StatelessWidget {
+class GlobalAdminControlsOverlayScreen extends StatefulWidget {
   final Widget child;
   final String contentType;
   final String? contentId;
@@ -19,44 +19,128 @@ class GlobalAdminControlsOverlayScreen extends StatelessWidget {
   });
 
   @override
+  State<GlobalAdminControlsOverlayScreen> createState() =>
+      _GlobalAdminControlsOverlayScreenState();
+}
+
+class _GlobalAdminControlsOverlayScreenState
+    extends State<GlobalAdminControlsOverlayScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Ensure admin status is checked when this widget mounts
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureAdminStatusChecked();
+    });
+  }
+
+  Future<void> _ensureAdminStatusChecked() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final adminProvider = Provider.of<AdminProvider>(context, listen: false);
+
+    // Only check if authenticated and admin status hasn't been determined yet
+    if (authProvider.isAuthenticated && !adminProvider.isAdmin) {
+      await adminProvider.checkAdminStatus();
+      debugPrint('[GlobalAdminControls] Admin status checked: ${adminProvider.isAdmin}');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final auth = Provider.of<AuthProvider>(context);
-    if (!auth.isAdmin) return child;
+    return Consumer2<AuthProvider, AdminProvider>(
+      builder: (context, authProvider, adminProvider, _) {
+        // Don't show admin controls if not admin
+        if (!authProvider.isAdmin) {
+          return widget.child;
+        }
 
-    final admin = Provider.of<AdminProvider>(context);
+        return Stack(
+          children: [
+            // Main content
+            widget.child,
 
-    return Stack(
-      children: [
-        child,
-        if (admin.isEditMode)
-          Positioned(
-            left: 4.w,
-            right: 4.w,
-            bottom: 18.h,
-            child: IgnorePointer(
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Admin edit mode is ON — tap edit icons on supported sections.',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 11.sp,
-                    fontWeight: FontWeight.w600,
+            // Edit mode indicator banner
+            if (adminProvider.isEditMode)
+              Positioned(
+                left: 4.w,
+                right: 4.w,
+                bottom: 18.h,
+                child: IgnorePointer(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: Colors.green,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 2.w),
+                        Flexible(
+                          child: Text(
+                            'Admin Edit Mode ON — Tap edit icons on sections',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ),
+
+            // Floating Action Button for toggling edit mode
+            AdminOverlayFabWidget(
+              isActive: adminProvider.isEditMode,
+              onToggle: () {
+                adminProvider.toggleEditMode();
+                
+                // Show feedback
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      adminProvider.isEditMode
+                          ? '✏️ Edit mode enabled - tap edit icons to modify content'
+                          : '👁️ Edit mode disabled - viewing as customer',
+                    ),
+                    backgroundColor:
+                        adminProvider.isEditMode ? Colors.orange : Colors.grey[700],
+                    duration: const Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                    margin: EdgeInsets.only(
+                      bottom: 20.h,
+                      left: 4.w,
+                      right: 4.w,
+                    ),
+                  ),
+                );
+              },
             ),
-          ),
-        AdminOverlayFabWidget(
-          isActive: admin.isEditMode,
-          onToggle: () => context.read<AdminProvider>().toggleEditMode(),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }
+

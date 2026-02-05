@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../providers/admin_provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../widgets/admin_editable_item_wrapper.dart';
 
 class FeaturedCategoriesWidget extends StatelessWidget {
   const FeaturedCategoriesWidget({super.key});
 
   static const List<Map<String, dynamic>> _categories = [
     {
-      "id": 1,
+      "id": "cat-1",
       "categoryId": 1,
       "name": "Fresh Produce",
       "subtitle": "Fruits & Vegetables",
@@ -19,7 +23,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
       "itemCount": 150,
     },
     {
-      "id": 2,
+      "id": "cat-2",
       "categoryId": 2,
       "name": "Dairy & Eggs",
       "subtitle": "Fresh from farm",
@@ -30,7 +34,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
       "itemCount": 85,
     },
     {
-      "id": 3,
+      "id": "cat-3",
       "categoryId": 3,
       "name": "Meat & Seafood",
       "subtitle": "Premium quality",
@@ -41,7 +45,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
       "itemCount": 120,
     },
     {
-      "id": 4,
+      "id": "cat-4",
       "categoryId": 4,
       "name": "Bakery",
       "subtitle": "Fresh baked daily",
@@ -52,7 +56,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
       "itemCount": 95,
     },
     {
-      "id": 5,
+      "id": "cat-5",
       "categoryId": 5,
       "name": "Pantry Staples",
       "subtitle": "Essentials & more",
@@ -63,7 +67,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
       "itemCount": 200,
     },
     {
-      "id": 6,
+      "id": "cat-6",
       "categoryId": 6,
       "name": "Beverages",
       "subtitle": "Drinks & more",
@@ -77,6 +81,10 @@ class FeaturedCategoriesWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final adminProvider = Provider.of<AdminProvider>(context);
+    final isEditMode = authProvider.isAdmin && adminProvider.isEditMode;
+
     return Container(
       margin: EdgeInsets.symmetric(vertical: 2.h),
       child: Column(
@@ -92,11 +100,10 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                   children: [
                     Text(
                       'Shop by Category',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: Theme.of(context).colorScheme.onSurface,
-                              ),
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
                     ),
                     SizedBox(height: 0.5.h),
                     Text(
@@ -108,25 +115,58 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                     ),
                   ],
                 ),
-                TextButton(
-                  onPressed: () {
-                    // "See All" is NOT a tab switch. It is a non-tab category listing screen.
-                    Navigator.pushNamed(
-                      context,
-                      AppRoutes.categoryListingsScreen,
-                      arguments: const {
-                        'categoryId': 'all',
-                        'fromTab': true,
-                      },
-                    );
-                  },
-                  child: Text(
-                    'See All',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.w600,
+                Row(
+                  children: [
+                    if (isEditMode)
+                      InkWell(
+                        onTap: () => Navigator.pushNamed(
+                            context, AppRoutes.adminCategories),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 3.w, vertical: 0.5.h),
+                          margin: EdgeInsets.only(right: 2.w),
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add, color: Colors.white, size: 16),
+                              SizedBox(width: 1.w),
+                              Text(
+                                'Add',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10.sp,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                  ),
+                      ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pushNamed(
+                          context,
+                          AppRoutes.categoryListingsScreen,
+                          arguments: const {
+                            'categoryId': 'all',
+                            'fromTab': true,
+                          },
+                        );
+                      },
+                      child: Text(
+                        'See All',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -140,7 +180,27 @@ class FeaturedCategoriesWidget extends StatelessWidget {
               itemCount: _categories.length,
               itemBuilder: (context, index) {
                 final category = _categories[index];
-                return _buildCategoryCard(context, category);
+                final categoryCard = _buildCategoryCard(context, category);
+
+                // Wrap with admin edit controls if in edit mode
+                if (isEditMode) {
+                  return AdminEditableItemWrapper(
+                    contentType: 'category',
+                    contentId: category['id']?.toString(),
+                    contentData: {
+                      'id': category['id'],
+                      'name': category['name'],
+                      'description': category['subtitle'],
+                      'image_url': category['image'],
+                      'is_active': true,
+                    },
+                    onDeleted: () {},
+                    onUpdated: () {},
+                    child: categoryCard,
+                  );
+                }
+
+                return categoryCard;
               },
             ),
           ),
@@ -160,8 +220,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color:
-                  Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
+              color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -183,8 +242,8 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        Colors.black.withValues(alpha: 0.3),
-                        Colors.black.withValues(alpha: 0.7),
+                        Colors.black.withOpacity(0.3),
+                        Colors.black.withOpacity(0.7),
                       ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
@@ -210,7 +269,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                     Text(
                       category["subtitle"] as String,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.9),
+                            color: Colors.white.withOpacity(0.9),
                           ),
                     ),
                   ],
@@ -224,7 +283,6 @@ class FeaturedCategoriesWidget extends StatelessWidget {
   }
 
   void _handleCategoryTap(BuildContext context, Map<String, dynamic> category) {
-    // Categories are NOT tabs. Always open Category Listings (non-tab).
     final int categoryId = (category["categoryId"] as int?) ?? 0;
 
     Navigator.pushNamed(
@@ -237,3 +295,4 @@ class FeaturedCategoriesWidget extends StatelessWidget {
     );
   }
 }
+

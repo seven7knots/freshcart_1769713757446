@@ -15,7 +15,7 @@ import '../presentation/all_categories_screen/all_categories_screen.dart';
 import '../presentation/auth_gate_screen/auth_gate_screen.dart';
 import '../presentation/authentication_screen/authentication_screen.dart';
 import '../presentation/available_orders_screen/available_orders_screen.dart';
-import '../presentation/category_listings_screen/category_listings_screen.dart';  // Added
+import '../presentation/category_listings_screen/category_listings_screen.dart';
 import '../presentation/chat_list_screen/chat_list_screen.dart';
 import '../presentation/checkout_screen/checkout_screen.dart';
 import '../presentation/create_listing_screen/create_listing_screen.dart';
@@ -43,6 +43,8 @@ import '../presentation/splash_screen/splash_screen.dart';
 import '../presentation/subcategories_screen/subcategories_screen.dart';
 import '../presentation/subscription_management_screen/subscription_management_screen.dart';
 import '../widgets/main_layout_wrapper.dart';
+// Import the standalone admin edit screen
+import '../presentation/admin_edit_overlay_system_screen/admin_edit_standalone_screen.dart';
 
 class AppRoutes {
   // Unauthenticated routes
@@ -79,7 +81,7 @@ class AppRoutes {
   // Marketplace routes (non-tab screens)
   static const String marketplaceScreen = '/marketplace-screen';
   static const String allCategoriesScreen = '/all-categories-screen';
-  static const String categoryListingsScreen = '/category-listings-screen'; // Added
+  static const String categoryListingsScreen = '/category-listings-screen';
   static const String serviceListingScreen = '/service-listing-screen';
   static const String serviceDetailScreen = '/service-detail-screen';
   static const String serviceBookingScreen = '/service-booking-screen';
@@ -108,12 +110,9 @@ class AppRoutes {
   static const String enhancedOrderManagement = '/enhanced-order-management-screen';
   static const String adminAdsManagement = '/admin-ads-management-screen';
   static const String adminLogisticsManagement = '/admin-logistics-management-screen';
-  // Admin special routes (referenced by guards/layouts)
-  static const String adminGlobalEditInterface =
-      '/admin-global-edit-interface-screen';
-  static const String adminEditOverlaySystem =
-      '/admin-edit-overlay-system-screen';
-
+  // Admin special routes - NOW PROPERLY MAPPED
+  static const String adminGlobalEditInterface = '/admin-global-edit-interface-screen';
+  static const String adminEditOverlaySystem = '/admin-edit-overlay-system-screen';
 
   // Merchant (optional)
   static const String merchantProfile = '/merchant-profile-screen';
@@ -121,7 +120,7 @@ class AppRoutes {
   // Public subcategories screen
   static const String subcategoriesScreen = '/subcategories-screen';
 
-  // ✅ Admin Categories module
+  // Admin Categories module
   static const String adminCategories = '/admin-categories-screen';
   static const String adminSubcategories = '/admin-subcategories-screen';
 
@@ -167,7 +166,7 @@ class AppRoutes {
     allCategoriesScreen: (context) => const AllCategoriesScreen(),
     categoryListingsScreen: (context) {
       final args = ModalRoute.of(context)?.settings.arguments as String?;
-      return CategoryListingsScreen(categoryId: args ?? 'all'); // Corrected
+      return CategoryListingsScreen(categoryId: args ?? 'all');
     },
     serviceListingScreen: (context) => const ServiceListingScreen(),
     serviceDetailScreen: (context) => const ServiceDetailScreen(),
@@ -198,10 +197,14 @@ class AppRoutes {
     adminAdsManagement: (context) => const AdminAdsManagementScreen(),
     adminLogisticsManagement: (context) => const AdminLogisticsManagementScreen(),
 
+    // ✅ NEW: Admin Edit Overlay System - NOW PROPERLY MAPPED
+    adminEditOverlaySystem: (context) => const AdminEditStandaloneScreen(),
+    adminGlobalEditInterface: (context) => const AdminEditStandaloneScreen(),
+
     // Merchant (optional)
     merchantProfile: (context) => const MerchantProfileScreen(),
 
-    // Public subcategories screen (arguments: parentCategoryId, parentCategoryName)
+    // Public subcategories screen
     subcategoriesScreen: (context) {
       final args = ModalRoute.of(context)?.settings.arguments as Map?;
       return SubcategoriesScreen(
@@ -210,10 +213,10 @@ class AppRoutes {
       );
     },
 
-    // ✅ Admin Categories module
+    // Admin Categories module
     adminCategories: (context) => const AdminCategoriesScreen(),
 
-    // ✅ Admin Subcategories module (arguments required)
+    // Admin Subcategories module
     adminSubcategories: (context) {
       final args = ModalRoute.of(context)?.settings.arguments as Map?;
       return AdminSubcategoriesScreen(
