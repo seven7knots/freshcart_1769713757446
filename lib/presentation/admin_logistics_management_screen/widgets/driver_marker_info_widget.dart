@@ -4,7 +4,7 @@ import 'package:sizer/sizer.dart';
 import '../../../models/driver_model.dart';
 
 class DriverMarkerInfoWidget extends StatelessWidget {
-  final DriverModel driver;
+  final Driver driver;
   final int assignedOrdersCount;
   final VoidCallback onAssignOrders;
 
@@ -17,6 +17,9 @@ class DriverMarkerInfoWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isOnline = driver.isOnline;
+    final isApproved = driver.isApproved;
+
     return Container(
       margin: EdgeInsets.all(4.w),
       padding: EdgeInsets.all(4.w),
@@ -39,7 +42,7 @@ class DriverMarkerInfoWidget extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 30,
-                backgroundColor: driver.isOnline ? Colors.green : Colors.grey,
+                backgroundColor: isOnline ? Colors.green : Colors.grey,
                 child: Text(
                   driver.id.substring(0, 2).toUpperCase(),
                   style: const TextStyle(
@@ -70,23 +73,22 @@ class DriverMarkerInfoWidget extends StatelessWidget {
                             vertical: 0.5.h,
                           ),
                           decoration: BoxDecoration(
-                            color: driver.isOnline
+                            color: isOnline
                                 ? Colors.green.shade100
                                 : Colors.grey.shade200,
                             borderRadius: BorderRadius.circular(4.0),
                           ),
                           child: Text(
-                            driver.isOnline ? 'Online' : 'Offline',
+                            isOnline ? 'Online' : 'Offline',
                             style: TextStyle(
-                              color:
-                                  driver.isOnline ? Colors.green : Colors.grey,
+                              color: isOnline ? Colors.green : Colors.grey,
                               fontSize: 12.sp,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
                         SizedBox(width: 2.w),
-                        if (driver.isVerified)
+                        if (isApproved)
                           Container(
                             padding: EdgeInsets.symmetric(
                               horizontal: 2.w,
@@ -97,7 +99,7 @@ class DriverMarkerInfoWidget extends StatelessWidget {
                               borderRadius: BorderRadius.circular(4.0),
                             ),
                             child: Text(
-                              'Verified',
+                              'Approved',
                               style: TextStyle(
                                 color: Colors.blue,
                                 fontSize: 12.sp,
@@ -139,17 +141,16 @@ class DriverMarkerInfoWidget extends StatelessWidget {
             ],
           ),
           SizedBox(height: 2.h),
-          if (driver.vehicleType != null) ...[
-            Text(
-              'Vehicle: ${driver.vehicleType} ${driver.vehicleModel ?? ""}',
-              style: TextStyle(
-                fontSize: 13.sp,
-                color: Colors.grey.shade700,
-              ),
+          Text(
+            'Vehicle: ${driver.vehicleType.icon} ${driver.vehicleType.displayName}'
+            '${(driver.vehicleModel != null && driver.vehicleModel!.isNotEmpty) ? " • ${driver.vehicleModel}" : ""}',
+            style: TextStyle(
+              fontSize: 13.sp,
+              color: Colors.grey.shade700,
             ),
+          ),
+          if (driver.vehiclePlate != null && driver.vehiclePlate!.isNotEmpty) ...[
             SizedBox(height: 0.5.h),
-          ],
-          if (driver.vehiclePlate != null)
             Text(
               'Plate: ${driver.vehiclePlate}',
               style: TextStyle(
@@ -157,11 +158,12 @@ class DriverMarkerInfoWidget extends StatelessWidget {
                 color: Colors.grey.shade700,
               ),
             ),
+          ],
           SizedBox(height: 2.h),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: driver.isOnline ? onAssignOrders : null,
+              onPressed: isOnline ? onAssignOrders : null,
               icon: const Icon(Icons.add_task),
               label: const Text('Assign Orders'),
               style: ElevatedButton.styleFrom(

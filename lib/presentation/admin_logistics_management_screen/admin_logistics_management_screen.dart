@@ -29,13 +29,13 @@ class _AdminLogisticsManagementScreenState
   final OrderService _orderService = OrderService();
   final SupabaseClient _supabaseClient = SupabaseService.client;
 
-  List<DriverModel> _drivers = [];
+  List<Driver> _drivers = [];
   List<OrderModel> _pendingOrders = [];
   Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
   bool _isLoading = true;
   String? _error;
-  DriverModel? _selectedDriver;
+  Driver? _selectedDriver;
   final List<String> _selectedOrderIds = [];
   bool _showOrderQueue = true;
   bool _showMetrics = false;
@@ -101,7 +101,7 @@ class _AdminLogisticsManagementScreenState
           ''').eq('is_active', true).order('is_online', ascending: false);
 
       _drivers =
-          (response as List).map((json) => DriverModel.fromJson(json)).toList();
+          (response as List).map((json) => Driver.fromJson(json)).toList();
     } catch (e) {
       throw Exception('Failed to load drivers: $e');
     }
@@ -180,7 +180,7 @@ class _AdminLogisticsManagementScreenState
     });
   }
 
-  BitmapDescriptor _getDriverMarkerIcon(DriverModel driver) {
+  BitmapDescriptor _getDriverMarkerIcon(Driver driver) {
     if (!driver.isOnline) {
       return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
     }
@@ -221,7 +221,7 @@ class _AdminLogisticsManagementScreenState
   }
 
   void _handleDriverLocationUpdate(Map<String, dynamic> data) {
-    final updatedDriver = DriverModel.fromJson(data);
+    final updatedDriver = Driver.fromJson(data);
     final index = _drivers.indexWhere((d) => d.id == updatedDriver.id);
 
     if (index != -1) {
@@ -242,7 +242,7 @@ class _AdminLogisticsManagementScreenState
     }
   }
 
-  void _onDriverMarkerTapped(DriverModel driver) {
+  void _onDriverMarkerTapped(Driver driver) {
     setState(() {
       _selectedDriver = driver;
     });
@@ -315,7 +315,7 @@ class _AdminLogisticsManagementScreenState
     );
   }
 
-  void _showOrderAssignmentDialog(DriverModel driver) {
+  void _showOrderAssignmentDialog(Driver driver) {
     final availableOrders =
         _pendingOrders.where((o) => o.driverId == null).toList();
 
@@ -383,8 +383,9 @@ class _AdminLogisticsManagementScreenState
   }
 
   void _showDriverSelectionDialog(OrderModel order) {
+    // FIX: Driver has no isVerified; approval is status-based.
     final availableDrivers =
-        _drivers.where((d) => d.isOnline && d.isVerified).toList();
+        _drivers.where((d) => d.isOnline && d.isApproved).toList();
 
     showDialog(
       context: context,
@@ -435,36 +436,29 @@ class _AdminLogisticsManagementScreenState
     );
   }
 
-  Future<void> _assignOrdersToDriver(
-      String driverId, List<String> orderIds) async {
+  Future<void> _assignOrdersToDriver(String driverId, List<String> orderIds) async {
     try {
-      // Show loading
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Assigning orders...')),
         );
       }
 
-      // Assign each order
       for (final orderId in orderIds) {
         await _orderService.assignDriver(orderId, driverId);
       }
 
-      // Clear selection
       setState(() {
         _selectedOrderIds.clear();
       });
 
-      // Reload data
       await _loadPendingOrders();
       _setupMarkers();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Successfully assigned ${orderIds.length} order(s)',
-            ),
+            content: Text('Successfully assigned ${orderIds.length} order(s)'),
             backgroundColor: Colors.green,
           ),
         );
@@ -573,7 +567,6 @@ class _AdminLogisticsManagementScreenState
                 )
               : Stack(
                   children: [
-                    // Google Maps
                     GoogleMap(
                       onMapCreated: _onMapCreated,
                       initialCameraPosition: _initialPosition,
@@ -584,8 +577,6 @@ class _AdminLogisticsManagementScreenState
                       mapType: MapType.normal,
                       zoomControlsEnabled: false,
                     ),
-
-                    // Quick Action Toolbar
                     Positioned(
                       top: 2.h,
                       left: 4.w,
@@ -603,8 +594,6 @@ class _AdminLogisticsManagementScreenState
                         },
                       ),
                     ),
-
-                    // Order Queue Panel
                     if (_showOrderQueue)
                       Positioned(
                         bottom: 0,
@@ -634,8 +623,6 @@ class _AdminLogisticsManagementScreenState
                           },
                         ),
                       ),
-
-                    // Performance Metrics Sidebar
                     if (_showMetrics)
                       Positioned(
                         top: 10.h,
@@ -688,13 +675,13 @@ class _AdminLogisticsManagementScreenState
   }
 
   void _applyFilters() {
-    // Apply filters and reload data
     _initializeData();
   }
 
   void _showDriverSelectionForBatch() {
+    // FIX: Driver has no isVerified; approval is status-based.
     final availableDrivers =
-        _drivers.where((d) => d.isOnline && d.isVerified).toList();
+        _drivers.where((d) => d.isOnline && d.isApproved).toList();
 
     showDialog(
       context: context,
@@ -729,8 +716,7 @@ class _AdminLogisticsManagementScreenState
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () async {
                         Navigator.pop(context);
-                        await _assignOrdersToDriver(
-                            driver.id, _selectedOrderIds);
+                        await _assignOrdersToDriver(driver.id, _selectedOrderIds);
                       },
                     );
                   },

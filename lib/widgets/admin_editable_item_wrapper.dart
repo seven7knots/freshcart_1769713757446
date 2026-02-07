@@ -3,13 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
-import '../../providers/admin_provider.dart';
-import '../../providers/auth_provider.dart';
 import '../../presentation/admin_edit_overlay_system_screen/widgets/content_edit_modal_widget.dart';
+import '../../providers/admin_provider.dart';
 
 /// A wrapper widget that adds admin edit controls (3-dot menu) to any item
 /// when admin edit mode is enabled.
-/// 
+///
 /// Usage:
 /// ```dart
 /// AdminEditableItemWrapper(
@@ -46,11 +45,10 @@ class AdminEditableItemWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
     final adminProvider = Provider.of<AdminProvider>(context);
 
     // If not admin or edit mode is off, just return the child
-    if (!authProvider.isAdmin || !adminProvider.isEditMode) {
+    if (!adminProvider.isAdmin || !adminProvider.isEditMode) {
       return child;
     }
 
@@ -61,7 +59,7 @@ class AdminEditableItemWrapper extends StatelessWidget {
           decoration: showBorder
               ? BoxDecoration(
                   border: Border.all(
-                    color: Colors.orange.withOpacity(0.5),
+                    color: Colors.orange.withAlpha(128),
                     width: 2,
                     strokeAlign: BorderSide.strokeAlignOutside,
                   ),
@@ -118,7 +116,7 @@ class _AdminItemMenuButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withAlpha(51),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -211,7 +209,8 @@ class _AdminActionSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final itemName = contentData?['name'] ?? contentData?['title'] ?? _contentLabel;
+    final itemName =
+        contentData?['name'] ?? contentData?['title'] ?? _contentLabel;
 
     return Container(
       decoration: BoxDecoration(
@@ -228,7 +227,7 @@ class _AdminActionSheet extends StatelessWidget {
               height: 0.5.h,
               margin: EdgeInsets.symmetric(vertical: 1.5.h),
               decoration: BoxDecoration(
-                color: theme.colorScheme.outline.withOpacity(0.3),
+                color: theme.colorScheme.outline.withAlpha(77),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -241,7 +240,7 @@ class _AdminActionSheet extends StatelessWidget {
                   Container(
                     padding: EdgeInsets.all(2.w),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
+                      color: Colors.orange.withAlpha(26),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(_contentIcon, color: Colors.orange, size: 24),
@@ -276,7 +275,7 @@ class _AdminActionSheet extends StatelessWidget {
               ),
             ),
 
-            Divider(height: 1, color: theme.colorScheme.outline.withOpacity(0.2)),
+            Divider(height: 1, color: theme.colorScheme.outline.withAlpha(51)),
 
             // Action buttons
             Padding(
@@ -393,14 +392,13 @@ class _AdminActionSheet extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.5.h),
         decoration: BoxDecoration(
-          color: isDanger
-              ? Colors.red.withOpacity(0.05)
-              : theme.colorScheme.surface,
+          color:
+              isDanger ? Colors.red.withAlpha(13) : theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isDanger
-                ? Colors.red.withOpacity(0.2)
-                : theme.colorScheme.outline.withOpacity(0.1),
+                ? Colors.red.withAlpha(51)
+                : theme.colorScheme.outline.withAlpha(26),
           ),
         ),
         child: Row(
@@ -408,7 +406,7 @@ class _AdminActionSheet extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(2.w),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
+                color: iconColor.withAlpha(26),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: iconColor, size: 20),
@@ -472,8 +470,10 @@ class _AdminActionSheet extends StatelessWidget {
     // Create a copy of content data without the ID
     final duplicateData = Map<String, dynamic>.from(contentData ?? {});
     duplicateData.remove('id');
-    duplicateData['name'] = '${duplicateData['name'] ?? duplicateData['title'] ?? ''} (Copy)';
-    duplicateData['title'] = '${duplicateData['title'] ?? duplicateData['name'] ?? ''} (Copy)';
+    duplicateData['name'] =
+        '${duplicateData['name'] ?? duplicateData['title'] ?? ''} (Copy)';
+    duplicateData['title'] =
+        '${duplicateData['title'] ?? duplicateData['name'] ?? ''} (Copy)';
 
     showModalBottomSheet(
       context: context,
@@ -501,7 +501,8 @@ class _AdminActionSheet extends StatelessWidget {
     // TODO: Implement toggle active via service
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${_isActive ? 'Deactivated' : 'Activated'} $_contentLabel'),
+        content:
+            Text('${_isActive ? 'Deactivated' : 'Activated'} $_contentLabel'),
         backgroundColor: Colors.orange,
       ),
     );
@@ -548,4 +549,3 @@ class _AdminActionSheet extends StatelessWidget {
     onDeleted?.call();
   }
 }
-

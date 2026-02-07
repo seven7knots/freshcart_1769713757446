@@ -1,27 +1,24 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../models/store_model.dart';
 import '../services/store_service.dart';
 
 final storeServiceProvider = Provider((ref) => StoreService());
 
-final allStoresProvider = FutureProvider<List<StoreModel>>((ref) async {
-  final storeService = ref.watch(storeServiceProvider);
-  return await storeService.getAllStores();
+final allStoresProvider = FutureProvider<List<Store>>((ref) async {
+  return await StoreService.getAllStores();
 });
 
-final featuredStoresProvider = FutureProvider<List<StoreModel>>((ref) async {
-  final storeService = ref.watch(storeServiceProvider);
-  return await storeService.getAllStores(isFeatured: true, limit: 10);
+final featuredStoresProvider = FutureProvider<List<Store>>((ref) async {
+  return await StoreService.getAllStores();
 });
 
 final storeByIdProvider =
-    FutureProvider.family<StoreModel?, String>((ref, storeId) async {
-  final storeService = ref.watch(storeServiceProvider);
-  return await storeService.getStoreById(storeId);
+    FutureProvider.family<Store?, String>((ref, storeId) async {
+  return await StoreService.getStoreById(storeId);
 });
 
 final storesByCategoryProvider =
-    FutureProvider.family<List<StoreModel>, String>((ref, category) async {
-  final storeService = ref.watch(storeServiceProvider);
-  return await storeService.getStoresByCategory(category);
+    FutureProvider.family<List<Store>, String>((ref, category) async {
+  return await StoreService.getStoresByCategory(category);
 });

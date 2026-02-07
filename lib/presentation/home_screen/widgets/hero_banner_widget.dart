@@ -1,6 +1,5 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
@@ -88,7 +87,7 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
     final authProvider = Provider.of<AuthProvider>(context);
     final adminProvider = Provider.of<AdminProvider>(context);
     final displayData = _activeAds.isNotEmpty ? _activeAds : _bannerData;
-    final isEditMode = authProvider.isAdmin && adminProvider.isEditMode;
+    final isEditMode = adminProvider.isAdmin && adminProvider.isEditMode;
 
     return Container(
       height: 25.h,
@@ -113,7 +112,8 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                     onTap: _addNewBanner,
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 3.w, vertical: 0.5.h),
                       decoration: BoxDecoration(
                         color: Colors.orange,
                         borderRadius: BorderRadius.circular(20),
@@ -179,7 +179,8 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                       autoPlayCurve: Curves.fastOutSlowIn,
                       onPageChanged: (index, reason) {
                         setState(() => _currentIndex = index);
-                        if (_activeAds.isNotEmpty && index < _activeAds.length) {
+                        if (_activeAds.isNotEmpty &&
+                            index < _activeAds.length) {
                           _adsService.trackImpression(
                             _activeAds[index]['id'],
                             contextPage: 'home',
@@ -215,7 +216,7 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
           colors: [
             (banner["backgroundColor"] as Color? ??
                     AppTheme.lightTheme.colorScheme.primary)
-                .withOpacity(0.9),
+                .withAlpha(230),
             (banner["backgroundColor"] as Color? ??
                 AppTheme.lightTheme.colorScheme.primary),
           ],
@@ -224,7 +225,7 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
         ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.lightTheme.colorScheme.shadow.withOpacity(0.15),
+            color: AppTheme.lightTheme.colorScheme.shadow.withAlpha(38),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -249,10 +250,10 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                     colors: [
                       (banner["backgroundColor"] as Color? ??
                               AppTheme.lightTheme.colorScheme.primary)
-                          .withOpacity(0.7),
+                          .withAlpha(179),
                       (banner["backgroundColor"] as Color? ??
                               AppTheme.lightTheme.colorScheme.primary)
-                          .withOpacity(0.3),
+                          .withAlpha(77),
                     ],
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
@@ -272,7 +273,8 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                   if (subtitle != null && (subtitle as String).isNotEmpty)
                     Text(
                       subtitle,
-                      style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                      style:
+                          AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
                         color: banner["textColor"] as Color? ?? Colors.white,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
@@ -281,7 +283,8 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                   SizedBox(height: 1.h),
                   Text(
                     title as String,
-                    style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
+                    style:
+                        AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
                       color: banner["textColor"] as Color? ?? Colors.white,
                       fontWeight: FontWeight.w700,
                       height: 1.2,
@@ -293,7 +296,7 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                       description,
                       style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
                         color: (banner["textColor"] as Color? ?? Colors.white)
-                            .withOpacity(0.9),
+                            .withAlpha(230),
                         height: 1.4,
                       ),
                       maxLines: 2,
@@ -307,8 +310,8 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
                       backgroundColor: Colors.white,
                       foregroundColor: banner["backgroundColor"] as Color? ??
                           AppTheme.lightTheme.colorScheme.primary,
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 6.w, vertical: 1.5.h),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 6.w, vertical: 1.5.h),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(25),
                       ),
@@ -347,7 +350,7 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
               borderRadius: BorderRadius.circular(4),
               color: isActive
                   ? AppTheme.lightTheme.colorScheme.primary
-                  : AppTheme.lightTheme.colorScheme.outline.withOpacity(0.3),
+                  : AppTheme.lightTheme.colorScheme.outline.withAlpha(77),
             ),
           ),
         );
@@ -409,4 +412,3 @@ class _HeroBannerWidgetState extends State<HeroBannerWidget> {
     );
   }
 }
-

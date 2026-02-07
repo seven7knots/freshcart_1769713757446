@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:sizer/sizer.dart';
 
+import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/marketplace_provider.dart';
 import '../../routes/app_routes.dart';
@@ -13,14 +14,17 @@ import '../marketplace_screen/widgets/marketplace_search_bar_widget.dart';
 class CategoryListingsScreen extends ConsumerStatefulWidget {
   final String categoryId; // Added categoryId as a required parameter
 
-  const CategoryListingsScreen({super.key, required this.categoryId}); // Receive categoryId as an argument
+  const CategoryListingsScreen(
+      {super.key,
+      required this.categoryId}); // Receive categoryId as an argument
 
   @override
   ConsumerState<CategoryListingsScreen> createState() =>
       _CategoryListingsScreenState();
 }
 
-class _CategoryListingsScreenState extends ConsumerState<CategoryListingsScreen> {
+class _CategoryListingsScreenState
+    extends ConsumerState<CategoryListingsScreen> {
   String _searchQuery = '';
   final Set<String> _favorites = {};
 
@@ -125,14 +129,15 @@ class _CategoryListingsScreenState extends ConsumerState<CategoryListingsScreen>
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          _getCategoryName(widget.categoryId), // Use widget.categoryId for dynamic category name
+          _getCategoryName(widget
+              .categoryId), // Use widget.categoryId for dynamic category name
           style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
         actions: [
-          provider.Consumer<AuthProvider>(
-            builder: (context, authProvider, child) {
-              if (!authProvider.isAdmin) return const SizedBox.shrink();
+          provider.Consumer2<AuthProvider, AdminProvider>(
+            builder: (context, authProvider, adminProvider, child) {
+              if (!adminProvider.isAdmin) return const SizedBox.shrink();
               return Row(
                 children: [
                   AdminActionButton(
@@ -203,9 +208,8 @@ class _CategoryListingsScreenState extends ConsumerState<CategoryListingsScreen>
                           'Try adjusting your search',
                           style: TextStyle(
                             fontSize: 12.sp,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],

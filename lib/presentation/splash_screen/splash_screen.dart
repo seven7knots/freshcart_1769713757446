@@ -284,8 +284,8 @@ class _SplashScreenState extends State<SplashScreen>
       animation: _pulseAnimation,
       builder: (context, child) {
         return Container(
-          width: 30.w,
-          height: 30.w,
+          width: 35.w,
+          height: 35.w,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             gradient: RadialGradient(
@@ -300,9 +300,10 @@ class _SplashScreenState extends State<SplashScreen>
           child: Transform.scale(
             scale: _pulseAnimation.value,
             child: Container(
+              padding: EdgeInsets.all(2.w),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF1A1A1A),
+                color: Colors.white,
                 border: Border.all(
                   color: const Color(0xFFE50914),
                   width: 2.0,
@@ -315,34 +316,15 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.delivery_dining,
-                    color: const Color(0xFFE50914),
-                    size: 10.w,
-                  ),
-                  SizedBox(height: 1.h),
-                  Text(
-                    'KJ',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 14.sp,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  Text(
-                    'DELIVERY',
-                    style: GoogleFonts.inter(
-                      color: const Color(0xFFE50914),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 8.sp,
-                      letterSpacing: 2.0,
-                    ),
-                  ),
-                ],
+              child: ClipOval(
+                child: Image.asset(
+                  'assets/images/kayan_logo-1770269431337.jpg',
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  semanticLabel:
+                      'KJ Delivery Services logo with professional branding',
+                ),
               ),
             ),
           ),

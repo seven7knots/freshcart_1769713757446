@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sizer/sizer.dart';
 import 'package:provider/provider.dart';
+import 'package:sizer/sizer.dart';
 
+import '../../providers/admin_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/analytics_service.dart';
+import '../../widgets/admin_action_button.dart';
 import '../../widgets/custom_bottom_bar.dart';
 import '../../widgets/main_layout_wrapper.dart';
 import './widgets/expandable_section.dart';
@@ -11,8 +14,6 @@ import './widgets/product_info_section.dart';
 import './widgets/product_reviews_section.dart';
 import './widgets/quantity_selector.dart';
 import './widgets/related_products_section.dart';
-import '../../providers/auth_provider.dart';
-import '../../widgets/admin_action_button.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   const ProductDetailScreen({super.key});
@@ -186,9 +187,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
         actions: [
           // Admin Edit Control
-          Consumer<AuthProvider>(
-            builder: (context, authProvider, child) {
-              if (authProvider.isAdmin) {
+          Consumer2<AuthProvider, AdminProvider>(
+            builder: (context, authProvider, adminProvider, child) {
+              if (adminProvider.isAdmin) {
                 return IconButton(
                   icon: const Icon(Icons.edit, color: Colors.orange),
                   onPressed: () {
@@ -288,9 +289,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Admin Controls (visible only to admin)
-                  Consumer<AuthProvider>(
-                    builder: (context, authProvider, child) {
-                      if (!authProvider.isAdmin) return const SizedBox.shrink();
+                  Consumer2<AuthProvider, AdminProvider>(
+                    builder: (context, authProvider, adminProvider, child) {
+                      if (!adminProvider.isAdmin) {
+                        return const SizedBox.shrink();
+                      }
                       return Container(
                         padding: EdgeInsets.symmetric(
                           horizontal: 4.w,

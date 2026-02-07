@@ -41,7 +41,8 @@ class _GlobalAdminControlsOverlayScreenState
     // Only check if authenticated and admin status hasn't been determined yet
     if (authProvider.isAuthenticated && !adminProvider.isAdmin) {
       await adminProvider.checkAdminStatus();
-      debugPrint('[GlobalAdminControls] Admin status checked: ${adminProvider.isAdmin}');
+      debugPrint(
+          '[GlobalAdminControls] Admin status checked: ${adminProvider.isAdmin}');
     }
   }
 
@@ -50,7 +51,7 @@ class _GlobalAdminControlsOverlayScreenState
     return Consumer2<AuthProvider, AdminProvider>(
       builder: (context, authProvider, adminProvider, _) {
         // Don't show admin controls if not admin
-        if (!authProvider.isAdmin) {
+        if (!adminProvider.isAdmin) {
           return widget.child;
         }
 
@@ -67,13 +68,14 @@ class _GlobalAdminControlsOverlayScreenState
                 bottom: 18.h,
                 child: IgnorePointer(
                   child: Container(
-                    padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
+                      color: Colors.black.withAlpha(179),
                       borderRadius: BorderRadius.circular(12),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
+                          color: Colors.black.withAlpha(51),
                           blurRadius: 8,
                           offset: const Offset(0, 2),
                         ),
@@ -115,7 +117,7 @@ class _GlobalAdminControlsOverlayScreenState
               isActive: adminProvider.isEditMode,
               onToggle: () {
                 adminProvider.toggleEditMode();
-                
+
                 // Show feedback
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -124,8 +126,9 @@ class _GlobalAdminControlsOverlayScreenState
                           ? '✏️ Edit mode enabled - tap edit icons to modify content'
                           : '👁️ Edit mode disabled - viewing as customer',
                     ),
-                    backgroundColor:
-                        adminProvider.isEditMode ? Colors.orange : Colors.grey[700],
+                    backgroundColor: adminProvider.isEditMode
+                        ? Colors.orange
+                        : Colors.grey[700],
                     duration: const Duration(seconds: 2),
                     behavior: SnackBarBehavior.floating,
                     margin: EdgeInsets.only(
@@ -143,4 +146,3 @@ class _GlobalAdminControlsOverlayScreenState
     );
   }
 }
-

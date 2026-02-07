@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
@@ -31,8 +30,9 @@ class _AdminLandingDashboardScreenState
 
   Future<void> _verifyAdminAndLoadData() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final adminProvider = Provider.of<AdminProvider>(context, listen: false);
 
-    if (!authProvider.isAdmin) {
+    if (!adminProvider.isAdmin) {
       Navigator.of(context).pushReplacementNamed(AppRoutes.home);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -45,7 +45,6 @@ class _AdminLandingDashboardScreenState
 
     setState(() => _isLoading = true);
 
-    final adminProvider = Provider.of<AdminProvider>(context, listen: false);
     await Future.wait([
       adminProvider.checkAdminStatus(),
       adminProvider.loadDashboardStats(),

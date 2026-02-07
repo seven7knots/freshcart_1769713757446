@@ -20,7 +20,6 @@ class CategoryFormModalWidget extends StatefulWidget {
 
 class _CategoryFormModalWidgetState extends State<CategoryFormModalWidget> {
   final _formKey = GlobalKey<FormState>();
-  final CategoryService _categoryService = CategoryService();
 
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -62,7 +61,7 @@ class _CategoryFormModalWidgetState extends State<CategoryFormModalWidget> {
       final sortOrder = int.tryParse(_sortOrderController.text) ?? 0;
 
       if (widget.existingCategory == null) {
-        await _categoryService.createCategory(
+        await CategoryService.createCategory(
           name: _nameController.text.trim(),
           description: _descriptionController.text.trim().isEmpty
               ? null
@@ -72,14 +71,16 @@ class _CategoryFormModalWidgetState extends State<CategoryFormModalWidget> {
           type: _type,
         );
       } else {
-        await _categoryService.updateCategory(
+        await CategoryService.updateCategory(
           widget.existingCategory!['id'],
-          name: _nameController.text.trim(),
-          description: _descriptionController.text.trim().isEmpty
-              ? null
-              : _descriptionController.text.trim(),
-          sortOrder: sortOrder,
-          isActive: _isActive,
+          {
+            'name': _nameController.text.trim(),
+            'description': _descriptionController.text.trim().isEmpty
+                ? null
+                : _descriptionController.text.trim(),
+            'sort_order': sortOrder,
+            'is_active': _isActive,
+          },
         );
       }
 
@@ -147,7 +148,6 @@ class _CategoryFormModalWidgetState extends State<CategoryFormModalWidget> {
                           v == null || v.trim().isEmpty ? 'Required' : null,
                     ),
                     SizedBox(height: 2.h),
-
                     DropdownButtonFormField<String>(
                       initialValue: _type,
                       decoration:
@@ -156,15 +156,13 @@ class _CategoryFormModalWidgetState extends State<CategoryFormModalWidget> {
                         DropdownMenuItem(
                             value: 'product', child: Text('Product')),
                         DropdownMenuItem(
-                            value: 'marketplace',
-                            child: Text('Marketplace')),
+                            value: 'marketplace', child: Text('Marketplace')),
                         DropdownMenuItem(
                             value: 'service', child: Text('Service')),
                       ],
                       onChanged: (v) => setState(() => _type = v!),
                     ),
                     SizedBox(height: 2.h),
-
                     TextFormField(
                       controller: _descriptionController,
                       maxLines: 3,
@@ -172,7 +170,6 @@ class _CategoryFormModalWidgetState extends State<CategoryFormModalWidget> {
                           const InputDecoration(labelText: 'Description'),
                     ),
                     SizedBox(height: 2.h),
-
                     TextFormField(
                       controller: _sortOrderController,
                       keyboardType: TextInputType.number,
@@ -180,7 +177,6 @@ class _CategoryFormModalWidgetState extends State<CategoryFormModalWidget> {
                           const InputDecoration(labelText: 'Sort Order'),
                     ),
                     SizedBox(height: 2.h),
-
                     SwitchListTile(
                       title: const Text('Active'),
                       value: _isActive,
@@ -188,7 +184,6 @@ class _CategoryFormModalWidgetState extends State<CategoryFormModalWidget> {
                       contentPadding: EdgeInsets.zero,
                     ),
                     SizedBox(height: 3.h),
-
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(

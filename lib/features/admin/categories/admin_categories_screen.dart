@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../models/category_model.dart';
 import '../../../routes/app_routes.dart';
 import '../../../services/category_service.dart';
-import 'admin_category_model.dart';
-import 'category_edit_dialog.dart';
+import './category_edit_dialog.dart';
 
 class AdminCategoriesScreen extends StatefulWidget {
   const AdminCategoriesScreen({super.key});
@@ -13,11 +13,11 @@ class AdminCategoriesScreen extends StatefulWidget {
 }
 
 class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
-  final CategoryService _service = CategoryService();
+  // ✅ Removed unused: final CategoryService _service = CategoryService();
 
   bool _includeInactive = true;
   bool _loading = false;
-  List<AdminCategoryModel> _items = const [];
+  List<Category> _items = const [];
 
   @override
   void initState() {
@@ -33,12 +33,11 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
   Future<void> _refresh() async {
     _setLoading(true);
     try {
-      final rows = await _service.getRootCategories(
+      final rows = await CategoryService.getTopLevelCategories(
         activeOnly: !_includeInactive,
+        excludeDemo: false,
       );
-
-      final list = rows.map((m) => AdminCategoryModel.fromMap(m)).toList();
-      setState(() => _items = list);
+      setState(() => _items = rows);
     } catch (e) {
       _showError('Failed to load categories', e);
     } finally {
@@ -48,52 +47,64 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
 
   void _showError(String title, Object e) {
     if (!mounted) return;
-    showDialog<void>(context: context, builder: (_) => AlertDialog(
-      title: Text(title),
-      content: Text(e.toString()),
-      actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
-      ],
-    ));
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(e.toString()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
-  Future<void> _toggleActive(AdminCategoryModel c, bool v) async {
+  Future<void> _toggleActive(Category c, bool v) async {
     final idx = _items.indexWhere((x) => x.id == c.id);
     if (idx >= 0) {
       setState(() {
-        final copy = List<AdminCategoryModel>.of(_items);
+        final copy = List<Category>.of(_items);
         copy[idx] = copy[idx].copyWith(isActive: v);
         _items = copy;
       });
     }
 
     try {
-      await _service.setCategoryActive(c.id, v);
+      await CategoryService.toggleCategoryStatus(c.id, v);
     } catch (e) {
       _showError('Failed to update active state', e);
       await _refresh();
     }
   }
 
-  Future<void> _delete(AdminCategoryModel c) async {
+  Future<void> _delete(Category c) async {
     _setLoading(true);
     try {
-      final hasChildren = await _service.getAllCategories(
-        parentId: c.id,
+      final hasChildren = await CategoryService.getSubcategories(
+        c.id,
         activeOnly: false,
-        limit: 1,
-        offset: 0,
+        excludeDemo: false,
       );
       if (hasChildren.isNotEmpty) {
         _setLoading(false);
         if (!mounted) return;
-        showDialog<void>(context: context, builder: (_) => AlertDialog(
-          title: const Text('Cannot delete'),
-          content: const Text('This category has subcategories. Delete subcategories first.'),
-          actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('OK')),
-          ],
-        ));
+        showDialog<void>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Cannot delete'),
+            content: const Text(
+                'This category has subcategories. Delete subcategories first.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
         return;
       }
     } catch (e) {
@@ -105,20 +116,29 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
     _setLoading(false);
 
     if (!mounted) return;
-    final confirm = await showDialog<bool>(context: context, builder: (_) => AlertDialog(
-      title: const Text('Delete Category'),
-      content: Text('Delete "${c.name}"? This cannot be undone.'),
-      actions: [
-        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),
-      ],
-    ));
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Category'),
+        content: Text('Delete "${c.name}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
 
     if (confirm != true) return;
 
     _setLoading(true);
     try {
-      await _service.deleteCategory(c.id);
+      await CategoryService.deleteCategory(c.id);
       await _refresh();
     } catch (e) {
       _showError('Failed to delete category', e);
@@ -129,14 +149,16 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
   Future<void> _onReorder(int oldIndex, int newIndex) async {
     if (newIndex > oldIndex) newIndex -= 1;
 
-    final updated = List<AdminCategoryModel>.of(_items);
+    final updated = List<Category>.of(_items);
     final moved = updated.removeAt(oldIndex);
     updated.insert(newIndex, moved);
 
     setState(() => _items = updated);
 
     try {
-      await _service.reorderCategories(updated.map((e) => e.id).toList());
+      for (int i = 0; i < updated.length; i++) {
+        await CategoryService.updateSortOrder(updated[i].id, i);
+      }
       await _refresh();
     } catch (e) {
       _showError('Failed to reorder categories', e);
@@ -147,18 +169,26 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
   void _openCreateDialog() {
     showDialog<void>(
       context: context,
-      builder: (_) => CategoryEditDialog(existingCategory: null, parentCategory: null, onSaved: _refresh),
+      builder: (_) => CategoryEditDialog(
+        existingCategory: null,
+        parentCategory: null,
+        onSaved: _refresh,
+      ),
     );
   }
 
-  void _openEditDialog(AdminCategoryModel c) {
+  void _openEditDialog(Category c) {
     showDialog<void>(
       context: context,
-      builder: (_) => CategoryEditDialog(existingCategory: c, parentCategory: null, onSaved: _refresh),
+      builder: (_) => CategoryEditDialog(
+        existingCategory: c,
+        parentCategory: null,
+        onSaved: _refresh,
+      ),
     );
   }
 
-  void _openSubcategories(AdminCategoryModel parent) {
+  void _openSubcategories(Category parent) {
     Navigator.pushNamed(
       context,
       AppRoutes.adminSubcategories,
@@ -179,7 +209,13 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
           Row(
             children: [
               const Text('Show inactive'),
-              Switch(value: _includeInactive, onChanged: (v) { setState(() => _includeInactive = v); _refresh(); }),
+              Switch(
+                value: _includeInactive,
+                onChanged: (v) {
+                  setState(() => _includeInactive = v);
+                  _refresh();
+                },
+              ),
               const SizedBox(width: 8),
             ],
           ),
@@ -195,7 +231,12 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
         child: _loading && _items.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : _items.isEmpty
-                ? ListView(children: const [SizedBox(height: 120), Center(child: Text('No categories yet'))])
+                ? ListView(
+                    children: const [
+                      SizedBox(height: 120),
+                      Center(child: Text('No categories yet')),
+                    ],
+                  )
                 : ReorderableListView.builder(
                     padding: const EdgeInsets.only(bottom: 96),
                     itemCount: _items.length,
@@ -205,11 +246,16 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
                       return ListTile(
                         key: ValueKey(c.id),
                         title: Text(c.name),
-                        subtitle: Text('type: ${c.type} • sort_order: ${c.sortOrder}'),
+                        subtitle: Text(
+                            'type: ${c.type} • sort_order: ${c.sortOrder}'),
                         leading: IconButton(
                           tooltip: c.isActive ? 'Active' : 'Inactive',
-                          icon: Icon(c.isActive ? Icons.visibility : Icons.visibility_off),
-                          onPressed: _loading ? null : () => _toggleActive(c, !c.isActive),
+                          icon: Icon(c.isActive
+                              ? Icons.visibility
+                              : Icons.visibility_off),
+                          onPressed: _loading
+                              ? null
+                              : () => _toggleActive(c, !c.isActive),
                         ),
                         onTap: () => _openSubcategories(c),
                         trailing: PopupMenuButton<String>(
@@ -219,9 +265,18 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
                             if (v == 'delete') _delete(c);
                           },
                           itemBuilder: (_) => const [
-                            PopupMenuItem(value: 'sub', child: Text('Manage subcategories')),
-                            PopupMenuItem(value: 'edit', child: Text('Edit')),
-                            PopupMenuItem(value: 'delete', child: Text('Delete')),
+                            PopupMenuItem(
+                              value: 'sub',
+                              child: Text('Manage subcategories'),
+                            ),
+                            PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Edit'),
+                            ),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Delete'),
+                            ),
                           ],
                         ),
                       );

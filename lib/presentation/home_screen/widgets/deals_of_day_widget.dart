@@ -17,7 +17,7 @@ class DealsOfDayWidget extends ConsumerWidget {
     final featuredProductsAsync = ref.watch(featuredProductsProvider);
     final authProvider = provider.Provider.of<AuthProvider>(context);
     final adminProvider = provider.Provider.of<AdminProvider>(context);
-    final isEditMode = authProvider.isAdmin && adminProvider.isEditMode;
+    final isEditMode = adminProvider.isAdmin && adminProvider.isEditMode;
 
     return featuredProductsAsync.when(
       data: (products) {
@@ -71,7 +71,8 @@ class DealsOfDayWidget extends ConsumerWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.add, color: Colors.white, size: 16),
+                                  Icon(Icons.add,
+                                      color: Colors.white, size: 16),
                                   SizedBox(width: 1.w),
                                   Text(
                                     'Add',
@@ -91,12 +92,13 @@ class DealsOfDayWidget extends ConsumerWidget {
                           },
                           child: Text(
                             'View All',
-                            style:
-                                Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
                         ),
                       ],
@@ -111,11 +113,12 @@ class DealsOfDayWidget extends ConsumerWidget {
                     ? Center(
                         child: Text(
                           'No deals yet. Add featured products.',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
                         ),
                       )
                     : ListView.builder(
@@ -187,7 +190,7 @@ class DealsOfDayWidget extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.shadow.withOpacity(0.05),
+            color: Theme.of(context).colorScheme.shadow.withAlpha(13),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -264,10 +267,11 @@ class DealsOfDayWidget extends ConsumerWidget {
                     children: [
                       Text(
                         '\$${product.salePrice ?? product.price}',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
                       ),
                       if (product.salePrice != null) ...[
                         SizedBox(width: 1.w),
@@ -332,4 +336,3 @@ class DealsOfDayWidget extends ConsumerWidget {
     );
   }
 }
-

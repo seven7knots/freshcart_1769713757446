@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../providers/admin_provider.dart';
 import '../../core/app_export.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
-  const AdminDashboardScreen({Key? key}) : super(key: key);
+  const AdminDashboardScreen({super.key});
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -24,6 +22,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _initializeAdminStatus() async {
     final adminProvider = Provider.of<AdminProvider>(context, listen: false);
     await adminProvider.checkAdminStatus();
+    await adminProvider.loadPendingApplications(); // Load pending applications count
     
     if (mounted) {
       debugPrint('[AdminDashboard] Admin status initialized: ${adminProvider.isAdmin}');
@@ -184,6 +183,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             onRefresh: () async {
               await adminProvider.checkAdminStatus();
               await adminProvider.loadDashboardStats();
+              await adminProvider.loadPendingApplications();
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -227,6 +227,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   ),
                   const SizedBox(height: 24),
 
+                  // Pending Applications Alert
+                  if (adminProvider.pendingApplicationsCount > 0) ...[
+                    _buildPendingApplicationsAlert(adminProvider),
+                    const SizedBox(height: 24),
+                  ],
+
                   // Dashboard stats
                   if (adminProvider.dashboardStats != null) ...[
                     const Text(
@@ -244,12 +250,66 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
-                  _buildQuickActions(context),
+                  _buildQuickActions(context, adminProvider),
                 ],
               ),
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildPendingApplicationsAlert(AdminProvider adminProvider) {
+    final count = adminProvider.pendingApplicationsCount;
+    final merchantCount = adminProvider.pendingMerchants.length;
+    final driverCount = adminProvider.pendingDrivers.length;
+
+    return Card(
+      color: Colors.orange.shade50,
+      child: InkWell(
+        onTap: () => Navigator.pushNamed(context, AppRoutes.adminApplications),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.pending_actions, color: Colors.white, size: 28),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$count Pending Application${count > 1 ? 's' : ''}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$merchantCount merchant${merchantCount != 1 ? 's' : ''}, '
+                      '$driverCount driver${driverCount != 1 ? 's' : ''} waiting for review',
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Colors.orange),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -272,7 +332,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         _buildStatCard(
           'Active Users',
           stats['active_users']?.toString() ?? '0',
-          Icons.verified_user, // Changed from person_check
+          Icons.verified_user,
           Colors.green,
         ),
         _buildStatCard(
@@ -322,9 +382,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
+  Widget _buildQuickActions(BuildContext context, AdminProvider adminProvider) {
     return Column(
       children: [
+        // NEW: Applications button with badge
+        _buildActionButtonWithBadge(
+          context,
+          'Applications',
+          Icons.pending_actions,
+          AppRoutes.adminApplications,
+          badgeCount: adminProvider.pendingApplicationsCount,
+        ),
+        const SizedBox(height: 8),
         _buildActionButton(
           context,
           'Manage Users',
@@ -377,4 +446,49 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
     );
   }
+
+  Widget _buildActionButtonWithBadge(
+    BuildContext context,
+    String label,
+    IconData icon,
+    String route, {
+    int badgeCount = 0,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.pushNamed(context, route);
+        },
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.all(16),
+          backgroundColor: badgeCount > 0 ? Colors.orange : null,
+        ),
+        child: Row(
+          children: [
+            Icon(icon),
+            const SizedBox(width: 12),
+            Text(label),
+            const Spacer(),
+            if (badgeCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$badgeCount',
+                  style: const TextStyle(
+                    color: Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+

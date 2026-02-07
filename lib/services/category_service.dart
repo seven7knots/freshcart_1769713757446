@@ -1,267 +1,482 @@
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../models/category_model.dart';
 import './supabase_service.dart';
 
 class CategoryService {
-  final SupabaseClient _client = SupabaseService.client;
+  static SupabaseClient get _client => SupabaseService.client;
 
+  // Safety default if callers pass null/empty (prevents DB NOT NULL)
   static const String _defaultType = 'product';
 
-  String _normalizeType(String? t) {
-    final v = (t ?? '').trim();
-    return v.isEmpty ? _defaultType : v;
+  static String _normalizeType(String? type) {
+    final t = (type ?? '').trim();
+    return t.isNotEmpty ? t : _defaultType;
   }
 
-  // -----------------------
-  // Customer / Public reads
-  // -----------------------
+  // ============================================================
+  // READ OPERATIONS
+  // ============================================================
 
-  /// Get all categories (optionally filtered). Defaults to ACTIVE only.
-  Future<List<Map<String, dynamic>>> getAllCategories({
-    String? type,
-    String? parentId,
+  /// Get all top-level categories (parent_id is null)
+  static Future<List<Category>> getTopLevelCategories({
     bool activeOnly = true,
-    int limit = 100,
-    int offset = 0,
+    bool excludeDemo = true,
   }) async {
     try {
+      debugPrint('[CATEGORY] Fetching top-level categories...');
+
+      var query =
+          _client.from('categories').select().isFilter('parent_id', null);
+
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
+
+      if (excludeDemo) {
+        query = query.eq('is_demo', false);
+      }
+
+      final response = await query.order('sort_order', ascending: true);
+
+      final categories = (response as List)
+          .map((c) => Category.fromMap(c as Map<String, dynamic>))
+          .toList();
+
+      debugPrint('[CATEGORY] Loaded ${categories.length} top-level categories');
+      return categories;
+    } catch (e) {
+      debugPrint('[CATEGORY] Error fetching top-level categories: $e');
+      rethrow;
+    }
+  }
+
+  /// Get all categories (both top-level and subcategories)
+  static Future<List<Category>> getAllCategories({
+    bool activeOnly = true,
+    bool excludeDemo = true,
+  }) async {
+    try {
+      debugPrint('[CATEGORY] Fetching all categories...');
+
       var query = _client.from('categories').select();
 
-      if (activeOnly) query = query.eq('is_active', true);
-      if (type != null && type.trim().isNotEmpty) query = query.eq('type', type.trim());
-      if (parentId != null && parentId.trim().isNotEmpty) query = query.eq('parent_id', parentId.trim());
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
 
-      final data = await query
-          .order('sort_order', ascending: true)
-          .order('name', ascending: true)
-          .range(offset, offset + limit - 1);
+      if (excludeDemo) {
+        query = query.eq('is_demo', false);
+      }
 
-      return List<Map<String, dynamic>>.from(data);
-    } on PostgrestException catch (e) {
-      throw Exception('Failed to load categories: ${e.message}');
+      final response = await query.order('sort_order', ascending: true);
+
+      final categories = (response as List)
+          .map((c) => Category.fromMap(c as Map<String, dynamic>))
+          .toList();
+
+      debugPrint('[CATEGORY] Loaded ${categories.length} total categories');
+      return categories;
     } catch (e) {
-      throw Exception('Failed to load categories: $e');
-    }
-  }
-
-  /// Get a single category by ID
-  Future<Map<String, dynamic>?> getCategoryById(String categoryId) async {
-    try {
-      final data = await _client
-          .from('categories')
-          .select()
-          .eq('id', categoryId)
-          .maybeSingle();
-
-      return data == null ? null : Map<String, dynamic>.from(data);
-    } on PostgrestException catch (e) {
-      throw Exception('Failed to get category: ${e.message}');
-    } catch (e) {
-      throw Exception('Failed to get category: $e');
-    }
-  }
-
-  /// Get root categories (no parent_id)
-  Future<List<Map<String, dynamic>>> getRootCategories({
-    String? type,
-    bool activeOnly = true,
-  }) async {
-    try {
-      var query = _client
-          .from('categories')
-          .select()
-          .isFilter('parent_id', null);
-
-      if (activeOnly) query = query.eq('is_active', true);
-      if (type != null && type.trim().isNotEmpty) query = query.eq('type', type.trim());
-
-      final data = await query
-          .order('sort_order', ascending: true)
-          .order('name', ascending: true);
-
-      return List<Map<String, dynamic>>.from(data);
-    } on PostgrestException catch (e) {
-      throw Exception('Failed to load root categories: ${e.message}');
-    } catch (e) {
-      throw Exception('Failed to load root categories: $e');
+      debugPrint('[CATEGORY] Error fetching all categories: $e');
+      rethrow;
     }
   }
 
   /// Get subcategories for a parent category
-  Future<List<Map<String, dynamic>>> getSubcategories(
+  static Future<List<Category>> getSubcategories(
     String parentId, {
     bool activeOnly = true,
+    bool excludeDemo = true,
   }) async {
     try {
-      var query = _client
-          .from('categories')
-          .select()
-          .eq('parent_id', parentId);
+      debugPrint('[CATEGORY] Fetching subcategories for parent: $parentId');
 
-      if (activeOnly) query = query.eq('is_active', true);
+      var query = _client.from('categories').select().eq('parent_id', parentId);
 
-      final data = await query
-          .order('sort_order', ascending: true)
-          .order('name', ascending: true);
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
 
-      return List<Map<String, dynamic>>.from(data);
-    } on PostgrestException catch (e) {
-      throw Exception('Failed to load subcategories: ${e.message}');
+      if (excludeDemo) {
+        query = query.eq('is_demo', false);
+      }
+
+      final response = await query.order('sort_order', ascending: true);
+
+      final subcategories = (response as List)
+          .map((c) => Category.fromMap(c as Map<String, dynamic>))
+          .toList();
+
+      debugPrint('[CATEGORY] Loaded ${subcategories.length} subcategories');
+      return subcategories;
     } catch (e) {
-      throw Exception('Failed to load subcategories: $e');
+      debugPrint('[CATEGORY] Error fetching subcategories: $e');
+      rethrow;
     }
   }
 
-  // -----------------------
-  // Admin CRUD operations
-  // -----------------------
+  /// Get a single category by ID
+  static Future<Category?> getCategoryById(String id) async {
+    try {
+      debugPrint('[CATEGORY] Fetching category: $id');
 
-  /// Create a category (Admin)
-  Future<Map<String, dynamic>> createCategory({
+      final response =
+          await _client.from('categories').select().eq('id', id).maybeSingle();
+
+      if (response == null) {
+        debugPrint('[CATEGORY] Category not found: $id');
+        return null;
+      }
+
+      return Category.fromMap(response);
+    } catch (e) {
+      debugPrint('[CATEGORY] Error fetching category: $e');
+      rethrow;
+    }
+  }
+
+  /// Get categories with their subcategories nested
+  static Future<List<Category>> getCategoriesWithSubcategories({
+    bool activeOnly = true,
+    bool excludeDemo = true,
+  }) async {
+    try {
+      debugPrint('[CATEGORY] Fetching categories with subcategories...');
+
+      // Get all categories
+      final allCategories = await getAllCategories(
+        activeOnly: activeOnly,
+        excludeDemo: excludeDemo,
+      );
+
+      // Separate top-level and subcategories
+      final topLevel = allCategories.where((c) => c.isTopLevel).toList();
+      final subs = allCategories.where((c) => c.isSubcategory).toList();
+
+      // Nest subcategories under their parents
+      final result = topLevel.map((parent) {
+        final children = subs.where((s) => s.parentId == parent.id).toList();
+        return parent.copyWith(subcategories: children);
+      }).toList();
+
+      debugPrint(
+          '[CATEGORY] Loaded ${result.length} categories with subcategories');
+      return result;
+    } catch (e) {
+      debugPrint('[CATEGORY] Error fetching categories with subcategories: $e');
+      rethrow;
+    }
+  }
+
+  /// Get categories by type
+  static Future<List<Category>> getCategoriesByType(
+    String type, {
+    bool activeOnly = true,
+    bool excludeDemo = true,
+  }) async {
+    try {
+      debugPrint('[CATEGORY] Fetching categories of type: $type');
+
+      var query = _client.from('categories').select().eq('type', type);
+
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
+
+      if (excludeDemo) {
+        query = query.eq('is_demo', false);
+      }
+
+      final response = await query.order('sort_order', ascending: true);
+
+      final categories = (response as List)
+          .map((c) => Category.fromMap(c as Map<String, dynamic>))
+          .toList();
+
+      debugPrint(
+          '[CATEGORY] Loaded ${categories.length} categories of type $type');
+      return categories;
+    } catch (e) {
+      debugPrint('[CATEGORY] Error fetching categories by type: $e');
+      rethrow;
+    }
+  }
+
+  /// Get categories specific to a store (merchant-created categories)
+  /// These are categories that merchants create within their own stores
+  static Future<List<Category>> getStoreCategories(
+    String storeId, {
+    bool activeOnly = true,
+  }) async {
+    try {
+      debugPrint('[CATEGORY] Fetching categories for store: $storeId');
+      
+      // Note: This assumes your categories table has a store_id column
+      // If not, you'll need to add it with this SQL:
+      // ALTER TABLE categories ADD COLUMN store_id UUID REFERENCES stores(id);
+      // CREATE INDEX idx_categories_store_id ON categories(store_id);
+      
+      var query = _client
+          .from('categories')
+          .select()
+          .eq('store_id', storeId);
+      
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
+      
+      final response = await query.order('sort_order', ascending: true);
+      
+      final categories = (response as List)
+          .map((c) => Category.fromMap(c as Map<String, dynamic>))
+          .toList();
+      
+      debugPrint('[CATEGORY] Loaded ${categories.length} store-specific categories');
+      return categories;
+    } catch (e) {
+      debugPrint('[CATEGORY] Error fetching store categories: $e');
+      
+      // If store_id column doesn't exist yet, return empty list instead of crashing
+      if (e.toString().contains('column') && e.toString().contains('store_id')) {
+        debugPrint('[CATEGORY] ⚠️ store_id column not found in categories table');
+        debugPrint('[CATEGORY] Run: ALTER TABLE categories ADD COLUMN store_id UUID REFERENCES stores(id);');
+        return [];
+      }
+      
+      rethrow;
+    }
+  }
+
+  /// Check if a category has subcategories
+  static Future<bool> hasSubcategories(String categoryId) async {
+    try {
+      final response = await _client
+          .from('categories')
+          .select('id')
+          .eq('parent_id', categoryId)
+          .eq('is_active', true)
+          .limit(1);
+
+      return (response as List).isNotEmpty;
+    } catch (e) {
+      debugPrint('[CATEGORY] Error checking subcategories: $e');
+      return false;
+    }
+  }
+
+  // ============================================================
+  // CREATE OPERATIONS
+  // ============================================================
+
+  /// Create a new category
+  ///
+  /// Fixes:
+  /// - Ensures type is never null/empty (DB NOT NULL safe)
+  /// - Saves is_marketplace when provided
+  static Future<Category> createCategory({
     required String name,
-    required String type,
-    String? description,
     String? nameAr,
-    String? descriptionAr,
+    String? type,
     String? icon,
-    String? imageUrl,
+    String? description,
+    String? descriptionAr,
     String? parentId,
+    String? storeId,
     int sortOrder = 0,
     bool isActive = true,
     bool isMarketplace = false,
   }) async {
     try {
-      final safeName = name.trim();
-      final safeType = _normalizeType(type);
+      debugPrint('[CATEGORY] Creating category: $name');
 
-      if (safeName.isEmpty) throw Exception('Category name is required');
+      final normalizedType = _normalizeType(type);
 
-      final insertData = <String, dynamic>{
-        'name': safeName,
-        'type': safeType,
-        'description': description,
+      final data = {
+        'name': name,
         'name_ar': nameAr,
-        'description_ar': descriptionAr,
+        'type': normalizedType,
         'icon': icon,
-        'image_url': imageUrl,
-        'parent_id': (parentId != null && parentId.trim().isNotEmpty) ? parentId.trim() : null,
+        'description': description,
+        'description_ar': descriptionAr,
+        'parent_id': parentId,
+        'store_id': storeId,
         'sort_order': sortOrder,
         'is_active': isActive,
         'is_marketplace': isMarketplace,
+        'is_demo': false,
       };
 
-      insertData.removeWhere((k, v) => v == null);
+      final response =
+          await _client.from('categories').insert(data).select().single();
 
-      final data = await _client
-          .from('categories')
-          .insert(insertData)
-          .select()
-          .single();
-
-      return Map<String, dynamic>.from(data);
-    } on PostgrestException catch (e) {
-      throw Exception('Failed to create category: ${e.message}');
+      final category = Category.fromMap(response);
+      debugPrint('[CATEGORY] Category created: ${category.id}');
+      return category;
     } catch (e) {
-      throw Exception('Failed to create category: $e');
+      debugPrint('[CATEGORY] Error creating category: $e');
+      rethrow;
     }
   }
 
-  /// Update a category (Admin)
-  Future<Map<String, dynamic>> updateCategory(
-    dynamic categoryId, {
-    String? name,
-    String? type,
-    String? description,
+  /// Create a subcategory
+  static Future<Category> createSubcategory({
+    required String parentId,
+    required String name,
     String? nameAr,
-    String? descriptionAr,
+    String? type,
     String? icon,
-    String? imageUrl,
-    String? parentId,
-    int? sortOrder,
-    bool? isActive,
-    bool? isMarketplace,
+    String? description,
+    String? descriptionAr,
+    String? storeId,
+    int sortOrder = 0,
+    bool isActive = true,
+    bool isMarketplace = false,
   }) async {
-    try {
-      final updates = <String, dynamic>{};
-
-      if (name != null) {
-        final n = name.trim();
-        if (n.isEmpty) throw Exception('Category name cannot be empty');
-        updates['name'] = n;
-      }
-
-      if (type != null) updates['type'] = _normalizeType(type);
-      if (description != null) updates['description'] = description;
-      if (nameAr != null) updates['name_ar'] = nameAr;
-      if (descriptionAr != null) updates['description_ar'] = descriptionAr;
-      if (icon != null) updates['icon'] = icon;
-      if (imageUrl != null) updates['image_url'] = imageUrl;
-      if (parentId != null) updates['parent_id'] = parentId.trim().isEmpty ? null : parentId.trim();
-      if (sortOrder != null) updates['sort_order'] = sortOrder;
-      if (isActive != null) updates['is_active'] = isActive;
-      if (isMarketplace != null) updates['is_marketplace'] = isMarketplace;
-
-      if (updates.isEmpty) throw Exception('No fields to update');
-
-      final data = await _client
-          .from('categories')
-          .update(updates)
-          .eq('id', categoryId)
-          .select()
-          .single();
-
-      return Map<String, dynamic>.from(data);
-    } on PostgrestException catch (e) {
-      throw Exception('Failed to update category: ${e.message}');
-    } catch (e) {
-      throw Exception('Failed to update category: $e');
-    }
+    return createCategory(
+      name: name,
+      nameAr: nameAr,
+      type: type,
+      icon: icon,
+      description: description,
+      descriptionAr: descriptionAr,
+      parentId: parentId,
+      storeId: storeId,
+      sortOrder: sortOrder,
+      isActive: isActive,
+      isMarketplace: isMarketplace,
+    );
   }
 
-  /// Delete a category (Admin) - hard delete
-  Future<void> deleteCategory(dynamic categoryId) async {
-    try {
-      await _client.from('categories').delete().eq('id', categoryId);
-    } on PostgrestException catch (e) {
-      throw Exception('Failed to delete category: ${e.message}');
-    } catch (e) {
-      throw Exception('Failed to delete category: $e');
-    }
-  }
+  // ============================================================
+  // UPDATE OPERATIONS
+  // ============================================================
 
-  /// Activate/Deactivate (Admin)
-  Future<Map<String, dynamic>> setCategoryActive(
-    dynamic categoryId,
-    bool isActive,
+  /// Update a category
+  ///
+  /// Fixes:
+  /// - If updates include 'type', normalize it (no empty -> DB safe)
+  static Future<Category> updateCategory(
+    String id,
+    Map<String, dynamic> updates,
   ) async {
     try {
-      final data = await _client
+      debugPrint('[CATEGORY] Updating category: $id');
+
+      if (updates.containsKey('type')) {
+        updates['type'] = _normalizeType(updates['type'] as String?);
+      }
+
+      // Add updated_at timestamp
+      updates['updated_at'] = DateTime.now().toIso8601String();
+
+      final response = await _client
           .from('categories')
-          .update({'is_active': isActive})
-          .eq('id', categoryId)
+          .update(updates)
+          .eq('id', id)
           .select()
           .single();
 
-      return Map<String, dynamic>.from(data);
-    } on PostgrestException catch (e) {
-      throw Exception('Failed to update category status: ${e.message}');
+      final category = Category.fromMap(response);
+      debugPrint('[CATEGORY] Category updated: ${category.id}');
+      return category;
     } catch (e) {
-      throw Exception('Failed to update category status: $e');
+      debugPrint('[CATEGORY] Error updating category: $e');
+      rethrow;
     }
   }
 
-  /// Reorder categories by list of ids (Admin).
-  Future<void> reorderCategories(List<dynamic> orderedIds) async {
+  /// Toggle category active status
+  static Future<void> toggleCategoryStatus(String id, bool isActive) async {
+    await updateCategory(id, {'is_active': isActive});
+  }
+
+  /// Update category sort order
+  static Future<void> updateSortOrder(String id, int sortOrder) async {
+    await updateCategory(id, {'sort_order': sortOrder});
+  }
+
+  // ============================================================
+  // DELETE OPERATIONS
+  // ============================================================
+
+  /// Delete a category (and its subcategories)
+  static Future<void> deleteCategory(String id) async {
     try {
-      for (int i = 0; i < orderedIds.length; i++) {
-        await _client
-            .from('categories')
-            .update({'sort_order': i})
-            .eq('id', orderedIds[i]);
-      }
-    } on PostgrestException catch (e) {
-      throw Exception('Failed to reorder categories: ${e.message}');
+      debugPrint('[CATEGORY] Deleting category: $id');
+
+      // First, delete all subcategories
+      await _client.from('categories').delete().eq('parent_id', id);
+
+      // Then delete the category itself
+      await _client.from('categories').delete().eq('id', id);
+
+      debugPrint('[CATEGORY] Category deleted: $id');
     } catch (e) {
-      throw Exception('Failed to reorder categories: $e');
+      debugPrint('[CATEGORY] Error deleting category: $e');
+      rethrow;
+    }
+  }
+
+  /// Soft delete (set is_active to false)
+  static Future<void> softDeleteCategory(String id) async {
+    await toggleCategoryStatus(id, false);
+  }
+
+  // ============================================================
+  // UTILITY METHODS
+  // ============================================================
+
+  /// Search categories by name
+  static Future<List<Category>> searchCategories(
+    String query, {
+    bool activeOnly = true,
+  }) async {
+    try {
+      debugPrint('[CATEGORY] Searching categories: $query');
+
+      var dbQuery = _client
+          .from('categories')
+          .select()
+          .or('name.ilike.%$query%,name_ar.ilike.%$query%');
+
+      if (activeOnly) {
+        dbQuery = dbQuery.eq('is_active', true);
+      }
+
+      final response = await dbQuery.order('sort_order', ascending: true);
+
+      final categories = (response as List)
+          .map((c) => Category.fromMap(c as Map<String, dynamic>))
+          .toList();
+
+      debugPrint('[CATEGORY] Found ${categories.length} categories');
+      return categories;
+    } catch (e) {
+      debugPrint('[CATEGORY] Error searching categories: $e');
+      rethrow;
+    }
+  }
+
+  /// Get category path (for breadcrumbs)
+  static Future<List<Category>> getCategoryPath(String categoryId) async {
+    try {
+      final path = <Category>[];
+      String? currentId = categoryId;
+
+      while (currentId != null) {
+        final category = await getCategoryById(currentId);
+        if (category == null) break;
+
+        path.insert(0, category);
+        currentId = category.parentId;
+      }
+
+      return path;
+    } catch (e) {
+      debugPrint('[CATEGORY] Error getting category path: $e');
+      rethrow;
     }
   }
 }

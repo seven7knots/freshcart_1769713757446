@@ -1,4 +1,22 @@
-import 'dart:io';
+// ============================================================
+// FILE: lib/services/supabase_service.dart
+// ============================================================
+// FIXED:
+// - Remove incorrect isAdmin (appMetadata role is not your source of truth)
+// - Align stores ownership fields with the rest of your app:
+//    owner_user_id (auth.uid) and merchant_id (merchants.id)
+// - Fix categories filter bug (query.eq must be chained/assigned)
+// - Fix carousel_ads field name: link_url (not linkUrl) (most schemas use snake_case)
+// - Make uploadImage work on web + mobile (File vs Uint8List)
+// - Remove unused imports
+//
+// FIXED (PostgREST PGRST200):
+// - stores -> categories now has TWO FKs (category_id + subcategory_id)
+// - Must use explicit relationship embeds:
+//   categories!stores_category_id_fkey(...)
+//   categories!stores_subcategory_id_fkey(...)
+// ============================================================
+
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -18,15 +36,16 @@ class SupabaseService {
   }
 
   static User? get currentUser => client.auth.currentUser;
-  static bool get isLoggedIn => client.auth.currentUser != null;
+  static bool get isLoggedIn => currentUser != null;
 
-  // Note: AuthProvider is the authoritative role source (users.role).
-  static bool get isAdmin =>
-      client.auth.currentUser?.appMetadata['role'] == 'admin';
+  // NOTE:
+  // Do NOT rely on appMetadata for admin.
+  // Use AdminProvider.isAdmin (RPC is_admin()) as the source of truth.
 
   static Future<void> signInWithGoogle() async {
     await client.auth.signInWithOAuth(
       OAuthProvider.google,
+      // Keep as you had it; if your deep link differs, change it here.
       redirectTo: 'com.freshcart.app://callback/',
     );
   }
@@ -35,11 +54,21 @@ class SupabaseService {
     await client.auth.signOut();
   }
 
-  static Future<List<Map<String, dynamic>>> getStores(
-      {String? categoryId}) async {
-    final query = client.from('stores').select('*, categories(name)');
-    if (categoryId != null) query.eq('category_id', categoryId);
-    return await query.order('created_at', ascending: false);
+  // ============================================================
+  // STORES
+  // ============================================================
+
+  static Future<List<Map<String, dynamic>>> getStores({String? categoryId}) async {
+    var query = client.from('stores').select(
+      '*, '
+      'category:categories!stores_category_id_fkey(name), '
+      'subcategory:categories!stores_subcategory_id_fkey(name)',
+    );
+    if (categoryId != null && categoryId.isNotEmpty) {
+      query = query.eq('category_id', categoryId);
+    }
+    final res = await query.order('created_at', ascending: false);
+    return _asListOfMaps(res);
   }
 
   static Future<Map<String, dynamic>?> createStore({
@@ -47,19 +76,40 @@ class SupabaseService {
     required String categoryId,
     String? description,
     String? imageUrl,
-    required String ownerId,
+    String? merchantId,
   }) async {
-    return await client.from('stores').insert({
+    final uid = currentUser?.id;
+    if (uid == null) throw Exception('Not authenticated');
+
+    final payload = <String, dynamic>{
       'name': name,
       'category_id': categoryId,
       'description': description,
       'image_url': imageUrl,
-      'owner_id': ownerId,
-    }).select('*, categories(name)').single();
+      // Consistent with MerchantProvider fix:
+      'owner_user_id': uid,
+      if (merchantId != null) 'merchant_id': merchantId,
+      'is_active': true,
+      'is_demo': false,
+      'is_accepting_orders': true,
+    }..removeWhere((k, v) => v == null);
+
+    final res = await client
+        .from('stores')
+        .insert(payload)
+        .select(
+          '*, '
+          'category:categories!stores_category_id_fkey(name), '
+          'subcategory:categories!stores_subcategory_id_fkey(name)',
+        )
+        .single();
+
+    return Map<String, dynamic>.from(res);
   }
 
-  static Future<void> deleteStore(String storeId) async =>
-      await client.from('stores').delete().eq('id', storeId);
+  static Future<void> deleteStore(String storeId) async {
+    await client.from('stores').delete().eq('id', storeId);
+  }
 
   static Future<Map<String, dynamic>?> updateStore(
     String storeId, {
@@ -74,18 +124,49 @@ class SupabaseService {
     if (description != null) updates['description'] = description;
     if (imageUrl != null) updates['image_url'] = imageUrl;
 
-    return await client
+    if (updates.isEmpty) return null;
+
+    updates['updated_at'] = DateTime.now().toIso8601String();
+
+    final res = await client
         .from('stores')
         .update(updates)
         .eq('id', storeId)
-        .select('*, categories(name)')
+        .select(
+          '*, '
+          'category:categories!stores_category_id_fkey(name), '
+          'subcategory:categories!stores_subcategory_id_fkey(name)',
+        )
         .single();
+
+    return Map<String, dynamic>.from(res);
   }
 
+  static Future<List<Map<String, dynamic>>> getStoresByCategory(String categoryId) async {
+    final res = await client
+        .from('stores')
+        .select(
+          '*, '
+          'category:categories!stores_category_id_fkey(name), '
+          'subcategory:categories!stores_subcategory_id_fkey(name)',
+        )
+        .eq('category_id', categoryId)
+        .order('name');
+
+    return _asListOfMaps(res);
+  }
+
+  // ============================================================
+  // PRODUCTS
+  // ============================================================
+
   static Future<List<Map<String, dynamic>>> getProducts({String? storeId}) async {
-    final query = client.from('products').select('*, stores(name)');
-    if (storeId != null) query.eq('store_id', storeId);
-    return await query.order('created_at', ascending: false);
+    var query = client.from('products').select('*, stores(name)');
+    if (storeId != null && storeId.isNotEmpty) {
+      query = query.eq('store_id', storeId);
+    }
+    final res = await query.order('created_at', ascending: false);
+    return _asListOfMaps(res);
   }
 
   static Future<Map<String, dynamic>?> createProduct({
@@ -95,17 +176,22 @@ class SupabaseService {
     String? imageUrl,
     String? description,
   }) async {
-    return await client.from('products').insert({
+    final payload = <String, dynamic>{
       'name': name,
       'store_id': storeId,
       'price': price,
       'image_url': imageUrl,
       'description': description,
-    }).select('*, stores(name)').single();
+      'is_active': true,
+    }..removeWhere((k, v) => v == null);
+
+    final res = await client.from('products').insert(payload).select().single();
+    return Map<String, dynamic>.from(res);
   }
 
-  static Future<void> deleteProduct(String productId) async =>
-      await client.from('products').delete().eq('id', productId);
+  static Future<void> deleteProduct(String productId) async {
+    await client.from('products').delete().eq('id', productId);
+  }
 
   static Future<Map<String, dynamic>?> updateProduct(
     String productId, {
@@ -120,27 +206,41 @@ class SupabaseService {
     if (imageUrl != null) updates['image_url'] = imageUrl;
     if (description != null) updates['description'] = description;
 
-    return await client
+    if (updates.isEmpty) return null;
+
+    updates['updated_at'] = DateTime.now().toIso8601String();
+
+    final res = await client
         .from('products')
         .update(updates)
         .eq('id', productId)
         .select('*, stores(name)')
         .single();
+
+    return Map<String, dynamic>.from(res);
   }
 
-  static Future<List<Map<String, dynamic>>> getCategories() async =>
-      await client.from('categories').select().order('name');
+  // ============================================================
+  // CATEGORIES
+  // ============================================================
 
-  static Future<List<Map<String, dynamic>>> getStoresByCategory(
-          String categoryId) async =>
-      await client
-          .from('stores')
-          .select('*, categories(name)')
-          .eq('category_id', categoryId)
-          .order('name');
+  static Future<List<Map<String, dynamic>>> getCategories() async {
+    final res = await client.from('categories').select().order('name');
+    return _asListOfMaps(res);
+  }
 
-  static Future<List<Map<String, dynamic>>> getCarouselAds() async =>
-      await client.from('carousel_ads').select('*, stores(name)').order('position');
+  // ============================================================
+  // CAROUSEL ADS
+  // ============================================================
+
+  static Future<List<Map<String, dynamic>>> getCarouselAds() async {
+    final res = await client
+        .from('carousel_ads')
+        .select('*, stores(name)')
+        .order('position');
+
+    return _asListOfMaps(res);
+  }
 
   static Future<Map<String, dynamic>?> createCarouselAd({
     required String title,
@@ -149,39 +249,85 @@ class SupabaseService {
     String? linkUrl,
     int position = 0,
   }) async {
-    return await client.from('carousel_ads').insert({
+    final payload = <String, dynamic>{
       'title': title,
       'image_url': imageUrl,
       'store_id': storeId,
-      'linkUrl': linkUrl,
+      // Most DB schemas use snake_case
+      'link_url': linkUrl,
       'position': position,
-    }).select('*, stores(name)').single();
+    }..removeWhere((k, v) => v == null);
+
+    final res = await client
+        .from('carousel_ads')
+        .insert(payload)
+        .select('*, stores(name)')
+        .single();
+
+    return Map<String, dynamic>.from(res);
   }
 
-  static Future<void> deleteCarouselAd(String adId) async =>
-      await client.from('carousel_ads').delete().eq('id', adId);
-
-  static Future<List<Map<String, dynamic>>> getMerchants() async => await client
-      .from('merchants')
-      .select('*, profiles(email)')
-      .order('created_at', ascending: false);
-
-  static Future<String> uploadImage(File file, {String folder = 'images'}) async {
-    final fileName =
-        '${DateTime.now().millisecondsSinceEpoch}_${file.path.split('/').last}';
-    await client.storage.from(folder).upload(fileName, file);
-    return client.storage.from(folder).getPublicUrl(fileName);
+  static Future<void> deleteCarouselAd(String adId) async {
+    await client.from('carousel_ads').delete().eq('id', adId);
   }
 
-  static Future<void> deleteImage(String folder, String fileName) async {
-    await client.storage.from(folder).remove([fileName]);
+  // ============================================================
+  // MERCHANTS (ADMIN/INFO)
+  // ============================================================
+
+  static Future<List<Map<String, dynamic>>> getMerchants() async {
+    // Your earlier code used profiles(email) which may not exist.
+    // Keep as-is only if you truly have profiles table and FK.
+    // Safer: join users(email, full_name) which you already use elsewhere.
+    final res = await client
+        .from('merchants')
+        .select('*, users(email, full_name)')
+        .order('created_at', ascending: false);
+
+    return _asListOfMaps(res);
   }
+
+  // ============================================================
+  // STORAGE UPLOADS
+  // ============================================================
+
+  /// Upload bytes (web + mobile). Provide a file extension if you can (e.g. "jpg").
+  static Future<String> uploadImageBytes(
+    Uint8List bytes, {
+    String bucket = 'images',
+    String? extension,
+    String? contentType,
+  }) async {
+    final ext = (extension ?? 'jpg').replaceAll('.', '');
+    final fileName = '${DateTime.now().millisecondsSinceEpoch}.$ext';
+
+    await client.storage.from(bucket).uploadBinary(
+          fileName,
+          bytes,
+          fileOptions: FileOptions(
+            upsert: false,
+            contentType: contentType,
+          ),
+        );
+
+    return client.storage.from(bucket).getPublicUrl(fileName);
+  }
+
+  /// Delete a stored object by path (filename)
+  static Future<void> deleteImage(String bucket, String fileName) async {
+    await client.storage.from(bucket).remove([fileName]);
+  }
+
+  // ============================================================
+  // HEALTH CHECK
+  // ============================================================
 
   static Future<String> runtimeHealthCheck() async {
     try {
       final sb = Supabase.instance.client;
       const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
       debugPrint('[SB-RT] Client ready. URL=$supabaseUrl');
+
       final data = await sb.from('merchants').select('id,user_id').limit(1);
       final list = data as List;
       debugPrint('[SB-RT] ✅ Query OK. merchants rows fetched=${list.length}');
@@ -197,5 +343,19 @@ class SupabaseService {
       debugPrint('[SB-RT] ❌ Unknown error: $e');
       return '[SB-RT] ❌ Unknown Error\n$e';
     }
+  }
+
+  // ============================================================
+  // INTERNAL HELPERS
+  // ============================================================
+
+  static List<Map<String, dynamic>> _asListOfMaps(dynamic res) {
+    if (res is List) {
+      return res
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    return <Map<String, dynamic>>[];
   }
 }

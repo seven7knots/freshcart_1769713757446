@@ -1,3 +1,12 @@
+// ============================================================
+// FILE: lib/presentation/marketplace_account_screen/marketplace_account_screen.dart
+// ============================================================
+// FIX:
+// - If the current user is an admin, do NOT keep them inside marketplace account UI.
+// - Admin should be routed to admin landing/dashboard (Model A: admin > merchant).
+// - Adds an Admin Dashboard menu item as a fallback.
+// ============================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
@@ -8,11 +17,60 @@ import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 import '../marketplace_screen/widgets/marketplace_bottom_nav_widget.dart';
 
-class MarketplaceAccountScreen extends ConsumerWidget {
+class MarketplaceAccountScreen extends ConsumerStatefulWidget {
   const MarketplaceAccountScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MarketplaceAccountScreen> createState() =>
+      _MarketplaceAccountScreenState();
+}
+
+class _MarketplaceAccountScreenState
+    extends ConsumerState<MarketplaceAccountScreen> {
+  bool _checkedAdmin = false;
+  bool _isAdmin = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Run once per screen mount (safe for navigation)
+    if (!_checkedAdmin) {
+      _checkedAdmin = true;
+      _checkAdminAndRedirect();
+    }
+  }
+
+  Future<void> _checkAdminAndRedirect() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      // Source of truth for admin: RPC is_admin()
+      final res = await Supabase.instance.client.rpc('is_admin');
+      final isAdmin = res == true;
+
+      if (!mounted) return;
+
+      setState(() => _isAdmin = isAdmin);
+
+      // If admin, route to admin landing immediately
+      if (isAdmin) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRoutes.adminLandingDashboard,
+            (route) => false,
+          );
+        });
+      }
+    } catch (_) {
+      // Ignore; keep marketplace account screen
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = Supabase.instance.client.auth.currentUser;
     final userProfile = ref.watch(currentUserProvider);
 
@@ -51,8 +109,11 @@ class MarketplaceAccountScreen extends ConsumerWidget {
                   child: Text(
                     userProfile.when(
                       data: (profile) =>
-                          profile?.fullName?.substring(0, 1).toUpperCase() ??
-                          'U',
+                          (profile as dynamic)
+                                  ?.fullName
+                                  ?.substring(0, 1)
+                                  .toUpperCase() ??
+                              'U',
                       loading: () => 'U',
                       error: (_, __) => 'U',
                     ),
@@ -70,7 +131,8 @@ class MarketplaceAccountScreen extends ConsumerWidget {
                     children: [
                       Text(
                         userProfile.when(
-                          data: (profile) => profile?.fullName ?? 'User',
+                          data: (profile) =>
+                              (profile as dynamic)?.fullName ?? 'User',
                           loading: () => 'Loading...',
                           error: (_, __) => 'User',
                         ),
@@ -99,6 +161,25 @@ class MarketplaceAccountScreen extends ConsumerWidget {
               ],
             ),
           ),
+
+          // Fallback admin entry (in case redirect is blocked somewhere)
+          if (_isAdmin) ...[
+            SizedBox(height: 2.h),
+            _buildMenuItem(
+              context,
+              icon: Icons.admin_panel_settings,
+              title: 'Admin Dashboard',
+              subtitle: 'Open admin controls',
+              onTap: () {
+                Navigator.pushNamedAndRemoveUntil(
+                  context,
+                  AppRoutes.adminLandingDashboard,
+                  (route) => false,
+                );
+              },
+            ),
+          ],
+
           SizedBox(height: 3.h),
           Text(
             'My Activity',

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide FilterChip;
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
@@ -14,7 +14,8 @@ class AdminEditStandaloneScreen extends StatefulWidget {
   const AdminEditStandaloneScreen({super.key});
 
   @override
-  State<AdminEditStandaloneScreen> createState() => _AdminEditStandaloneScreenState();
+  State<AdminEditStandaloneScreen> createState() =>
+      _AdminEditStandaloneScreenState();
 }
 
 class _AdminEditStandaloneScreenState extends State<AdminEditStandaloneScreen> {
@@ -88,7 +89,7 @@ class _AdminEditStandaloneScreenState extends State<AdminEditStandaloneScreen> {
     final theme = Theme.of(context);
 
     // Access check
-    if (!authProvider.isAdmin) {
+    if (!adminProvider.isAdmin) {
       return Scaffold(
         body: Center(
           child: Column(
@@ -137,7 +138,7 @@ class _AdminEditStandaloneScreenState extends State<AdminEditStandaloneScreen> {
                   Switch(
                     value: adminProvider.isEditMode,
                     onChanged: (value) => adminProvider.setEditMode(value),
-                    activeColor: Colors.white,
+                    activeThumbColor: Colors.white,
                     activeTrackColor: Colors.green,
                   ),
                 ],
@@ -188,27 +189,46 @@ class _AdminEditStandaloneScreenState extends State<AdminEditStandaloneScreen> {
                   final isSelected = _selectedContentType == type['key'];
                   return Padding(
                     padding: EdgeInsets.only(right: 2.w),
-                    child: FilterChip(
-                      selected: isSelected,
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            type['icon'] as IconData,
-                            size: 16,
-                            color: isSelected ? Colors.white : Colors.grey[700],
-                          ),
-                          SizedBox(width: 1.w),
-                          Text(type['label'] as String),
-                        ],
-                      ),
-                      onSelected: (_) {
-                        setState(() => _selectedContentType = type['key'] as String);
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(
+                            () => _selectedContentType = type['key'] as String);
                       },
-                      selectedColor: Colors.orange,
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.grey[800],
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 3.w, vertical: 1.h),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.orange : Colors.grey[200],
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color:
+                                isSelected ? Colors.orange : Colors.grey[400]!,
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              type['icon'] as IconData,
+                              size: 16,
+                              color:
+                                  isSelected ? Colors.white : Colors.grey[700],
+                            ),
+                            SizedBox(width: 1.w),
+                            Text(
+                              type['label'] as String,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : Colors.grey[800],
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -250,7 +270,8 @@ class _AdminEditStandaloneScreenState extends State<AdminEditStandaloneScreen> {
                           title: 'Manage Categories',
                           subtitle: 'Add/edit categories',
                           color: Colors.purple,
-                          onTap: () => Navigator.pushNamed(context, AppRoutes.adminCategories),
+                          onTap: () => Navigator.pushNamed(
+                              context, AppRoutes.adminCategories),
                         ),
                         _buildActionCard(
                           icon: Icons.store,
@@ -271,14 +292,16 @@ class _AdminEditStandaloneScreenState extends State<AdminEditStandaloneScreen> {
                           title: 'Ads Manager',
                           subtitle: 'View all ads',
                           color: Colors.red,
-                          onTap: () => Navigator.pushNamed(context, AppRoutes.adminAdsManagement),
+                          onTap: () => Navigator.pushNamed(
+                              context, AppRoutes.adminAdsManagement),
                         ),
                         _buildActionCard(
                           icon: Icons.home,
                           title: 'View as Customer',
                           subtitle: 'Test customer view',
                           color: Colors.green,
-                          onTap: () => Navigator.pushNamed(context, AppRoutes.home),
+                          onTap: () =>
+                              Navigator.pushNamed(context, AppRoutes.home),
                         ),
                       ],
                     ),
@@ -348,9 +371,9 @@ class _AdminEditStandaloneScreenState extends State<AdminEditStandaloneScreen> {
       child: Container(
         padding: EdgeInsets.all(3.w),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withAlpha(26),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withAlpha(77)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -358,7 +381,7 @@ class _AdminEditStandaloneScreenState extends State<AdminEditStandaloneScreen> {
             Container(
               padding: EdgeInsets.all(2.w),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
+                color: color.withAlpha(51),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 28),
@@ -369,7 +392,7 @@ class _AdminEditStandaloneScreenState extends State<AdminEditStandaloneScreen> {
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 12.sp,
-                color: color.withOpacity(0.9),
+                color: color.withAlpha(230),
               ),
               textAlign: TextAlign.center,
             ),

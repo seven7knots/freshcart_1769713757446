@@ -2,16 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../presentation/home_screen/home_screen.dart';
-import '../presentation/order_history_screen/order_history_screen.dart';
 import '../presentation/profile_screen/profile_screen.dart';
 import '../presentation/search_screen/search_screen.dart';
 import '../presentation/shopping_cart_screen/shopping_cart_screen.dart';
+import '../presentation/stores_screen/stores_screen.dart';
 import '../presentation/global_admin_controls_overlay_screen/global_admin_controls_overlay_screen.dart';
 import './custom_bottom_bar.dart';
 import './floating_ai_chatbox.dart';
 
 /// Global layout wrapper that maintains persistent bottom navigation across main screens.
 /// Uses IndexedStack to preserve state and prevent unnecessary rebuilds.
+/// Updated: Stores replaces Order History at index 3
 class MainLayoutWrapper extends StatefulWidget {
   final int initialIndex;
 
@@ -33,11 +34,11 @@ class MainLayoutWrapperState extends State<MainLayoutWrapper> {
   late int _currentIndex;
 
   final List<Widget> _screens = const [
-    HomeScreen(),
-    SearchScreen(),
-    ShoppingCartScreen(),
-    OrderHistoryScreen(),
-    ProfileScreen(),
+    HomeScreen(),           // Index 0
+    SearchScreen(),         // Index 1
+    ShoppingCartScreen(),   // Index 2
+    StoresScreen(),         // Index 3 - CHANGED from OrderHistoryScreen
+    ProfileScreen(),        // Index 4
   ];
 
   @override

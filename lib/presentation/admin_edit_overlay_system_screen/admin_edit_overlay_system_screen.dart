@@ -41,7 +41,7 @@ class AdminEditOverlaySystemScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
-    if (!auth.isAdmin) return child;
+    if (!auth.isAuthenticated) return child;
 
     final admin = Provider.of<AdminProvider>(context);
     if (!admin.isEditMode) return child;

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../core/app_export.dart';
-import './custom_image_widget.dart';
 
 /// Custom app bar widget implementing Contemporary Minimalist Commerce design
 /// with contextual actions and adaptive behavior for grocery delivery app
@@ -65,13 +63,15 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget _buildLogoLeading(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: CustomImageWidget(
-        imageUrl: 'assets/images/image-1761892441301.png',
-        width: 40,
-        height: 40,
-        fit: BoxFit.contain,
-        semanticLabel:
-            'KJ Delivery App Logo - Black line-art icon of a grocery bag filled with fresh produce including leafy vegetables, bottle, and herbs. Darker and bolder version for better visibility.',
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8.0),
+        child: Image.asset(
+          'assets/images/kayan_logo-1770269431337.jpg',
+          width: 40,
+          height: 40,
+          fit: BoxFit.cover,
+          semanticLabel: 'KJ Delivery Services logo with professional branding',
+        ),
       ),
     );
   }

@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart' hide FilterChip;
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../models/product_model.dart';
 import '../../routes/app_routes.dart';
+import '../../services/category_service.dart';
+import '../../services/product_service.dart';
 import '../../widgets/main_layout_wrapper.dart';
 import './widgets/filter_bottom_sheet_widget.dart';
 import './widgets/filter_chips_widget.dart';
@@ -20,162 +25,108 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
+  Timer? _debounce;
 
-  final List<String> _recentSearches = [
-    'organic apples',
-    'fresh milk',
-    'whole wheat bread'
-  ];
-  final List<String> _trendingProducts = [
-    'avocados',
-    'greek yogurt',
-    'quinoa',
-    'almond milk'
-  ];
-  final List<String> _categories = [
-    'Fruits',
-    'Vegetables',
-    'Dairy',
-    'Bakery',
-    'Snacks'
-  ];
+  final List<String> _recentSearches = [];
+  final List<String> _trendingProducts = [];
+  List<String> _categories = [];
 
-  List<Map<String, dynamic>> _searchResults = [];
+  List<Product> _searchResults = [];
   List<FilterChip> _activeFilters = [];
   Map<String, dynamic> _currentFilters = {};
 
   bool _isSearching = false;
   bool _isLoading = false;
   bool _showSuggestions = true;
+  bool _categoriesLoaded = false;
 
   final bool _showVoiceSearch = false;
   final bool _showBarcodeScanner = false;
 
-  // Mock product data
-  final List<Map<String, dynamic>> _allProducts = [
-    {
-      "id": 1,
-      "name": "Organic Bananas",
-      "category": "Fruits",
-      "price": "\$3.99",
-      "rating": 4.5,
-      "brand": "Organic Valley",
-      "image": "https://images.unsplash.com/photo-1565804212260-280f967e431b",
-      "semanticLabel": "Fresh yellow bananas in a bunch on white background",
-      "dietary": ["Organic", "Vegan"],
-    },
-    {
-      "id": 2,
-      "name": "Fresh Whole Milk",
-      "category": "Dairy",
-      "price": "\$4.29",
-      "rating": 4.8,
-      "brand": "Farm Fresh",
-      "image": "https://images.unsplash.com/photo-1631175316696-ee41839378dc",
-      "semanticLabel": "Glass bottle of fresh white milk with blue label",
-      "dietary": ["Organic"],
-    },
-    {
-      "id": 3,
-      "name": "Sourdough Bread",
-      "category": "Bakery",
-      "price": "\$5.99",
-      "rating": 4.6,
-      "brand": "Fresh Market",
-      "image": "https://images.unsplash.com/photo-1586187524207-71b5dcf0fb84",
-      "semanticLabel":
-          "Rustic sourdough bread loaf with golden crust on wooden surface",
-      "dietary": ["Vegetarian"],
-    },
-    {
-      "id": 4,
-      "name": "Greek Yogurt",
-      "category": "Dairy",
-      "price": "\$6.49",
-      "rating": 4.7,
-      "brand": "Pure & Simple",
-      "image": "https://images.unsplash.com/photo-1562114808-b4b33cf60f4f",
-      "semanticLabel": "White bowl of creamy Greek yogurt with wooden spoon",
-      "dietary": ["Organic", "Vegetarian"],
-    },
-    {
-      "id": 5,
-      "name": "Free Range Eggs",
-      "category": "Dairy",
-      "price": "\$7.99",
-      "rating": 4.9,
-      "brand": "Nature's Best",
-      "image": "https://images.unsplash.com/photo-1602268130253-6eaee701b532",
-      "semanticLabel": "Dozen brown free-range eggs in cardboard carton",
-      "dietary": ["Organic"],
-    },
-    {
-      "id": 6,
-      "name": "Organic Spinach",
-      "category": "Vegetables",
-      "price": "\$3.49",
-      "rating": 4.4,
-      "brand": "Green Choice",
-      "image": "https://images.unsplash.com/photo-1518008147256-2f83e826c536",
-      "semanticLabel": "Fresh green spinach leaves in clear plastic container",
-      "dietary": ["Organic", "Vegan"],
-    },
-    {
-      "id": 7,
-      "name": "Almond Milk",
-      "category": "Beverages",
-      "price": "\$4.99",
-      "rating": 4.3,
-      "brand": "Pure & Simple",
-      "image": "https://images.unsplash.com/photo-1601436423474-51738541c1b1",
-      "semanticLabel":
-          "Carton of unsweetened almond milk with almonds scattered around",
-      "dietary": ["Vegan", "Gluten-Free"],
-    },
-    {
-      "id": 8,
-      "name": "Quinoa",
-      "category": "Pantry Staples",
-      "price": "\$8.99",
-      "rating": 4.6,
-      "brand": "Nature's Best",
-      "image": "https://images.unsplash.com/photo-1623428187969-5da2dcea5ebf",
-      "semanticLabel": "Bowl of uncooked quinoa grains with wooden spoon",
-      "dietary": ["Organic", "Gluten-Free", "Vegan"],
-    },
-  ];
-
   @override
   void initState() {
     super.initState();
-    _searchResults = List.from(_allProducts);
+    _loadCategories();
+    _loadInitialProducts();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
+  }
+
+  Future<void> _loadCategories() async {
+    try {
+      final categories = await CategoryService.getTopLevelCategories();
+      if (mounted) {
+        setState(() {
+          _categories = categories.map((c) => c.name).toList();
+          _categoriesLoaded = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('[SEARCH] Error loading categories: $e');
+      if (mounted) {
+        setState(() {
+          _categoriesLoaded = true;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadInitialProducts() async {
+    setState(() => _isLoading = true);
+
+    try {
+      // Load some initial products to display
+      final products = await ProductService.getAllProducts(
+        availableOnly: true,
+        excludeDemo: true,
+      );
+
+      if (mounted) {
+        setState(() {
+          _searchResults = products.take(20).toList();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[SEARCH] Error loading initial products: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   bool get _shouldShowBack =>
       Navigator.of(context).canPop() && MainLayoutWrapper.of(context) == null;
 
   void _goToTab(int index) {
-  AppRoutes.switchToTab(context, index);
-}
+    AppRoutes.switchToTab(context, index);
+  }
 
+  void _handleSearchChange(String query) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _performSearch(query);
+    });
+  }
 
-  void _handleSearchChange(String query) => _performSearch(query);
+  void _handleSearchSubmit(String query) {
+    _debounce?.cancel();
+    _performSearch(query);
+  }
 
-  void _handleSearchSubmit(String query) => _performSearch(query);
-
-  void _performSearch(String query) {
+  Future<void> _performSearch(String query) async {
     if (query.isEmpty) {
+      await _loadInitialProducts();
       setState(() {
-        _searchResults = List.from(_allProducts);
         _showSuggestions = true;
         _isSearching = false;
-        _isLoading = false;
       });
       return;
     }
@@ -186,78 +137,78 @@ class _SearchScreenState extends State<SearchScreen> {
       _showSuggestions = false;
     });
 
+    // Add to recent searches
     if (!_recentSearches.contains(query.toLowerCase())) {
-      _recentSearches.insert(0, query.toLowerCase());
-      if (_recentSearches.length > 5) _recentSearches.removeLast();
+      setState(() {
+        _recentSearches.insert(0, query.toLowerCase());
+        if (_recentSearches.length > 5) _recentSearches.removeLast();
+      });
     }
 
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
+    try {
+      // Search products from database
+      final results = await ProductService.searchProducts(
+        query,
+        availableOnly: true,
+      );
 
-      final results = _allProducts.where((product) {
-        final name = (product["name"] as String).toLowerCase();
-        final category = (product["category"] as String).toLowerCase();
-        final brand = (product["brand"] as String).toLowerCase();
-        final searchQuery = query.toLowerCase();
-
-        return name.contains(searchQuery) ||
-            category.contains(searchQuery) ||
-            brand.contains(searchQuery);
-      }).toList();
-
-      final filteredResults = _applyFilters(results);
-
-      setState(() {
-        _searchResults = filteredResults;
-        _isLoading = false;
-      });
-    });
+      if (mounted) {
+        final filteredResults = _applyFilters(results);
+        setState(() {
+          _searchResults = filteredResults;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[SEARCH] Error performing search: $e');
+      if (mounted) {
+        setState(() {
+          _searchResults = [];
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Search failed: ${e.toString()}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
-  List<Map<String, dynamic>> _applyFilters(List<Map<String, dynamic>> products) {
-    List<Map<String, dynamic>> filtered = List.from(products);
+  List<Product> _applyFilters(List<Product> products) {
+    List<Product> filtered = List.from(products);
 
+    // Filter by categories
     final selectedCategories = _currentFilters['categories'] as List<String>?;
     if (selectedCategories?.isNotEmpty == true) {
       filtered = filtered.where((product) {
-        return selectedCategories!.contains(product['category']);
+        return selectedCategories!.contains(product.category);
       }).toList();
     }
 
+    // Filter by price range
     final minPrice = _currentFilters['minPrice'] as double?;
     final maxPrice = _currentFilters['maxPrice'] as double?;
     if (minPrice != null || maxPrice != null) {
       filtered = filtered.where((product) {
-        final priceStr = (product['price'] as String).replaceAll('\$', '');
-        final price = double.tryParse(priceStr) ?? 0;
+        final price = product.effectivePrice;
         return (minPrice == null || price >= minPrice) &&
             (maxPrice == null || price <= maxPrice);
       }).toList();
     }
 
+    // Filter by brands (store names in this case)
     final selectedBrands = _currentFilters['brands'] as List<String>?;
     if (selectedBrands?.isNotEmpty == true) {
       filtered = filtered.where((product) {
-        return selectedBrands!.contains(product['brand']);
+        return product.storeName != null &&
+            selectedBrands!.contains(product.storeName);
       }).toList();
     }
 
-    final selectedDietary = _currentFilters['dietary'] as List<String>?;
-    if (selectedDietary?.isNotEmpty == true) {
-      filtered = filtered.where((product) {
-        final productDietary =
-            (product['dietary'] as List<dynamic>).cast<String>();
-        return selectedDietary!.any((diet) => productDietary.contains(diet));
-      }).toList();
-    }
-
-    final minRating = _currentFilters['minRating'] as int?;
-    if (minRating != null) {
-      filtered = filtered.where((product) {
-        final rating = product['rating'] as double;
-        return rating >= minRating;
-      }).toList();
-    }
+    // Note: Dietary filters would require adding dietary info to Product model
+    // Skipping for now
 
     return filtered;
   }
@@ -295,26 +246,6 @@ class _SearchScreenState extends State<SearchScreen> {
           category: 'brand',
         ));
       }
-    }
-
-    final dietary = _currentFilters['dietary'] as List<String>?;
-    if (dietary?.isNotEmpty == true) {
-      for (final diet in dietary!) {
-        chips.add(FilterChip(
-          id: 'dietary_$diet',
-          label: diet,
-          category: 'dietary',
-        ));
-      }
-    }
-
-    final minRating = _currentFilters['minRating'] as int?;
-    if (minRating != null) {
-      chips.add(FilterChip(
-        id: 'rating',
-        label: '$minRating+ stars',
-        category: 'rating',
-      ));
     }
 
     setState(() {
@@ -384,15 +315,19 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  void _onProductTap(Map<String, dynamic> product) {
-    Navigator.pushNamed(context, AppRoutes.productDetail, arguments: product);
+  void _onProductTap(Product product) {
+    Navigator.pushNamed(
+      context,
+      AppRoutes.productDetail,
+      arguments: product,
+    );
   }
 
-  void _onAddToCart(Map<String, dynamic> product) {
+  void _onAddToCart(Product product) {
     HapticFeedback.mediumImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${product["name"]} added to cart'),
+        content: Text('${product.name} added to cart'),
         duration: const Duration(seconds: 2),
         action: SnackBarAction(
           label: 'View Cart',
@@ -402,21 +337,21 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  void _onAddToWishlist(Map<String, dynamic> product) {
+  void _onAddToWishlist(Product product) {
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${product["name"]} added to wishlist'),
+        content: Text('${product.name} added to wishlist'),
         duration: const Duration(seconds: 2),
       ),
     );
   }
 
-  void _onShare(Map<String, dynamic> product) {
+  void _onShare(Product product) {
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Sharing ${product["name"]}'),
+        content: Text('Sharing ${product.name}'),
         duration: const Duration(seconds: 2),
       ),
     );

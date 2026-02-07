@@ -25,7 +25,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
   void _loadMerchant() {
     final authProvider = context.read<AuthProvider>();
     final merchantProvider = context.read<MerchantProvider>();
-    final userId = authProvider.user?.id;
+    final userId = authProvider.userId;
 
     if (userId != null) {
       merchantProvider.loadMyMerchant(userId);
@@ -99,7 +99,7 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
           }
 
           final merchant = merchantProvider.merchant;
-          final userId = authProvider.user?.id;
+          final userId = authProvider.userId;
 
           if (userId == null) {
             return const Center(

@@ -18,8 +18,7 @@ class CategoryReorderListWidget extends StatefulWidget {
       _CategoryReorderListWidgetState();
 }
 
-class _CategoryReorderListWidgetState
-    extends State<CategoryReorderListWidget> {
+class _CategoryReorderListWidgetState extends State<CategoryReorderListWidget> {
   final CategoryService _categoryService = CategoryService();
 
   late List<Map<String, dynamic>> _items;
@@ -30,8 +29,7 @@ class _CategoryReorderListWidgetState
   void initState() {
     super.initState();
     _items = List<Map<String, dynamic>>.from(widget.categories)
-      ..sort((a, b) =>
-          (a['sort_order'] ?? 0).compareTo(b['sort_order'] ?? 0));
+      ..sort((a, b) => (a['sort_order'] ?? 0).compareTo(b['sort_order'] ?? 0));
   }
 
   Future<void> _saveOrder() async {
@@ -48,8 +46,7 @@ class _CategoryReorderListWidgetState
       }
 
       // Changed from updateCategorySortOrders to reorderCategories
-      final orderedIds = _items.map((item) => item['id']).toList();
-      await _categoryService.reorderCategories(orderedIds);
+      await _categoryService.reorderCategories(updates);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -183,8 +180,8 @@ class _CategoryReorderListWidgetState
         leading: const Icon(Icons.drag_handle),
         title: Text(
           name,
-          style: theme.textTheme.titleSmall
-              ?.copyWith(fontWeight: FontWeight.w600),
+          style:
+              theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
         ),
         subtitle: Text('Position ${index + 1}'),
         trailing: Text(

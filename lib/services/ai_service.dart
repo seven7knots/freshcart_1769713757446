@@ -1,11 +1,13 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart';
-import 'package:uuid/uuid.dart';
 import 'dart:convert';
-import './openai_service.dart';
-import './product_service.dart';
-import './order_service.dart';
+
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
+
 import './marketplace_service.dart';
+import './openai_service.dart';
+import './order_service.dart';
+import './product_service.dart';
 import './supabase_service.dart';
 
 class AIService {
@@ -151,9 +153,10 @@ class AIService {
       final results = <Map<String, dynamic>>[];
 
       // Search products
-      final products = await _productService.searchProducts(
+      final products = await ProductService.searchProducts(
         query,
-        category: category,
+        storeId: null,
+        availableOnly: true,
       );
 
       for (var product in products) {
@@ -336,9 +339,10 @@ Format as valid JSON only, no additional text.''';
             final quantity = item['quantity'] ?? 1;
 
             // Search for product in database
-            final products = await _productService.searchProducts(
+            final products = await ProductService.searchProducts(
               itemName,
-              category: category,
+              storeId: null,
+              availableOnly: true,
             );
 
             if (products.isNotEmpty) {

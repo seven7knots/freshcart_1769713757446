@@ -3,15 +3,17 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../models/product_model.dart';
+import '../../../widgets/animated_press_button.dart';
 
 class ProductGridWidget extends StatelessWidget {
-  final List<Map<String, dynamic>> products;
+  final List<Product> products;
   final bool isLoading;
   final VoidCallback? onLoadMore;
-  final Function(Map<String, dynamic>)? onProductTap;
-  final Function(Map<String, dynamic>)? onAddToCart;
-  final Function(Map<String, dynamic>)? onAddToWishlist;
-  final Function(Map<String, dynamic>)? onShare;
+  final Function(Product)? onProductTap;
+  final Function(Product)? onAddToCart;
+  final Function(Product)? onAddToWishlist;
+  final Function(Product)? onShare;
 
   const ProductGridWidget({
     super.key,
@@ -57,132 +59,221 @@ class ProductGridWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildProductCard(BuildContext context, Map<String, dynamic> product) {
-    return GestureDetector(
-      onTap: () {
+  Widget _buildProductCard(BuildContext context, Product product) {
+    final theme = Theme.of(context);
+    
+    return AnimatedPressButton(
+      onPressed: () {
         HapticFeedback.lightImpact();
         onProductTap?.call(product);
       },
-      onLongPress: () {
-        HapticFeedback.mediumImpact();
-        _showQuickActions(context, product);
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color:
-                  AppTheme.lightTheme.colorScheme.shadow.withValues(alpha: 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Product image
-            Expanded(
-              flex: 3,
-              child: Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(12)),
-                  color:
-                      AppTheme.lightTheme.colorScheme.surfaceContainerHighest,
-                ),
-                child: ClipRRect(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(12)),
-                  child: CustomImageWidget(
-                    imageUrl: product["image"] as String,
-                    width: double.infinity,
-                    height: double.infinity,
-                    fit: BoxFit.cover,
-                    semanticLabel: product["semanticLabel"] as String,
+      child: GestureDetector(
+        onLongPress: () {
+          HapticFeedback.mediumImpact();
+          _showQuickActions(context, product);
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: theme.colorScheme.shadow.withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Product image
+              Expanded(
+                flex: 3,
+                child: Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(12)),
+                    color: theme.colorScheme.surfaceContainerHighest,
+                  ),
+                  child: ClipRRect(
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(12)),
+                    child: Stack(
+                      children: [
+                        CustomImageWidget(
+                          imageUrl: product.imageUrl ??
+                              'https://images.unsplash.com/photo-1565804212260-280f967e431b',
+                          width: double.infinity,
+                          height: double.infinity,
+                          fit: BoxFit.cover,
+                          semanticLabel: product.name,
+                        ),
+                        // Sale badge
+                        if (product.isOnSale)
+                          Positioned(
+                            top: 1.h,
+                            left: 1.h,
+                            child: Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 2.w,
+                                vertical: 0.5.h,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '-${product.discountPercent}%',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9.sp,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        // Out of stock overlay
+                        if (!product.canOrder)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.6),
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(12),
+                                ),
+                              ),
+                              child: Center(
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 3.w,
+                                    vertical: 1.h,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.error,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    product.isOutOfStock
+                                        ? 'Out of Stock'
+                                        : 'Unavailable',
+                                    style: TextStyle(
+                                      color: theme.colorScheme.onError,
+                                      fontSize: 10.sp,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            // Product details
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: EdgeInsets.all(3.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product["name"] as String,
-                      style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    SizedBox(height: 1.h),
-                    Text(
-                      product["category"] as String,
-                      style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                        color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const Spacer(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          product["price"] as String,
-                          style: AppTheme.lightTheme.textTheme.titleSmall
-                              ?.copyWith(
-                            color: AppTheme.lightTheme.colorScheme.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
+              // Product details
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: EdgeInsets.all(3.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
                         ),
-                        GestureDetector(
-                          onTap: () {
-                            HapticFeedback.lightImpact();
-                            onAddToCart?.call(product);
-                          },
-                          child: Container(
-                            padding: EdgeInsets.all(2.w),
-                            decoration: BoxDecoration(
-                              color: AppTheme.lightTheme.colorScheme.primary,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: CustomIconWidget(
-                              iconName: 'add',
-                              color: AppTheme.lightTheme.colorScheme.onPrimary,
-                              size: 16,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: 1.h),
+                      Text(
+                        product.storeName ?? product.category ?? '',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (product.isOnSale) ...[
+                                  Text(
+                                    product.priceDisplay,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      decoration: TextDecoration.lineThrough,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  Text(
+                                    product.salePriceDisplay!,
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      color: Colors.red,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ] else
+                                  Text(
+                                    product.priceDisplay,
+                                    style: theme.textTheme.titleSmall?.copyWith(
+                                      color: theme.colorScheme.primary,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                          if (product.canOrder)
+                            AnimatedPressButton(
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                onAddToCart?.call(product);
+                              },
+                              child: Container(
+                                padding: EdgeInsets.all(2.w),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: CustomIconWidget(
+                                  iconName: 'add',
+                                  color: theme.colorScheme.onPrimary,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildSkeletonCard(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color:
-                AppTheme.lightTheme.colorScheme.shadow.withValues(alpha: 0.1),
+            color: theme.colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -198,7 +289,7 @@ class ProductGridWidget extends StatelessWidget {
               decoration: BoxDecoration(
                 borderRadius:
                     const BorderRadius.vertical(top: Radius.circular(12)),
-                color: AppTheme.lightTheme.colorScheme.surfaceContainerHighest,
+                color: theme.colorScheme.surfaceContainerHighest,
               ),
             ),
           ),
@@ -213,8 +304,7 @@ class ProductGridWidget extends StatelessWidget {
                     height: 2.h,
                     width: 80.w,
                     decoration: BoxDecoration(
-                      color: AppTheme
-                          .lightTheme.colorScheme.surfaceContainerHighest,
+                      color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -223,8 +313,7 @@ class ProductGridWidget extends StatelessWidget {
                     height: 1.5.h,
                     width: 60.w,
                     decoration: BoxDecoration(
-                      color: AppTheme
-                          .lightTheme.colorScheme.surfaceContainerHighest,
+                      color: theme.colorScheme.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
@@ -236,8 +325,7 @@ class ProductGridWidget extends StatelessWidget {
                         height: 2.h,
                         width: 20.w,
                         decoration: BoxDecoration(
-                          color: AppTheme
-                              .lightTheme.colorScheme.surfaceContainerHighest,
+                          color: theme.colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -245,8 +333,7 @@ class ProductGridWidget extends StatelessWidget {
                         width: 8.w,
                         height: 8.w,
                         decoration: BoxDecoration(
-                          color: AppTheme
-                              .lightTheme.colorScheme.surfaceContainerHighest,
+                          color: theme.colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
@@ -262,6 +349,8 @@ class ProductGridWidget extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Center(
       child: Padding(
         padding: EdgeInsets.all(8.w),
@@ -270,21 +359,21 @@ class ProductGridWidget extends StatelessWidget {
           children: [
             CustomIconWidget(
               iconName: 'search_off',
-              color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+              color: theme.colorScheme.onSurfaceVariant,
               size: 64,
             ),
             SizedBox(height: 3.h),
             Text(
               'No products found',
-              style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurface,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                color: theme.colorScheme.onSurface,
               ),
             ),
             SizedBox(height: 1.h),
             Text(
               'Try adjusting your search or filters to find what you\'re looking for',
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
@@ -297,13 +386,14 @@ class ProductGridWidget extends StatelessWidget {
   }
 
   Widget _buildPopularCategories(BuildContext context) {
+    final theme = Theme.of(context);
     final categories = ['Fruits', 'Vegetables', 'Dairy', 'Snacks', 'Beverages'];
 
     return Column(
       children: [
         Text(
           'Popular Categories',
-          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+          style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -312,21 +402,21 @@ class ProductGridWidget extends StatelessWidget {
           spacing: 2.w,
           runSpacing: 1.h,
           children: categories.map((category) {
-            return GestureDetector(
-              onTap: () {
+            return AnimatedPressButton(
+              onPressed: () {
                 HapticFeedback.lightImpact();
                 // Navigate to category
               },
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
                 decoration: BoxDecoration(
-                  color: AppTheme.lightTheme.colorScheme.primaryContainer,
+                  color: theme.colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   category,
-                  style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onPrimaryContainer,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onPrimaryContainer,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -338,13 +428,15 @@ class ProductGridWidget extends StatelessWidget {
     );
   }
 
-  void _showQuickActions(BuildContext context, Map<String, dynamic> product) {
+  void _showQuickActions(BuildContext context, Product product) {
+    final theme = Theme.of(context);
+    
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.surface,
+          color: theme.colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
@@ -355,17 +447,17 @@ class ProductGridWidget extends StatelessWidget {
               height: 0.5.h,
               margin: EdgeInsets.symmetric(vertical: 2.h),
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.outline,
+                color: theme.colorScheme.outline,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             ListTile(
               leading: CustomIconWidget(
                 iconName: 'favorite_border',
-                color: AppTheme.lightTheme.colorScheme.onSurface,
+                color: theme.colorScheme.onSurface,
                 size: 24,
               ),
-              title: Text('Add to Wishlist'),
+              title: const Text('Add to Wishlist'),
               onTap: () {
                 Navigator.pop(context);
                 onAddToWishlist?.call(product);
@@ -374,10 +466,10 @@ class ProductGridWidget extends StatelessWidget {
             ListTile(
               leading: CustomIconWidget(
                 iconName: 'visibility',
-                color: AppTheme.lightTheme.colorScheme.onSurface,
+                color: theme.colorScheme.onSurface,
                 size: 24,
               ),
-              title: Text('View Similar'),
+              title: const Text('View Similar'),
               onTap: () {
                 Navigator.pop(context);
                 // Navigate to similar products
@@ -386,10 +478,10 @@ class ProductGridWidget extends StatelessWidget {
             ListTile(
               leading: CustomIconWidget(
                 iconName: 'share',
-                color: AppTheme.lightTheme.colorScheme.onSurface,
+                color: theme.colorScheme.onSurface,
                 size: 24,
               ),
-              title: Text('Share Product'),
+              title: const Text('Share Product'),
               onTap: () {
                 Navigator.pop(context);
                 onShare?.call(product);

@@ -1,39 +1,81 @@
+// ============================================================
+// FILE: lib/providers/admin_provider.dart
+// ============================================================
+// Admin provider with dashboard, user management, and
+// merchant/driver application approval functionality
+//
+// Model A role resolution: admin > merchant > user
+// Source of truth for admin: RPC is_admin()
+// Source of truth for merchant: merchants.status == 'approved' for current user
+// UPDATED: Handles driver applications using is_verified/is_active flags
+// ============================================================
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../services/admin_service.dart';
+import '../models/merchant_model.dart';
+import '../models/driver_model.dart';
+import '../services/supabase_service.dart';
 
 class AdminProvider extends ChangeNotifier {
-  final AdminService _adminService;
-  SupabaseClient get _client => Supabase.instance.client;
+  SupabaseClient get _client => SupabaseService.client;
 
-  // ---- Auth/Admin state ----
+  // ============================================================
+  // STATE
+  // ============================================================
+
   bool _isAdmin = false;
-  bool get isAdmin => _isAdmin;
-
+  bool _isMerchant = false; // approved merchant for current user
   bool _isLoading = false;
-  bool get isLoading => _isLoading;
-
   String? _error;
-  String? get error => _error;
-
-  // ---- Dashboard data ----
-  Map<String, dynamic>? _dashboardStats;
-  Map<String, dynamic>? get dashboardStats => _dashboardStats;
-
-  List<Map<String, dynamic>> _recentOrders = [];
-  List<Map<String, dynamic>> get recentOrders => _recentOrders;
-
-  // ---- Users management ----
-  List<Map<String, dynamic>> _users = [];
-  List<Map<String, dynamic>> get users => _users;
-
-  // ---- Global edit overlay ----
   bool _isEditMode = false;
+
+  // Dashboard
+  Map<String, dynamic>? _dashboardStats;
+  List<Map<String, dynamic>> _recentOrders = [];
+
+  // Users
+  List<Map<String, dynamic>> _users = [];
+
+  // Applications
+  List<Merchant> _pendingMerchants = [];
+  List<Driver> _pendingDrivers = []; // Changed to List<Driver>
+  List<Merchant> _allMerchants = [];
+  List<Driver> _allDrivers = []; // Changed to List<Driver>
+
+  // ============================================================
+  // GETTERS
+  // ============================================================
+
+  bool get isAdmin => _isAdmin;
+  bool get isMerchant => _isMerchant;
+
+  /// Effective role (Model A): admin always wins.
+  String get effectiveRole {
+    if (_isAdmin) return 'admin';
+    if (_isMerchant) return 'merchant';
+    return 'user';
+  }
+
+  bool get isLoading => _isLoading;
+  String? get error => _error;
   bool get isEditMode => _isEditMode;
 
-  AdminProvider({AdminService? adminService})
-      : _adminService = adminService ?? AdminService();
+  Map<String, dynamic>? get dashboardStats => _dashboardStats;
+  List<Map<String, dynamic>> get recentOrders => _recentOrders;
+  List<Map<String, dynamic>> get users => _users;
+
+  List<Merchant> get pendingMerchants => _pendingMerchants;
+  List<Driver> get pendingDrivers => _pendingDrivers; // Changed type
+  List<Merchant> get allMerchants => _allMerchants;
+  List<Driver> get allDrivers => _allDrivers; // Changed type
+
+  int get pendingApplicationsCount =>
+      _pendingMerchants.length + _pendingDrivers.length;
+
+  // ============================================================
+  // LOADING HELPERS
+  // ============================================================
 
   void _setLoading(bool v) {
     _isLoading = v;
@@ -45,175 +87,149 @@ class AdminProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ============================================================
-  // ADMIN CHECK - CRITICAL FOR ACCESS CONTROL
-  // ============================================================
-
-  Future<void> checkAdminStatus({String reason = 'unknown'}) async {
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print('[AdminProvider] checkAdminStatus START');
-    print('[AdminProvider] Reason: $reason');
-    print('[AdminProvider] Current isAdmin state: $_isAdmin');
-
-    try {
-      final user = _client.auth.currentUser;
-      
-      print('[AdminProvider] ┌─ Current User Info:');
-      print('[AdminProvider] │  user == null: ${user == null}');
-      print('[AdminProvider] │  id: ${user?.id}');
-      print('[AdminProvider] │  email: ${user?.email}');
-      print('[AdminProvider] │  role (JWT): ${user?.role}');
-      print('[AdminProvider] │  app_metadata: ${user?.appMetadata}');
-      print('[AdminProvider] │  user_metadata: ${user?.userMetadata}');
-      print('[AdminProvider] └─');
-
-      if (user == null) {
-        print('[AdminProvider] ❌ NO USER -> Setting isAdmin=false');
-        _isAdmin = false;
-        _setError(null);
-        notifyListeners();
-        print('[AdminProvider] checkAdminStatus COMPLETE (no user)');
-        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        return;
-      }
-
-      print('[AdminProvider] ┌─ Calling AdminService.isAdmin()...');
-      final res = await _adminService.isAdmin();
-      
-      print('[AdminProvider] │  Raw response: $res');
-      print('[AdminProvider] │  Response type: ${res.runtimeType}');
-      print('[AdminProvider] │  Response == true: ${res == true}');
-      print('[AdminProvider] │  Response is bool: ${res is bool}');
-      print('[AdminProvider] └─');
-
-      final oldIsAdmin = _isAdmin;
-      _isAdmin = res;
-
-      if (oldIsAdmin != _isAdmin) {
-        print('[AdminProvider] ⚠️  isAdmin CHANGED: $oldIsAdmin → $_isAdmin');
-      } else {
-        print('[AdminProvider] ℹ️  isAdmin unchanged: $_isAdmin');
-      }
-
-      _setError(null);
-      notifyListeners();
-      print('[AdminProvider] ✅ notifyListeners() called');
-
-      print('[AdminProvider] checkAdminStatus COMPLETE');
-      print('[AdminProvider] Final state: isAdmin=$_isAdmin, error=$_error');
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    } catch (e, st) {
-      print('[AdminProvider] ❌ ERROR in checkAdminStatus');
-      print('[AdminProvider] Error: $e');
-      print('[AdminProvider] Error type: ${e.runtimeType}');
-      print('[AdminProvider] Stack trace:');
-      print(st);
-      
-      _isAdmin = false;
-      _setError(e.toString());
-      notifyListeners();
-      
-      print('[AdminProvider] Set isAdmin=false due to error');
-      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    }
+  void clearError() {
+    _error = null;
+    notifyListeners();
   }
 
   // ============================================================
-  // DASHBOARD STATS & RECENT ORDERS
+  // ROLE RESOLUTION (Model A)
+  // ============================================================
+
+  Future<void> checkAdminStatus({String reason = 'unknown'}) async {
+    await refreshRoles(reason: reason);
+  }
+
+  Future<void> refreshRoles({String reason = 'unknown'}) async {
+    debugPrint('[ROLE] refreshRoles - reason: $reason');
+
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      debugPrint('[ROLE] No user logged in -> admin=false merchant=false');
+      _isAdmin = false;
+      _isMerchant = false;
+      notifyListeners();
+      return;
+    }
+
+    bool admin = false;
+    bool merchant = false;
+
+    // ----------------------------
+    // 1) ADMIN CHECK
+    // ----------------------------
+    try {
+      final result = await _client.rpc('is_admin');
+      admin = (result == true);
+      debugPrint('[ROLE] RPC is_admin => $admin');
+    } catch (e) {
+      debugPrint('[ROLE] RPC is_admin failed, fallback query: $e');
+      try {
+        final row = await _client
+            .from('users')
+            .select('role, is_active')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        admin = row != null &&
+            row['role'] == 'admin' &&
+            row['is_active'] == true;
+        debugPrint('[ROLE] users(role,is_active) => admin=$admin');
+      } catch (e2) {
+        debugPrint('[ROLE] users fallback failed => admin=false : $e2');
+        admin = false;
+      }
+    }
+
+    // ----------------------------
+    // 2) MERCHANT CHECK (by auth user id)
+    // ----------------------------
+    try {
+      final m = await _client
+          .from('merchants')
+          .select('status')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+      final status = (m?['status']?.toString() ?? '').trim().toLowerCase();
+      merchant = (status == 'approved');
+      debugPrint('[ROLE] merchants(status="$status") => merchant=$merchant');
+    } catch (e) {
+      debugPrint('[ROLE] merchant check failed => merchant=false : $e');
+      merchant = false;
+    }
+
+    _isAdmin = admin;
+    _isMerchant = merchant;
+
+    debugPrint(
+      '[ROLE] resolved => isAdmin=$_isAdmin isMerchant=$_isMerchant effectiveRole=$effectiveRole',
+    );
+    notifyListeners();
+  }
+
+  // ============================================================
+  // DASHBOARD
   // ============================================================
 
   Future<void> loadDashboardStats() async {
-    print('[AdminProvider] loadDashboardStats START');
+    debugPrint('[ADMIN] Loading dashboard stats...');
     _setLoading(true);
     _setError(null);
 
     try {
-      await checkAdminStatus(reason: 'loadDashboardStats');
+      await refreshRoles(reason: 'loadDashboardStats');
       if (!_isAdmin) {
-        _dashboardStats = null;
-        _setLoading(false);
         _setError('Access denied: not an admin');
-        print('[AdminProvider] loadDashboardStats ABORT - not admin');
+        _setLoading(false);
         return;
       }
 
-      Map<String, dynamic>? stats;
-
-      // Try service method if exists, otherwise fallback to RPC
       try {
-        final res = await _adminService.fetchDashboardStats();
-        stats = _normalizeStats(res);
-        print('[AdminProvider] loadDashboardStats via service: OK (${stats?.keys.length ?? 0} keys)');
-      } catch (serviceError) {
-        print('[AdminProvider] Service method failed: $serviceError');
-        print('[AdminProvider] Falling back to RPC: admin_dashboard_stats');
-        
-        const rpcName = 'admin_dashboard_stats';
-        final res = await _client.rpc(rpcName);
-        stats = _normalizeStats(res);
-        print('[AdminProvider] RPC response type: ${res.runtimeType}');
-        print('[AdminProvider] Normalized stats: ${stats?.keys.length ?? 0} keys');
+        final result = await _client.rpc('get_admin_dashboard_stats');
+        _dashboardStats = _normalizeStats(result);
+      } catch (e) {
+        debugPrint('[ADMIN] Dashboard RPC failed: $e');
+        _dashboardStats = {
+          'total_users': 0,
+          'active_users': 0,
+          'total_orders': 0,
+          'total_revenue': 0.0,
+          'pending_applications': 0,
+        };
       }
 
-      _dashboardStats = stats ?? <String, dynamic>{};
       _setLoading(false);
       notifyListeners();
-      
-      print('[AdminProvider] loadDashboardStats COMPLETE: ${_dashboardStats?.keys.join(', ')}');
-    } catch (e, st) {
-      print('[AdminProvider] ❌ ERROR loadDashboardStats: $e');
-      print('[AdminProvider] Stack: $st');
-      
-      _dashboardStats = null;
+    } catch (e) {
+      debugPrint('[ADMIN] Error loading dashboard: $e');
       _setLoading(false);
       _setError(e.toString());
     }
   }
 
   Future<void> loadRecentOrders({int limit = 5}) async {
-    print('[AdminProvider] loadRecentOrders START (limit=$limit)');
     _setLoading(true);
-    _setError(null);
 
     try {
-      await checkAdminStatus(reason: 'loadRecentOrders');
+      await refreshRoles(reason: 'loadRecentOrders');
       if (!_isAdmin) {
         _recentOrders = [];
         _setLoading(false);
-        _setError('Access denied: not an admin');
-        print('[AdminProvider] loadRecentOrders ABORT - not admin');
         return;
       }
 
-      List<Map<String, dynamic>> orders = [];
+      final result = await _client
+          .from('orders')
+          .select('*, stores(name, image_url)')
+          .order('created_at', ascending: false)
+          .limit(limit);
 
-      try {
-        final res = await _adminService.fetchRecentOrders(limit: limit);
-        orders = _normalizeListOfMap(res);
-        print('[AdminProvider] loadRecentOrders via service: OK (${orders.length} orders)');
-      } catch (serviceError) {
-        print('[AdminProvider] Service method failed: $serviceError');
-        print('[AdminProvider] Falling back to direct orders table query');
-        
-        final res = await _client
-            .from('orders')
-            .select()
-            .order('created_at', ascending: false)
-            .limit(limit);
-
-        orders = _normalizeListOfMap(res);
-        print('[AdminProvider] Direct query: OK (${orders.length} orders)');
-      }
-
-      _recentOrders = orders;
+      _recentOrders = _normalizeList(result);
       _setLoading(false);
       notifyListeners();
-
-      print('[AdminProvider] loadRecentOrders COMPLETE');
-    } catch (e, st) {
-      print('[AdminProvider] ❌ ERROR loadRecentOrders: $e');
-      print('[AdminProvider] Stack: $st');
-      
+    } catch (e) {
+      debugPrint('[ADMIN] Error loading recent orders: $e');
       _recentOrders = [];
       _setLoading(false);
       _setError(e.toString());
@@ -222,7 +238,6 @@ class AdminProvider extends ChangeNotifier {
 
   // ============================================================
   // USERS MANAGEMENT
-  // NOTE: filterStatus is bool? (active/inactive), not String
   // ============================================================
 
   Future<void> loadUsers({
@@ -230,79 +245,45 @@ class AdminProvider extends ChangeNotifier {
     int offset = 0,
     String? searchQuery,
     String? filterRole,
-    bool? filterStatus,  // ← bool? to match UI calls
+    bool? filterStatus,
   }) async {
-    print('[AdminProvider] loadUsers START');
-    print('[AdminProvider]   search: $searchQuery');
-    print('[AdminProvider]   role: $filterRole');
-    print('[AdminProvider]   status: $filterStatus (bool?)');
-    print('[AdminProvider]   limit: $limit, offset: $offset');
-
+    debugPrint('[ADMIN] Loading users...');
     _setLoading(true);
     _setError(null);
 
     try {
-      await checkAdminStatus(reason: 'loadUsers');
+      await refreshRoles(reason: 'loadUsers');
       if (!_isAdmin) {
         _users = [];
         _setLoading(false);
-        _setError('Access denied: not an admin');
-        print('[AdminProvider] loadUsers ABORT - not admin');
+        _setError('Access denied');
         return;
       }
 
-      List<Map<String, dynamic>> rows = [];
+      var query = _client.from('users').select();
 
-      // Try service if available
-      try {
-        final res = await _adminService.fetchUsers(
-          limit: limit,
-          offset: offset,
-          searchQuery: searchQuery,
-          filterRole: filterRole,
-          filterStatus: filterStatus,
-        );
-        rows = _normalizeListOfMap(res);
-        print('[AdminProvider] loadUsers via service: OK (${rows.length} users)');
-      } catch (serviceError) {
-        print('[AdminProvider] Service method failed: $serviceError');
-        print('[AdminProvider] Falling back to direct users table query');
-        
-        PostgrestFilterBuilder q = _client.from('users').select();
-
-        if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-          final s = searchQuery.trim();
-          q = q.or('email.ilike.%$s%,full_name.ilike.%$s%');
-          print('[AdminProvider]   Applied search filter: $s');
-        }
-
-        if (filterRole != null && filterRole.trim().isNotEmpty) {
-          q = q.eq('role', filterRole.trim());
-          print('[AdminProvider]   Applied role filter: $filterRole');
-        }
-
-        if (filterStatus != null) {
-          q = q.eq('is_active', filterStatus);
-          print('[AdminProvider]   Applied status filter: $filterStatus');
-        }
-
-        final res = await q
-            .range(offset, offset + limit - 1)
-            .order('created_at', ascending: false);
-
-        rows = _normalizeListOfMap(res);
-        print('[AdminProvider] Direct query: OK (${rows.length} users)');
+      if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+        final s = searchQuery.trim();
+        query = query.or('email.ilike.%$s%,full_name.ilike.%$s%');
       }
 
-      _users = rows;
+      if (filterRole != null && filterRole.trim().isNotEmpty) {
+        query = query.eq('role', filterRole.trim());
+      }
+
+      if (filterStatus != null) {
+        query = query.eq('is_active', filterStatus);
+      }
+
+      final result = await query
+          .range(offset, offset + limit - 1)
+          .order('created_at', ascending: false);
+
+      _users = _normalizeList(result);
       _setLoading(false);
       notifyListeners();
-
-      print('[AdminProvider] loadUsers COMPLETE (${_users.length} users in state)');
-    } catch (e, st) {
-      print('[AdminProvider] ❌ ERROR loadUsers: $e');
-      print('[AdminProvider] Stack: $st');
-      
+    } catch (e) {
+      debugPrint('[ADMIN] Error loading users: $e');
       _users = [];
       _setLoading(false);
       _setError(e.toString());
@@ -313,111 +294,366 @@ class AdminProvider extends ChangeNotifier {
     required String userId,
     required bool isActive,
   }) async {
-    print('[AdminProvider] updateUserStatus START');
-    print('[AdminProvider]   userId: $userId');
-    print('[AdminProvider]   isActive: $isActive');
-    
-    _setError(null);
-
     try {
-      await checkAdminStatus(reason: 'updateUserStatus');
-      if (!_isAdmin) {
-        _setError('Access denied: not an admin');
-        print('[AdminProvider] updateUserStatus ABORT - not admin');
-        return false;
-      }
+      await refreshRoles(reason: 'updateUserStatus');
+      if (!_isAdmin) return false;
 
-      try {
-        final success = await _adminService.updateUserStatus(
-          userId: userId,
-          isActive: isActive,
-        );
-        
-        if (success == true) {
-          _patchLocalUser(userId, {'is_active': isActive});
-          print('[AdminProvider] updateUserStatus via service: OK');
-          return true;
-        }
-      } catch (serviceError) {
-        print('[AdminProvider] Service method failed: $serviceError');
-        print('[AdminProvider] Falling back to direct update');
-        
-        await _client
-            .from('users')
-            .update({'is_active': isActive})
-            .eq('id', userId);
-      }
+      await _client
+          .from('users')
+          .update({'is_active': isActive})
+          .eq('id', userId);
 
       _patchLocalUser(userId, {'is_active': isActive});
-      print('[AdminProvider] updateUserStatus COMPLETE');
       return true;
-    } catch (e, st) {
-      print('[AdminProvider] ❌ ERROR updateUserStatus: $e');
-      print('[AdminProvider] Stack: $st');
-      
+    } catch (e) {
+      debugPrint('[ADMIN] Error updating user status: $e');
       _setError(e.toString());
       return false;
     }
   }
 
-  Future<bool> adjustWalletBalance({
+  Future<bool> updateUserRole({
     required String userId,
-    required num amount,
-    String? note,
-    String? reason,  // ← Matches UI signature
+    required String role,
   }) async {
-    print('[AdminProvider] adjustWalletBalance START');
-    print('[AdminProvider]   userId: $userId');
-    print('[AdminProvider]   amount: $amount');
-    print('[AdminProvider]   reason: $reason');
-    print('[AdminProvider]   note: $note');
-    
-    _setError(null);
-
     try {
-      await checkAdminStatus(reason: 'adjustWalletBalance');
-      if (!_isAdmin) {
-        _setError('Access denied: not an admin');
-        print('[AdminProvider] adjustWalletBalance ABORT - not admin');
-        return false;
-      }
+      await refreshRoles(reason: 'updateUserRole');
+      if (!_isAdmin) return false;
 
-      try {
-        final success = await _adminService.adjustWalletBalance(
-          userId: userId,
-          amount: amount,
-          note: note,
-          reason: reason,
-        );
-        
-        if (success == true) {
-          print('[AdminProvider] adjustWalletBalance via service: OK');
-          return true;
-        }
-      } catch (serviceError) {
-        print('[AdminProvider] Service method failed: $serviceError');
-        print('[AdminProvider] Falling back to RPC: admin_adjust_wallet_balance');
-        
-        const rpcName = 'admin_adjust_wallet_balance';
-        final res = await _client.rpc(rpcName, params: {
-          'p_user_id': userId,
-          'p_amount': amount,
-          'p_note': note ?? '',
-          'p_reason': reason ?? '',
-        });
-        
-        print('[AdminProvider] RPC response: $res (type: ${res.runtimeType})');
-      }
+      await _client.from('users').update({'role': role}).eq('id', userId);
 
-      print('[AdminProvider] adjustWalletBalance COMPLETE');
+      _patchLocalUser(userId, {'role': role});
       return true;
-    } catch (e, st) {
-      print('[AdminProvider] ❌ ERROR adjustWalletBalance: $e');
-      print('[AdminProvider] Stack: $st');
-      
+    } catch (e) {
+      debugPrint('[ADMIN] Error updating user role: $e');
       _setError(e.toString());
       return false;
     }
+  }
+
+  // ============================================================
+  // MERCHANT APPLICATIONS
+  // ============================================================
+
+  Future<void> loadPendingMerchants() async {
+    debugPrint('[ADMIN] Loading pending merchants...');
+    _setLoading(true);
+
+    try {
+      await refreshRoles(reason: 'loadPendingMerchants');
+      if (!_isAdmin) {
+        _pendingMerchants = [];
+        _setLoading(false);
+        return;
+      }
+
+      final result = await _client
+          .from('merchants')
+          .select('*, users(email, full_name)')
+          .eq('status', 'pending')
+          .order('created_at', ascending: false);
+
+      _pendingMerchants = (result as List)
+          .map((m) => Merchant.fromMap(m as Map<String, dynamic>))
+          .toList();
+
+      _setLoading(false);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[ADMIN] Error loading pending merchants: $e');
+      _pendingMerchants = [];
+      _setLoading(false);
+      _setError(e.toString());
+    }
+  }
+
+  Future<void> loadAllMerchants({String? statusFilter}) async {
+    debugPrint('[ADMIN] Loading all merchants...');
+    _setLoading(true);
+
+    try {
+      await refreshRoles(reason: 'loadAllMerchants');
+      if (!_isAdmin) {
+        _allMerchants = [];
+        _setLoading(false);
+        return;
+      }
+
+      var query = _client.from('merchants').select('*, users(email, full_name)');
+      if (statusFilter != null) {
+        query = query.eq('status', statusFilter);
+      }
+
+      final result = await query.order('created_at', ascending: false);
+
+      _allMerchants = (result as List)
+          .map((m) => Merchant.fromMap(m as Map<String, dynamic>))
+          .toList();
+
+      _setLoading(false);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[ADMIN] Error loading merchants: $e');
+      _allMerchants = [];
+      _setLoading(false);
+      _setError(e.toString());
+    }
+  }
+
+  Future<bool> approveMerchant(String merchantId) async {
+    debugPrint('[ADMIN] Approving merchant: $merchantId');
+
+    try {
+      await refreshRoles(reason: 'approveMerchant');
+      if (!_isAdmin) {
+        _setError('Access denied');
+        return false;
+      }
+
+      final result = await _client.rpc(
+        'admin_approve_merchant',
+        params: {'p_merchant_id': merchantId},
+      );
+
+      if (result is Map && result['error'] != null) {
+        _setError(result['error'] as String);
+        return false;
+      }
+
+      await loadPendingMerchants();
+      await refreshRoles(reason: 'approveMerchant-postRefresh');
+      return true;
+    } catch (e) {
+      debugPrint('[ADMIN] Error approving merchant: $e');
+      _setError(e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> rejectMerchant(String merchantId, {String? reason}) async {
+    debugPrint('[ADMIN] Rejecting merchant: $merchantId');
+
+    try {
+      await refreshRoles(reason: 'rejectMerchant');
+      if (!_isAdmin) {
+        _setError('Access denied');
+        return false;
+      }
+
+      final result = await _client.rpc(
+        'admin_reject_merchant',
+        params: {
+          'p_merchant_id': merchantId,
+          'p_reason': reason,
+        },
+      );
+
+      if (result is Map && result['error'] != null) {
+        _setError(result['error'] as String);
+        return false;
+      }
+
+      await loadPendingMerchants();
+      await refreshRoles(reason: 'rejectMerchant-postRefresh');
+      return true;
+    } catch (e) {
+      debugPrint('[ADMIN] Error rejecting merchant: $e');
+      _setError(e.toString());
+      return false;
+    }
+  }
+
+  // ============================================================
+  // DRIVER APPLICATIONS (CORRECTED)
+  // ============================================================
+
+  /// Load pending drivers (is_active=true AND is_verified=false)
+  Future<void> loadPendingDrivers() async {
+    debugPrint('[ADMIN] Loading pending drivers...');
+    _setLoading(true);
+
+    try {
+      await refreshRoles(reason: 'loadPendingDrivers');
+      if (!_isAdmin) {
+        _pendingDrivers = [];
+        _setLoading(false);
+        return;
+      }
+
+      // Pending = active but not verified
+      final result = await _client
+          .from('drivers')
+          .select('*, users(email, full_name)')
+          .eq('is_active', true)
+          .eq('is_verified', false)
+          .order('created_at', ascending: false);
+
+      _pendingDrivers = (result as List)
+          .map((d) => Driver.fromMap(d as Map<String, dynamic>))
+          .toList();
+
+      debugPrint('[ADMIN] Loaded ${_pendingDrivers.length} pending drivers');
+      _setLoading(false);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[ADMIN] Error loading pending drivers: $e');
+      _pendingDrivers = [];
+      _setLoading(false);
+      _setError(e.toString());
+    }
+  }
+
+  Future<void> loadAllDrivers({bool? isVerified}) async {
+    debugPrint('[ADMIN] Loading all drivers...');
+    _setLoading(true);
+
+    try {
+      await refreshRoles(reason: 'loadAllDrivers');
+      if (!_isAdmin) {
+        _allDrivers = [];
+        _setLoading(false);
+        return;
+      }
+
+      var query = _client.from('drivers').select('*, users(email, full_name)');
+      
+      if (isVerified != null) {
+        query = query.eq('is_verified', isVerified);
+      }
+
+      final result = await query.order('created_at', ascending: false);
+
+      _allDrivers = (result as List)
+          .map((d) => Driver.fromMap(d as Map<String, dynamic>))
+          .toList();
+
+      _setLoading(false);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[ADMIN] Error loading drivers: $e');
+      _allDrivers = [];
+      _setLoading(false);
+      _setError(e.toString());
+    }
+  }
+
+  /// Approve driver - sets is_verified=true and optionally updates user role
+  Future<bool> approveDriver(String driverId) async {
+    debugPrint('[ADMIN] Approving driver: $driverId');
+
+    try {
+      await refreshRoles(reason: 'approveDriver');
+      if (!_isAdmin) {
+        _setError('Access denied');
+        return false;
+      }
+
+      // Try RPC first (if it exists)
+      try {
+        final result = await _client.rpc(
+          'admin_approve_driver',
+          params: {'p_driver_id': driverId},
+        );
+
+        if (result is Map && result['error'] != null) {
+          throw Exception(result['error']);
+        }
+      } catch (rpcError) {
+        debugPrint('[ADMIN] RPC admin_approve_driver not available, using direct update: $rpcError');
+        
+        // Fallback: Direct database update
+        // 1. Update driver record
+        await _client
+            .from('drivers')
+            .update({
+              'is_verified': true,
+              'is_active': true,
+              'verified_at': DateTime.now().toIso8601String(),
+            })
+            .eq('id', driverId);
+
+        // 2. Get the driver's user_id and update user role
+        final driver = await _client
+            .from('drivers')
+            .select('user_id')
+            .eq('id', driverId)
+            .single();
+
+        if (driver['user_id'] != null) {
+          await _client
+              .from('users')
+              .update({'role': 'driver'})
+              .eq('id', driver['user_id']);
+        }
+      }
+
+      await loadPendingDrivers();
+      await refreshRoles(reason: 'approveDriver-postRefresh');
+      return true;
+    } catch (e) {
+      debugPrint('[ADMIN] Error approving driver: $e');
+      _setError(e.toString());
+      return false;
+    }
+  }
+
+  /// Reject driver - sets is_active=false and stores reason
+  Future<bool> rejectDriver(String driverId, {String? reason}) async {
+    debugPrint('[ADMIN] Rejecting driver: $driverId');
+
+    try {
+      await refreshRoles(reason: 'rejectDriver');
+      if (!_isAdmin) {
+        _setError('Access denied');
+        return false;
+      }
+
+      // Try RPC first (if it exists)
+      try {
+        final result = await _client.rpc(
+          'admin_reject_driver',
+          params: {
+            'p_driver_id': driverId,
+            'p_reason': reason,
+          },
+        );
+
+        if (result is Map && result['error'] != null) {
+          throw Exception(result['error']);
+        }
+      } catch (rpcError) {
+        debugPrint('[ADMIN] RPC admin_reject_driver not available, using direct update: $rpcError');
+        
+        // Fallback: Direct database update
+        final updateData = <String, dynamic>{
+          'is_verified': false,
+          'is_active': false,
+          'rejected_at': DateTime.now().toIso8601String(),
+        };
+        
+        if (reason != null && reason.isNotEmpty) {
+          updateData['rejection_reason'] = reason;
+        }
+
+        await _client
+            .from('drivers')
+            .update(updateData)
+            .eq('id', driverId);
+      }
+
+      await loadPendingDrivers();
+      await refreshRoles(reason: 'rejectDriver-postRefresh');
+      return true;
+    } catch (e) {
+      debugPrint('[ADMIN] Error rejecting driver: $e');
+      _setError(e.toString());
+      return false;
+    }
+  }
+
+  /// Load both pending merchants and drivers
+  Future<void> loadPendingApplications() async {
+    await Future.wait([loadPendingMerchants(), loadPendingDrivers()]);
   }
 
   // ============================================================
@@ -427,71 +663,75 @@ class AdminProvider extends ChangeNotifier {
   void setEditMode(bool value) {
     _isEditMode = value;
     notifyListeners();
-    print('[AdminProvider] setEditMode: $_isEditMode');
   }
 
   void toggleEditMode() {
     _isEditMode = !_isEditMode;
     notifyListeners();
-    print('[AdminProvider] toggleEditMode: $_isEditMode');
   }
 
   // ============================================================
-  // INTERNAL HELPERS
+  // WALLET ADJUSTMENT
+  // ============================================================
+
+  Future<bool> adjustWalletBalance({
+    required String userId,
+    required num amount,
+    String? note,
+    String? reason,
+  }) async {
+    try {
+      await refreshRoles(reason: 'adjustWalletBalance');
+      if (!_isAdmin) {
+        _setError('Access denied');
+        return false;
+      }
+
+      await _client.rpc('admin_adjust_wallet_balance', params: {
+        'target_user_id': userId,
+        'adjustment_amount': amount.toDouble(),
+        'adjustment_reason': reason ?? note ?? 'Manual adjustment',
+      });
+
+      return true;
+    } catch (e) {
+      debugPrint('[ADMIN] Error adjusting wallet: $e');
+      _setError(e.toString());
+      return false;
+    }
+  }
+
+  // ============================================================
+  // HELPERS
   // ============================================================
 
   void _patchLocalUser(String userId, Map<String, dynamic> patch) {
-    final idx = _users.indexWhere((u) => (u['id']?.toString() ?? '') == userId);
-    if (idx == -1) {
-      print('[AdminProvider] _patchLocalUser: userId $userId not found in local cache');
-      return;
+    final idx = _users.indexWhere((u) => u['id'] == userId);
+    if (idx != -1) {
+      _users[idx] = {..._users[idx], ...patch};
+      notifyListeners();
     }
-    
-    _users[idx] = {..._users[idx], ...patch};
-    notifyListeners();
-    print('[AdminProvider] _patchLocalUser: Updated user $userId with $patch');
   }
-
-  // ============================================================
-  // NORMALIZERS - Handle various RPC/query response shapes
-  // ============================================================
 
   Map<String, dynamic>? _normalizeStats(dynamic res) {
     if (res == null) return null;
-
     if (res is Map<String, dynamic>) return res;
     if (res is Map) return Map<String, dynamic>.from(res);
-
-    if (res is List) {
-      if (res.isEmpty) return <String, dynamic>{};
+    if (res is List && res.isNotEmpty) {
       final first = res.first;
-      if (first is Map<String, dynamic>) return first;
       if (first is Map) return Map<String, dynamic>.from(first);
     }
-
-    return <String, dynamic>{'value': res};
+    return <String, dynamic>{};
   }
 
-  List<Map<String, dynamic>> _normalizeListOfMap(dynamic res) {
-    if (res == null) return <Map<String, dynamic>>[];
-
+  List<Map<String, dynamic>> _normalizeList(dynamic res) {
+    if (res == null) return [];
     if (res is List) {
       return res
-          .where((e) => e is Map)
-          .map((e) => Map<String, dynamic>.from(e as Map))
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
           .toList();
     }
-
-    if (res is Map) {
-      final data = res['data'];
-      if (data is List) {
-        return data
-            .where((e) => e is Map)
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
-      }
-    }
-
-    return <Map<String, dynamic>>[];
+    return [];
   }
 }

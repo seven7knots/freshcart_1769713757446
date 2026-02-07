@@ -1,11 +1,10 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/user_model.dart';
 
 class UserService {
   final SupabaseClient _client = Supabase.instance.client;
 
   // Get current user profile
-  Future<UserModel?> getCurrentUserProfile() async {
+  Future<Map<String, dynamic>?> getCurrentUserProfile() async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return null;
@@ -14,51 +13,51 @@ class UserService {
           await _client.from('users').select().eq('id', userId).maybeSingle();
 
       if (response == null) return null;
-      return UserModel(
-        id: response['id'] as String,
-        email: response['email'] as String,
-        fullName: response['full_name'] as String?,
-        phone: response['phone'] as String?,
-        profileImageUrl: response['profile_image_url'] as String?,
-        defaultAddress: response['default_address'] as String?,
-        locationLat: response['location_lat'] as double?,
-        locationLng: response['location_lng'] as double?,
-        fcmToken: response['fcm_token'] as String?,
-        createdAt: DateTime.parse(response['created_at'] as String),
-        updatedAt: DateTime.parse(response['updated_at'] as String),
-      );
+      return {
+        'id': response['id'] as String,
+        'email': response['email'] as String,
+        'full_name': response['full_name'] as String?,
+        'phone': response['phone'] as String?,
+        'profile_image_url': response['profile_image_url'] as String?,
+        'default_address': response['default_address'] as String?,
+        'location_lat': response['location_lat'] as double?,
+        'location_lng': response['location_lng'] as double?,
+        'fcm_token': response['fcm_token'] as String?,
+        'created_at': DateTime.parse(response['created_at'] as String),
+        'updated_at': DateTime.parse(response['updated_at'] as String),
+      };
     } catch (e) {
       throw Exception('Failed to get user profile: $e');
     }
   }
 
   // Get user by ID
-  Future<UserModel?> getUserById(String userId) async {
+  Future<Map<String, dynamic>?> getUserById(String userId) async {
     try {
       final response =
           await _client.from('users').select().eq('id', userId).maybeSingle();
 
       if (response == null) return null;
-      return UserModel(
-        id: response['id'] as String,
-        email: response['email'] as String,
-        fullName: response['full_name'] as String?,
-        phone: response['phone'] as String?,
-        profileImageUrl: response['profile_image_url'] as String?,
-        defaultAddress: response['default_address'] as String?,
-        locationLat: response['location_lat'] as double?,
-        locationLng: response['location_lng'] as double?,
-        fcmToken: response['fcm_token'] as String?,
-        createdAt: DateTime.parse(response['created_at'] as String),
-        updatedAt: DateTime.parse(response['updated_at'] as String),
-      );
+      return {
+        'id': response['id'] as String,
+        'email': response['email'] as String,
+        'full_name': response['full_name'] as String?,
+        'phone': response['phone'] as String?,
+        'profile_image_url': response['profile_image_url'] as String?,
+        'default_address': response['default_address'] as String?,
+        'location_lat': response['location_lat'] as double?,
+        'location_lng': response['location_lng'] as double?,
+        'fcm_token': response['fcm_token'] as String?,
+        'created_at': DateTime.parse(response['created_at'] as String),
+        'updated_at': DateTime.parse(response['updated_at'] as String),
+      };
     } catch (e) {
       throw Exception('Failed to get user: $e');
     }
   }
 
   // Update user profile
-  Future<UserModel> updateUserProfile({
+  Future<Map<String, dynamic>> updateUserProfile({
     String? fullName,
     String? phone,
     String? profileImageUrl,
@@ -89,19 +88,19 @@ class UserService {
           .select()
           .single();
 
-      return UserModel(
-        id: response['id'] as String,
-        email: response['email'] as String,
-        fullName: response['full_name'] as String?,
-        phone: response['phone'] as String?,
-        profileImageUrl: response['profile_image_url'] as String?,
-        defaultAddress: response['default_address'] as String?,
-        locationLat: response['location_lat'] as double?,
-        locationLng: response['location_lng'] as double?,
-        fcmToken: response['fcm_token'] as String?,
-        createdAt: DateTime.parse(response['created_at'] as String),
-        updatedAt: DateTime.parse(response['updated_at'] as String),
-      );
+      return {
+        'id': response['id'] as String,
+        'email': response['email'] as String,
+        'full_name': response['full_name'] as String?,
+        'phone': response['phone'] as String?,
+        'profile_image_url': response['profile_image_url'] as String?,
+        'default_address': response['default_address'] as String?,
+        'location_lat': response['location_lat'] as double?,
+        'location_lng': response['location_lng'] as double?,
+        'fcm_token': response['fcm_token'] as String?,
+        'created_at': DateTime.parse(response['created_at'] as String),
+        'updated_at': DateTime.parse(response['updated_at'] as String),
+      };
     } catch (e) {
       throw Exception('Failed to update profile: $e');
     }

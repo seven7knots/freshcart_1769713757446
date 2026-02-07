@@ -168,8 +168,6 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
   }
 
   Future<void> _saveProduct() async {
-    final service = ProductService();
-
     final payload = <String, dynamic>{
       'name': _titleController.text.trim(),
       'description': _descriptionController.text.trim(),
@@ -190,16 +188,21 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
       }
       payload['store_id'] = storeId;
 
-      await service.createProduct(payload);
+      await ProductService.createProduct(
+        storeId: storeId,
+        name: payload['name'] as String,
+        description: payload['description'] as String?,
+        price: payload['price'] as double,
+        isAvailable: payload['is_available'] as bool,
+        imageUrl: payload['image_url'] as String?,
+      );
       return;
     }
 
-    await service.updateProduct(widget.contentId!, payload);
+    await ProductService.updateProduct(widget.contentId!, payload);
   }
 
   Future<void> _saveStore() async {
-    final service = StoreService();
-
     final payload = <String, dynamic>{
       'name': _titleController.text.trim(),
       'description': _descriptionController.text.trim(),
@@ -209,11 +212,16 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
     };
 
     if (_isCreate) {
-      await service.createStore(payload);
+      await StoreService.createStore(
+        name: payload['name'] as String,
+        description: payload['description'] as String?,
+        isActive: payload['is_active'] as bool,
+        imageUrl: payload['image_url'] as String?,
+      );
       return;
     }
 
-    await service.updateStore(widget.contentId!, payload);
+    await StoreService.updateStore(widget.contentId!, payload);
   }
 
   Future<void> _saveMarketplaceListing() async {

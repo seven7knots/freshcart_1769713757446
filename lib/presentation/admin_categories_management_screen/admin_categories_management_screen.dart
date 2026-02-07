@@ -48,8 +48,8 @@ class _AdminCategoriesManagementScreenState
     });
 
     try {
-      final categories = await _categoryService.getAllCategories(limit: 500);
-      _allCategories = categories;
+      final categories = await CategoryService.getAllCategories();
+      _allCategories = List<Map<String, dynamic>>.from(categories);
       _applyFilters();
     } catch (e) {
       _error = e.toString();
@@ -110,7 +110,8 @@ class _AdminCategoriesManagementScreenState
   Future<void> _toggleStatus(Map<String, dynamic> category) async {
     try {
       final isActive = category['is_active'] == true;
-      await _categoryService.setCategoryActive(category['id'], !isActive);
+      await CategoryService.updateCategory(
+          category['id'], {'is_active': !isActive});
       _loadCategories();
     } catch (e) {
       _showError(e);
@@ -122,8 +123,8 @@ class _AdminCategoriesManagementScreenState
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Category'),
-        content: const Text(
-            'This will permanently remove the category. Continue?'),
+        content:
+            const Text('This will permanently remove the category. Continue?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -140,7 +141,7 @@ class _AdminCategoriesManagementScreenState
 
     if (confirmed == true) {
       try {
-        await _categoryService.deleteCategory(id);
+        await CategoryService.deleteCategory(id);
         _loadCategories();
       } catch (e) {
         _showError(e);

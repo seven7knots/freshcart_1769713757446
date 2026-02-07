@@ -52,12 +52,21 @@ class _SubcategoriesScreenState extends State<SubcategoriesScreen> {
     });
 
     try {
-      final rows = await _categoryService.getSubcategories(
+      final rows = await CategoryService.getSubcategories(
         widget.parentCategoryId.toString(),
       );
 
       setState(() {
-        _all = rows;
+        _all = rows
+            .map((category) => {
+                  'id': category.id,
+                  'name': category.name,
+                  'description': category.description,
+                  'type': category.type,
+                  'has_children': false,
+                  'children_count': 0,
+                })
+            .toList();
         _applyFilters();
         _isLoading = false;
       });
@@ -74,7 +83,9 @@ class _SubcategoriesScreenState extends State<SubcategoriesScreen> {
 
     // Type filter (optional)
     if (_typeFilter != null && _typeFilter!.trim().isNotEmpty) {
-      list = list.where((c) => (c['type']?.toString() ?? '') == _typeFilter).toList();
+      list = list
+          .where((c) => (c['type']?.toString() ?? '') == _typeFilter)
+          .toList();
     }
 
     // Search filter
@@ -95,8 +106,8 @@ class _SubcategoriesScreenState extends State<SubcategoriesScreen> {
     final name = (sub['name'] as String?) ?? 'Category';
 
     // If it has children -> go deeper
-    final hasChildren =
-        (sub['has_children'] == true) || ((sub['children_count'] ?? 0) as int > 0);
+    final hasChildren = (sub['has_children'] == true) ||
+        ((sub['children_count'] ?? 0) as int > 0);
 
     if (hasChildren) {
       if (!mounted) return;

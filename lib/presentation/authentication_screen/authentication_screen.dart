@@ -85,11 +85,10 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
         children: [
           // App Logo
           Container(
-            width: 20.w,
-            height: 20.w,
+            width: 25.w,
+            height: 25.w,
             decoration: BoxDecoration(
-              gradient: AppTheme.gradientAccent,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.0),
               boxShadow: [
                 BoxShadow(
                   color: AppTheme.lightTheme.colorScheme.primary.withValues(
@@ -100,11 +99,15 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
                 ),
               ],
             ),
-            child: Center(
-              child: CustomIconWidget(
-                iconName: 'shopping_cart',
-                size: 10.w,
-                color: AppTheme.lightTheme.colorScheme.onPrimary,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16.0),
+              child: Image.asset(
+                'assets/images/kayan_logo-1770269431337.jpg',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: double.infinity,
+                semanticLabel:
+                    'KJ Delivery Services logo with professional branding',
               ),
             ),
           ),

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/app_export.dart';
 import '../../models/marketplace_listing_model.dart';
+import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/marketplace_service.dart';
 import '../../services/messaging_service.dart';
@@ -262,9 +261,9 @@ class _MarketplaceListingDetailScreenState
         child: Column(
           children: [
             // Admin Controls (visible only to admin)
-            Consumer<AuthProvider>(
-              builder: (context, authProvider, child) {
-                if (!authProvider.isAdmin) return const SizedBox.shrink();
+            Consumer2<AuthProvider, AdminProvider>(
+              builder: (context, authProvider, adminProvider, child) {
+                if (!adminProvider.isAdmin) return const SizedBox.shrink();
                 return Container(
                   padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
                   color: Colors.orange.withValues(alpha: 0.1),

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notifications_provider.dart';
 import '../../providers/theme_provider.dart';
-import '../../services/role_upgrade_service.dart';
 import '../../widgets/main_layout_wrapper.dart';
 import './widgets/loyalty_rewards_widget.dart';
 import './widgets/profile_header_widget.dart';
@@ -23,42 +22,15 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final bool _isLoading = false;
 
-  final RoleUpgradeService _roleUpgradeService = RoleUpgradeService();
-  bool _canRequestUpgrade = false;
-  List<Map<String, dynamic>> _userRequests = [];
-
-  // Mock user data
-  final Map<String, dynamic> userData = {
-    "id": 1,
-    "name": "Sarah Johnson",
-    "email": "sarah.johnson@email.com",
-    "phone": "+1 (555) 123-4567",
-    "avatar": "https://images.unsplash.com/photo-1727784892015-4f4b8d67a083",
-    "avatarSemanticLabel":
-        "Professional headshot of a woman with shoulder-length brown hair wearing a white blazer against a neutral background",
-    "membershipTier": "Gold Member",
-    "totalOrders": 47,
-    "loyaltyPoints": 2840,
-    "totalSaved": 156.50,
-    "isPhoneVerified": true,
-    "isEmailVerified": true,
-    "joinDate": "March 2023",
-  };
-
-  // Mock rewards data
-  final Map<String, dynamic> rewardsData = {
-    "currentPoints": 2840,
-    "nextTierPoints": 5000,
-    "nextTier": "Platinum",
-    "freeDeliveries": 3,
-    "cashbackRate": 5,
-  };
-
   @override
   void initState() {
     super.initState();
-    _checkRoleUpgradeEligibility();
-    _loadUserRequests();
+    _refreshRoleData();
+  }
+
+  Future<void> _refreshRoleData() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await authProvider.refreshUserRole();
   }
 
   bool get _shouldShowBack =>
@@ -104,7 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 foregroundColor: theme.colorScheme.onSurface,
                 surfaceTintColor: Colors.transparent,
                 scrolledUnderElevation: 2,
-                shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.1),
+                shadowColor: theme.colorScheme.shadow.withOpacity(0.1),
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.settings_outlined),
@@ -126,81 +98,489 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (BuildContext context) {
         if (_isLoading) return _buildLoadingState();
 
-        return CustomScrollView(
-          slivers: [
-            SliverOverlapInjector(
-              handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.all(4.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ProfileHeaderWidget(
-                      userData: userData,
-                      onEditPressed: _editProfile,
-                    ),
-                    SizedBox(height: 3.h),
-                    LoyaltyRewardsWidget(
-                      rewardsData: rewardsData,
-                      onViewAllPressed: _viewAllRewards,
-                    ),
-                    SettingsSectionWidget(
-                      title: 'Quick Actions',
-                      items: _getQuickActionItems(),
-                    ),
-                    SizedBox(height: 2.h),
+        return Consumer<AuthProvider>(
+          builder: (context, authProvider, child) {
+            // Build user data from auth provider
+            final userData = _buildUserData(authProvider);
+            final rewardsData = _buildRewardsData();
 
-                    // Admin section (only if admin)
-                    Consumer<AuthProvider>(
-                      builder: (context, authProvider, child) {
-                        if (!authProvider.isAdmin) {
-                          return const SizedBox.shrink();
-                        }
-                        return Column(
-                          children: [
-                            SettingsSectionWidget(
-                              title: "Admin Panel",
-                              items: _getAdminItems(),
-                            ),
-                            SizedBox(height: 2.h),
-                          ],
-                        );
-                      },
-                    ),
-
-                    SettingsSectionWidget(
-                      title: "Account",
-                      items: _getAccountItems(),
-                    ),
-                    SettingsSectionWidget(
-                      title: 'Delivery & Addresses',
-                      items: _getDeliveryItems(),
-                    ),
-                    SettingsSectionWidget(
-                      title: 'Payment & Billing',
-                      items: _getPaymentItems(),
-                    ),
-                    SettingsSectionWidget(
-                      title: 'App Preferences',
-                      items: _getPreferenceItems(),
-                    ),
-                    SettingsSectionWidget(
-                      title: 'Help & Support',
-                      items: _getHelpItems(),
-                    ),
-                    SizedBox(height: 2.h),
-                    _buildSignOutButton(),
-                    SizedBox(height: 10.h),
-                  ],
+            return CustomScrollView(
+              slivers: [
+                SliverOverlapInjector(
+                  handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
                 ),
-              ),
-            ),
-          ],
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.all(4.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ProfileHeaderWidget(
+                          userData: userData,
+                          onEditPressed: _editProfile,
+                        ),
+                        SizedBox(height: 3.h),
+
+                        // ========================================
+                        // ROLE-BASED SECTIONS
+                        // ========================================
+
+                        // Merchant Section (if approved merchant)
+                        if (authProvider.isMerchant) ...[
+                          _buildMerchantSection(authProvider),
+                          SizedBox(height: 2.h),
+                        ],
+
+                        // Driver Section (if approved driver)
+                        if (authProvider.isDriver) ...[
+                          _buildDriverSection(authProvider),
+                          SizedBox(height: 2.h),
+                        ],
+
+                        // Pending Applications Alerts
+                        if (authProvider.hasPendingMerchantApplication) ...[
+                          _buildPendingApplicationCard(
+                            title: 'Merchant Application Pending',
+                            subtitle: 'Your merchant application is under review',
+                            icon: Icons.store,
+                            color: Colors.orange,
+                          ),
+                          SizedBox(height: 2.h),
+                        ],
+
+                        if (authProvider.hasPendingDriverApplication) ...[
+                          _buildPendingApplicationCard(
+                            title: 'Driver Application Pending',
+                            subtitle: 'Your driver application is under review',
+                            icon: Icons.delivery_dining,
+                            color: Colors.orange,
+                          ),
+                          SizedBox(height: 2.h),
+                        ],
+
+                        // Apply Buttons (for customers without pending apps)
+                        if (authProvider.canApplyAsMerchant || authProvider.canApplyAsDriver) ...[
+                          _buildApplySection(authProvider),
+                          SizedBox(height: 2.h),
+                        ],
+
+                        LoyaltyRewardsWidget(
+                          rewardsData: rewardsData,
+                          onViewAllPressed: _viewAllRewards,
+                        ),
+                        SettingsSectionWidget(
+                          title: 'Quick Actions',
+                          items: _getQuickActionItems(),
+                        ),
+                        SizedBox(height: 2.h),
+
+                        // Admin section (only if admin)
+                        Consumer<AdminProvider>(
+                          builder: (context, adminProvider, child) {
+                            if (!adminProvider.isAdmin) {
+                              return const SizedBox.shrink();
+                            }
+                            return Column(
+                              children: [
+                                SettingsSectionWidget(
+                                  title: "Admin Panel",
+                                  items: _getAdminItems(adminProvider),
+                                ),
+                                SizedBox(height: 2.h),
+                              ],
+                            );
+                          },
+                        ),
+
+                        SettingsSectionWidget(
+                          title: "Account",
+                          items: _getAccountItems(),
+                        ),
+                        SettingsSectionWidget(
+                          title: 'Delivery & Addresses',
+                          items: _getDeliveryItems(),
+                        ),
+                        SettingsSectionWidget(
+                          title: 'Payment & Billing',
+                          items: _getPaymentItems(),
+                        ),
+                        SettingsSectionWidget(
+                          title: 'App Preferences',
+                          items: _getPreferenceItems(),
+                        ),
+                        SettingsSectionWidget(
+                          title: 'Help & Support',
+                          items: _getHelpItems(),
+                        ),
+                        SizedBox(height: 2.h),
+                        _buildSignOutButton(),
+                        SizedBox(height: 10.h),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
+  }
+
+  // ============================================================
+  // MERCHANT SECTION
+  // ============================================================
+
+  Widget _buildMerchantSection(AuthProvider authProvider) {
+    final theme = Theme.of(context);
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.green.shade50,
+      child: InkWell(
+        onTap: () => Navigator.pushNamed(context, AppRoutes.merchantDashboard),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: EdgeInsets.all(4.w),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(3.w),
+                decoration: BoxDecoration(
+                  color: Colors.green,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.store,
+                  color: Colors.white,
+                  size: 8.w,
+                ),
+              ),
+              SizedBox(width: 4.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'My Store',
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade800,
+                          ),
+                        ),
+                        SizedBox(width: 2.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                          decoration: BoxDecoration(
+                            color: Colors.green,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'MERCHANT',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9.sp,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 0.5.h),
+                    Text(
+                      'Manage your stores, products & orders',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: Colors.green.shade700,
+                size: 6.w,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // DRIVER SECTION
+  // ============================================================
+
+  Widget _buildDriverSection(AuthProvider authProvider) {
+    final theme = Theme.of(context);
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.blue.shade50,
+      child: InkWell(
+        onTap: () => Navigator.pushNamed(context, AppRoutes.driverHome),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: EdgeInsets.all(4.w),
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(3.w),
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.delivery_dining,
+                  color: Colors.white,
+                  size: 8.w,
+                ),
+              ),
+              SizedBox(width: 4.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Driver Mode',
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blue.shade800,
+                          ),
+                        ),
+                        SizedBox(width: 2.w),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                          decoration: BoxDecoration(
+                            color: Colors.blue,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'DRIVER',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9.sp,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 0.5.h),
+                    Text(
+                      'View assigned orders & start deliveries',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: Colors.blue.shade700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: Colors.blue.shade700,
+                size: 6.w,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // PENDING APPLICATION CARD
+  // ============================================================
+
+  Widget _buildPendingApplicationCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: color.withOpacity(0.1),
+      child: Padding(
+        padding: EdgeInsets.all(4.w),
+        child: Row(
+          children: [
+            Container(
+              padding: EdgeInsets.all(2.w),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: color, size: 6.w),
+            ),
+            SizedBox(width: 3.w),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: color.withOpacity(0.9),
+                    ),
+                  ),
+                  SizedBox(height: 0.5.h),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11.sp,
+                      color: color.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.hourglass_top, color: color, size: 5.w),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // APPLY SECTION (for customers)
+  // ============================================================
+
+  Widget _buildApplySection(AuthProvider authProvider) {
+    final theme = Theme.of(context);
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: EdgeInsets.all(4.w),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Become a Partner',
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 1.h),
+            Text(
+              'Expand your opportunities with us',
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            SizedBox(height: 2.h),
+            Row(
+              children: [
+                if (authProvider.canApplyAsMerchant)
+                  Expanded(
+                    child: _buildApplyButton(
+                      icon: Icons.store,
+                      label: 'Become a\nMerchant',
+                      color: Colors.green,
+                      onTap: () => Navigator.pushNamed(context, AppRoutes.merchantApplication),
+                    ),
+                  ),
+                if (authProvider.canApplyAsMerchant && authProvider.canApplyAsDriver)
+                  SizedBox(width: 3.w),
+                if (authProvider.canApplyAsDriver)
+                  Expanded(
+                    child: _buildApplyButton(
+                      icon: Icons.delivery_dining,
+                      label: 'Become a\nDriver',
+                      color: Colors.blue,
+                      onTap: () => Navigator.pushNamed(context, AppRoutes.driverApplication),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApplyButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: EdgeInsets.all(3.w),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 8.w),
+            SizedBox(height: 1.h),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11.sp,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // HELPER METHODS
+  // ============================================================
+
+  Map<String, dynamic> _buildUserData(AuthProvider authProvider) {
+    return {
+      "id": authProvider.userId ?? '',
+      "name": authProvider.fullName ?? 'User',
+      "email": authProvider.email ?? '',
+      "phone": authProvider.phone ?? '',
+      "avatar": authProvider.avatarUrl,
+      "membershipTier": "Member",
+      "totalOrders": 0,
+      "loyaltyPoints": 0,
+      "totalSaved": 0.0,
+      "isPhoneVerified": authProvider.phoneVerified,
+      "isEmailVerified": authProvider.emailVerified,
+      "joinDate": "Recently",
+    };
+  }
+
+  Map<String, dynamic> _buildRewardsData() {
+    return {
+      "currentPoints": 0,
+      "nextTierPoints": 1000,
+      "nextTier": "Silver",
+      "freeDeliveries": 0,
+      "cashbackRate": 2,
+    };
   }
 
   Widget _buildLoadingState() {
@@ -251,7 +631,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ];
   }
 
-  List<Map<String, dynamic>> _getAdminItems() {
+  List<Map<String, dynamic>> _getAdminItems(AdminProvider adminProvider) {
     final theme = Theme.of(context);
     return [
       {
@@ -260,6 +640,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         "title": "Admin Dashboard",
         "subtitle": "Manage users, orders, and system",
         "route": AppRoutes.adminDashboard,
+      },
+      {
+        "icon": "pending_actions",
+        "iconColor": Colors.orange,
+        "title": "Applications",
+        "subtitle": "${adminProvider.pendingApplicationsCount} pending",
+        "route": AppRoutes.adminApplications,
       },
       {
         "icon": "people",
@@ -275,26 +662,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         "subtitle": "Monitor and manage orders",
         "route": AppRoutes.enhancedOrderManagement,
       },
-      {
-        "icon": "campaign",
-        "iconColor": theme.colorScheme.tertiary,
-        "title": "Ads Management",
-        "subtitle": "Create and manage advertisements",
-        "route": AppRoutes.adminAdsManagement,
-      },
     ];
   }
 
   List<Map<String, dynamic>> _getAccountItems() {
     final theme = Theme.of(context);
     return [
-      {
-        "icon": "store",
-        "iconColor": theme.colorScheme.primary,
-        "title": "Merchant Profile",
-        "subtitle": "Manage your business account",
-        "route": AppRoutes.merchantProfile,
-      },
       {
         "icon": "person",
         "iconColor": theme.colorScheme.primary,
@@ -308,20 +681,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         "title": "Privacy & Security",
         "subtitle": "Password, biometric settings",
         "route": null,
-        "trailing": Container(
-          padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.secondary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            'Verified',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.secondary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
       },
       {
         "icon": "notifications",
@@ -377,13 +736,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         "subtitle": "Manage your subscription",
         "route": AppRoutes.subscriptionManagement,
       },
-      {
-        "icon": "receipt_long",
-        "iconColor": theme.colorScheme.error,
-        "title": "Billing History",
-        "subtitle": "View past invoices and receipts",
-        "route": null,
-      },
     ];
   }
 
@@ -395,13 +747,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         "iconColor": theme.colorScheme.primary,
         "title": "Language",
         "subtitle": "English (US)",
-        "route": null,
-      },
-      {
-        "icon": "restaurant",
-        "iconColor": theme.colorScheme.secondary,
-        "title": "Dietary Restrictions",
-        "subtitle": "Allergies, preferences",
         "route": null,
       },
       {
@@ -483,13 +828,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         "iconColor": theme.colorScheme.secondary,
         "title": "Live Chat",
         "subtitle": "Get instant help",
-        "route": null,
-      },
-      {
-        "icon": "feedback",
-        "iconColor": theme.colorScheme.tertiary,
-        "title": "Send Feedback",
-        "subtitle": "Help us improve the app",
         "route": null,
       },
       {
@@ -595,12 +933,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _editProfile() {
-    final theme = Theme.of(context);
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Edit profile feature coming soon!'),
-        backgroundColor: theme.colorScheme.primary,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -608,12 +945,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _viewAllRewards() {
-    final theme = Theme.of(context);
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Rewards center coming soon!'),
-        backgroundColor: theme.colorScheme.secondary,
+        backgroundColor: Theme.of(context).colorScheme.secondary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -638,7 +974,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               width: 12.w,
               height: 0.5.h,
               decoration: BoxDecoration(
-                color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                color: theme.colorScheme.outline.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -667,26 +1003,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _exportData();
               },
             ),
-            const SizedBox(height: 8),
-            if (_canRequestUpgrade)
-              ListTile(
-                leading: Icon(Icons.upgrade, color: theme.colorScheme.tertiary),
-                title: const Text('Request Role Upgrade'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showRoleUpgradeDialog();
-                },
-              ),
-            if (_userRequests.isNotEmpty)
-              ListTile(
-                leading: Icon(Icons.list_alt,
-                    color: theme.colorScheme.onSurfaceVariant),
-                title: const Text('View My Upgrade Requests'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showUserRequestsDialog();
-                },
-              ),
             SizedBox(height: 2.h),
           ],
         ),
@@ -695,12 +1011,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _shareProfile() {
-    final theme = Theme.of(context);
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Profile sharing feature coming soon!'),
-        backgroundColor: theme.colorScheme.primary,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
@@ -708,213 +1023,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _exportData() {
-    final theme = Theme.of(context);
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Data export feature coming soon!'),
-        backgroundColor: theme.colorScheme.secondary,
+        backgroundColor: Theme.of(context).colorScheme.secondary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
-    );
-  }
-
-  Future<void> _checkRoleUpgradeEligibility() async {
-    try {
-      final canRequest = await _roleUpgradeService.canRequestRoleUpgrade();
-      if (mounted) setState(() => _canRequestUpgrade = canRequest);
-    } catch (e) {
-      debugPrint('[PROFILE] Error checking upgrade eligibility: $e');
-    }
-  }
-
-  Future<void> _loadUserRequests() async {
-    try {
-      final requests = await _roleUpgradeService.getUserRoleUpgradeRequests();
-      if (mounted) setState(() => _userRequests = requests);
-    } catch (e) {
-      debugPrint('[PROFILE] Error loading requests: $e');
-    }
-  }
-
-  Future<void> _showRoleUpgradeDialog() async {
-    String? selectedRole;
-    final notesController = TextEditingController();
-
-    await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        final theme = Theme.of(context);
-        final cs = theme.colorScheme;
-
-        return AlertDialog(
-          title: const Text('Request Role Upgrade'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Select the role you want to upgrade to:'),
-              SizedBox(height: 2.h),
-              DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                  labelText: 'Role',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'driver', child: Text('Driver')),
-                  DropdownMenuItem(value: 'merchant', child: Text('Merchant')),
-                ],
-                onChanged: (value) => selectedRole = value,
-              ),
-              SizedBox(height: 2.h),
-              TextField(
-                controller: notesController,
-                decoration: const InputDecoration(
-                  labelText: 'Additional Notes (Optional)',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (selectedRole == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Please select a role'),
-                      backgroundColor: cs.tertiary,
-                    ),
-                  );
-                  return;
-                }
-
-                try {
-                  final response =
-                      await _roleUpgradeService.createRoleUpgradeRequest(
-                    requestedRole: selectedRole!,
-                    requestNotes: notesController.text.trim().isEmpty
-                        ? null
-                        : notesController.text.trim(),
-                  );
-
-                  if (!context.mounted) return;
-
-                  Navigator.of(context).pop(true);
-
-                  final bool ok = response['success'] == true;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(response['message'] ?? 'Request submitted'),
-                      backgroundColor: ok ? cs.primary : cs.error,
-                    ),
-                  );
-
-                  if (ok) {
-                    _checkRoleUpgradeEligibility();
-                    _loadUserRequests();
-                  }
-                } catch (e) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $e'),
-                      backgroundColor: cs.error,
-                    ),
-                  );
-                }
-              },
-              child: const Text('Submit Request'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showUserRequestsDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final theme = Theme.of(context);
-        final cs = theme.colorScheme;
-
-        return AlertDialog(
-          title: const Text('My Role Upgrade Requests'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: _userRequests.length,
-              itemBuilder: (context, index) {
-                final request = _userRequests[index];
-                final status = request['status'] as String;
-                final requestedRole = request['requested_role'] as String;
-                final createdAt =
-                    DateTime.parse(request['created_at'] as String);
-
-                Color statusColor;
-                IconData statusIcon;
-                switch (status) {
-                  case 'pending':
-                    statusColor = cs.tertiary;
-                    statusIcon = Icons.pending;
-                    break;
-                  case 'approved':
-                    statusColor = cs.primary;
-                    statusIcon = Icons.check_circle;
-                    break;
-                  case 'rejected':
-                    statusColor = cs.error;
-                    statusIcon = Icons.cancel;
-                    break;
-                  default:
-                    statusColor = cs.outline;
-                    statusIcon = Icons.help;
-                }
-
-                return Card(
-                  margin: EdgeInsets.only(bottom: 2.h),
-                  child: ListTile(
-                    leading: Icon(statusIcon, color: statusColor),
-                    title: Text(
-                      'Upgrade to ${requestedRole.toUpperCase()}',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Status: ${status.toUpperCase()}'),
-                        Text(
-                          'Requested: ${createdAt.day}/${createdAt.month}/${createdAt.year}',
-                        ),
-                        if (status == 'rejected' &&
-                            request['rejection_reason'] != null)
-                          Text(
-                            'Reason: ${request['rejection_reason']}',
-                            style: TextStyle(color: cs.error),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close'),
-            ),
-          ],
-        );
-      },
     );
   }
 }

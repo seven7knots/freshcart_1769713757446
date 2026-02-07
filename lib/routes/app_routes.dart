@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../features/admin/categories/admin_categories_screen.dart';
 import '../features/admin/categories/admin_subcategories_screen.dart';
 import '../presentation/admin_ads_management_screen/admin_ads_management_screen.dart';
+import '../presentation/admin_applications_screen/admin_applications_screen.dart';
 import '../presentation/admin_dashboard_screen/admin_dashboard_screen.dart';
 import '../presentation/admin_landing_dashboard_screen/admin_landing_dashboard_screen.dart';
 import '../presentation/admin_logistics_management_screen/admin_logistics_management_screen.dart';
@@ -19,6 +20,7 @@ import '../presentation/category_listings_screen/category_listings_screen.dart';
 import '../presentation/chat_list_screen/chat_list_screen.dart';
 import '../presentation/checkout_screen/checkout_screen.dart';
 import '../presentation/create_listing_screen/create_listing_screen.dart';
+import '../presentation/driver_application_screen/driver_application_screen.dart';
 import '../presentation/driver_home_screen/driver_home_screen.dart';
 import '../presentation/driver_login_screen/driver_login_screen.dart';
 import '../presentation/driver_performance_dashboard_screen/driver_performance_dashboard_screen.dart';
@@ -28,7 +30,10 @@ import '../presentation/marketplace_account_screen/marketplace_account_screen.da
 import '../presentation/marketplace_chat_screen/marketplace_chat_screen.dart';
 import '../presentation/marketplace_listing_detail_screen/marketplace_listing_detail_screen.dart';
 import '../presentation/marketplace_screen/marketplace_screen.dart';
+import '../presentation/merchant_application_screen/merchant_application_screen.dart';
+import '../presentation/merchant_dashboard_screen/merchant_dashboard_screen.dart';
 import '../presentation/merchant_profile_screen/merchant_profile_screen.dart';
+import '../presentation/merchant_store_screen/merchant_store_screen.dart';
 import '../presentation/my_ads_screen/my_ads_screen.dart';
 import '../presentation/my_bookings_screen/my_bookings_screen.dart';
 import '../presentation/onboarding_screen/onboarding_screen.dart';
@@ -40,6 +45,8 @@ import '../presentation/service_booking_screen/service_booking_screen.dart';
 import '../presentation/service_detail_screen/service_detail_screen.dart';
 import '../presentation/service_listing_screen/service_listing_screen.dart';
 import '../presentation/splash_screen/splash_screen.dart';
+import '../presentation/store_detail_screen/store_detail_screen.dart';
+import '../presentation/stores_screen/stores_screen.dart';
 import '../presentation/subcategories_screen/subcategories_screen.dart';
 import '../presentation/subscription_management_screen/subscription_management_screen.dart';
 import '../widgets/main_layout_wrapper.dart';
@@ -63,12 +70,16 @@ class AppRoutes {
   static const String home = '/home-screen';
   static const String search = '/search-screen';
   static const String shoppingCart = '/shopping-cart-screen';
-  static const String orderHistory = '/order-history-screen';
+  static const String stores = '/stores-screen'; // CHANGED: Stores replaces orderHistory
   static const String profile = '/profile-screen';
+
+  // Legacy route (kept for backward compatibility, but redirects to stores)
+  static const String orderHistory = '/order-history-screen';
 
   // Detail screens
   static const String productDetail = '/product-detail-screen';
   static const String productDetailScreen = productDetail;
+  static const String storeDetail = '/store-detail-screen'; // NEW
   static const String checkout = '/checkout-screen';
   static const String orderTracking = '/order-tracking-screen';
   static const String subscriptionManagement = '/subscription-management-screen';
@@ -100,6 +111,13 @@ class AppRoutes {
   static const String driverHome = '/driver-home-screen';
   static const String driverPerformanceDashboard = '/driver-performance-dashboard-screen';
   static const String availableOrdersScreen = '/available-orders-screen';
+  static const String driverApplication = '/driver-application-screen';
+
+  // Merchant routes
+  static const String merchantProfile = '/merchant-profile-screen';
+  static const String merchantDashboard = '/merchant-dashboard-screen';
+  static const String merchantStore = '/merchant-store-screen';
+  static const String merchantApplication = '/merchant-application-screen';
 
   // Admin routes
   static const String adminDashboard = '/admin-dashboard-screen';
@@ -110,12 +128,10 @@ class AppRoutes {
   static const String enhancedOrderManagement = '/enhanced-order-management-screen';
   static const String adminAdsManagement = '/admin-ads-management-screen';
   static const String adminLogisticsManagement = '/admin-logistics-management-screen';
-  // Admin special routes - NOW PROPERLY MAPPED
+  static const String adminApplications = '/admin-applications-screen';
+  // Admin special routes
   static const String adminGlobalEditInterface = '/admin-global-edit-interface-screen';
   static const String adminEditOverlaySystem = '/admin-edit-overlay-system-screen';
-
-  // Merchant (optional)
-  static const String merchantProfile = '/merchant-profile-screen';
 
   // Public subcategories screen
   static const String subcategoriesScreen = '/subcategories-screen';
@@ -143,15 +159,25 @@ class AppRoutes {
       return MainLayoutWrapper(initialIndex: initialIndex);
     },
 
-    // Tab aliases (compat)
+    // Tab aliases
     home: (context) => const MainLayoutWrapper(initialIndex: 0),
     search: (context) => const MainLayoutWrapper(initialIndex: 1),
     shoppingCart: (context) => const MainLayoutWrapper(initialIndex: 2),
-    orderHistory: (context) => const MainLayoutWrapper(initialIndex: 3),
+    stores: (context) => const MainLayoutWrapper(initialIndex: 3), // CHANGED: Now shows StoresScreen
     profile: (context) => const MainLayoutWrapper(initialIndex: 4),
+
+    // Legacy compatibility - orderHistory redirects to stores
+    orderHistory: (context) => const MainLayoutWrapper(initialIndex: 3),
 
     // Details
     productDetail: (context) => const ProductDetailScreen(),
+    storeDetail: (context) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      final String storeId = (args is Map && args['storeId'] is String)
+          ? args['storeId'] as String
+          : '';
+      return StoreDetailScreen(storeId: storeId);
+    },
     checkout: (context) => const CheckoutScreen(),
     orderTracking: (context) => const OrderTrackingScreen(),
     subscriptionManagement: (context) => const SubscriptionManagementScreen(),
@@ -186,6 +212,13 @@ class AppRoutes {
     driverHome: (context) => const DriverHomeScreen(),
     driverPerformanceDashboard: (context) => const DriverPerformanceDashboardScreen(),
     availableOrdersScreen: (context) => const AvailableOrdersScreen(),
+    driverApplication: (context) => const DriverApplicationScreen(),
+
+    // Merchant
+    merchantProfile: (context) => const MerchantProfileScreen(),
+    merchantDashboard: (context) => const MerchantDashboardScreen(),
+    merchantStore: (context) => const MerchantStoreScreen(),
+    merchantApplication: (context) => const MerchantApplicationScreen(),
 
     // Admin
     adminDashboard: (context) => const AdminDashboardScreen(),
@@ -196,13 +229,11 @@ class AppRoutes {
     enhancedOrderManagement: (context) => const EnhancedOrderManagementScreen(),
     adminAdsManagement: (context) => const AdminAdsManagementScreen(),
     adminLogisticsManagement: (context) => const AdminLogisticsManagementScreen(),
+    adminApplications: (context) => const AdminApplicationsScreen(),
 
-    // ✅ NEW: Admin Edit Overlay System - NOW PROPERLY MAPPED
+    // Admin Edit Overlay System
     adminEditOverlaySystem: (context) => const AdminEditStandaloneScreen(),
     adminGlobalEditInterface: (context) => const AdminEditStandaloneScreen(),
-
-    // Merchant (optional)
-    merchantProfile: (context) => const MerchantProfileScreen(),
 
     // Public subcategories screen
     subcategoriesScreen: (context) {
@@ -236,7 +267,7 @@ class AppRoutes {
       case 2:
         return shoppingCart;
       case 3:
-        return orderHistory;
+        return stores; // CHANGED: Index 3 now returns stores route
       case 4:
         return profile;
       default:

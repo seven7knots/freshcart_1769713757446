@@ -5,6 +5,7 @@ import 'package:provider/provider.dart' as provider;
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../services/analytics_service.dart';
@@ -17,6 +18,7 @@ import './widgets/featured_categories_widget.dart';
 import './widgets/hero_banner_widget.dart';
 import './widgets/quick_add_widget.dart';
 import './widgets/recent_orders_widget.dart';
+import './widgets/top_stores_widget.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -204,9 +206,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 scrolledUnderElevation: 2,
                 shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.1),
                 actions: [
-                  provider.Consumer<AuthProvider>(
-                    builder: (context, authProvider, child) {
-                      if (authProvider.isAdmin) {
+                  provider.Consumer2<AuthProvider, AdminProvider>(
+                    builder: (context, authProvider, adminProvider, child) {
+                      if (adminProvider.isAdmin) {
                         return Row(
                           children: [
                             Container(
@@ -354,9 +356,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               SliverToBoxAdapter(
                 child: Column(
                   children: [
-                    provider.Consumer<AuthProvider>(
-                      builder: (context, authProvider, child) {
-                        if (!authProvider.isAdmin) {
+                    provider.Consumer2<AuthProvider, AdminProvider>(
+                      builder: (context, authProvider, adminProvider, child) {
+                        if (!adminProvider.isAdmin) {
                           return const SizedBox.shrink();
                         }
                         return Container(
@@ -406,6 +408,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const HeroBannerWidget(),
                     const CategoriesWidget(),
+                    const TopStoresWidget(),
                     const QuickAddWidget(),
                     const FeaturedCategoriesWidget(),
                     const DealsOfDayWidget(),

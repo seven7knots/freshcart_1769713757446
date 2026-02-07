@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../services/category_service.dart';
-import './admin_category_model.dart';
+import '../../../models/category_model.dart';
 
 class CategoryEditDialog extends StatefulWidget {
-  final AdminCategoryModel? existingCategory;
-  final AdminCategoryModel? parentCategory;
+  final Category? existingCategory;
+  final Category? parentCategory;
   final VoidCallback onSaved;
 
   const CategoryEditDialog({
@@ -22,7 +22,6 @@ class CategoryEditDialog extends StatefulWidget {
 
 class _CategoryEditDialogState extends State<CategoryEditDialog> {
   final _formKey = GlobalKey<FormState>();
-  final CategoryService _categoryService = CategoryService();
 
   final _nameController = TextEditingController();
   final _typeController = TextEditingController();
@@ -35,7 +34,6 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
   bool get _isEdit => widget.existingCategory != null;
   bool get _isSubcategory => widget.parentCategory != null;
 
-  // Safety default if user leaves type empty (prevents DB NULL)
   static const String _defaultType = 'product';
 
   @override
@@ -45,7 +43,7 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
     if (_isEdit) {
       final c = widget.existingCategory!;
       _nameController.text = c.name;
-      _typeController.text = c.type; // may be '' if legacy row
+      _typeController.text = (c.type ?? _defaultType);
       _sortOrderController.text = c.sortOrder.toString();
       _isActive = c.isActive;
       _isMarketplace = c.isMarketplace;
@@ -56,10 +54,9 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
       _isMarketplace = false;
 
       if (_isSubcategory) {
-        // inherit type from parent
-        _typeController.text = widget.parentCategory!.type;
+        _typeController.text = (widget.parentCategory?.type ?? _defaultType);
       } else {
-        _typeController.text = _defaultType; // give a valid default immediately
+        _typeController.text = _defaultType;
       }
     }
   }
@@ -85,15 +82,12 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
   String _effectiveType() {
     final raw = _typeController.text.trim();
 
-    // If subcategory, ALWAYS use parent's type (source of truth)
+    // Subcategory inherits parent's type
     if (_isSubcategory) {
-      final parentType = widget.parentCategory?.type.trim() ?? '';
-      if (parentType.isNotEmpty) return parentType;
-      // parent type missing (legacy bad data) -> force safe default
-      return _defaultType;
+      final parentType = widget.parentCategory?.type?.trim() ?? '';
+      return parentType.isNotEmpty ? parentType : _defaultType;
     }
 
-    // root category: use entered type, else fallback
     return raw.isNotEmpty ? raw : _defaultType;
   }
 
@@ -101,7 +95,7 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
     if (!_formKey.currentState!.validate()) return;
 
     final name = _nameController.text.trim();
-    final type = _effectiveType(); // never empty
+    final type = _effectiveType();
     final sortOrder = int.tryParse(_sortOrderController.text.trim()) ?? 0;
 
     if (name.isEmpty) {
@@ -113,22 +107,24 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
 
     try {
       if (!_isEdit) {
-        await _categoryService.createCategory(
+        await CategoryService.createCategory(
           name: name,
           type: type,
           parentId: widget.parentCategory?.id,
           sortOrder: sortOrder,
           isActive: _isActive,
-          isMarketplace: _isMarketplace,
+          isMarketplace: _isMarketplace, // ✅ persisted now
         );
       } else {
-        await _categoryService.updateCategory(
+        await CategoryService.updateCategory(
           widget.existingCategory!.id,
-          name: name,
-          type: type,
-          sortOrder: sortOrder,
-          isActive: _isActive,
-          isMarketplace: _isMarketplace,
+          {
+            'name': name,
+            'type': type,
+            'sort_order': sortOrder,
+            'is_active': _isActive,
+            'is_marketplace': _isMarketplace, // ✅ persisted now
+          },
         );
       }
 
@@ -184,7 +180,8 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.close),
-                      onPressed: _isLoading ? null : () => Navigator.pop(context),
+                      onPressed:
+                          _isLoading ? null : () => Navigator.pop(context),
                     ),
                   ],
                 ),
@@ -206,16 +203,17 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
                                 : 'Category Name *',
                           ),
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Name is required';
-                            if (v.trim().length < 2) return 'Name must be at least 2 characters';
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Name is required';
+                            }
+                            if (v.trim().length < 2) {
+                              return 'Name must be at least 2 characters';
+                            }
                             return null;
                           },
                         ),
                         SizedBox(height: 2.h),
 
-                        // Type field:
-                        // - Root: editable, defaults to 'product'
-                        // - Subcategory: locked, inherited from parent (or fallback)
                         TextFormField(
                           controller: _typeController,
                           enabled: !_isSubcategory,
@@ -253,13 +251,17 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
                           contentPadding: EdgeInsets.zero,
                           title: const Text('Active'),
                           value: _isActive,
-                          onChanged: _isLoading ? null : (v) => setState(() => _isActive = v),
+                          onChanged: _isLoading
+                              ? null
+                              : (v) => setState(() => _isActive = v),
                         ),
                         SwitchListTile(
                           contentPadding: EdgeInsets.zero,
                           title: const Text('Marketplace'),
                           value: _isMarketplace,
-                          onChanged: _isLoading ? null : (v) => setState(() => _isMarketplace = v),
+                          onChanged: _isLoading
+                              ? null
+                              : (v) => setState(() => _isMarketplace = v),
                         ),
                       ],
                     ),
@@ -273,7 +275,8 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _isLoading ? null : () => Navigator.pop(context),
+                        onPressed:
+                            _isLoading ? null : () => Navigator.pop(context),
                         child: const Text('Cancel'),
                       ),
                     ),

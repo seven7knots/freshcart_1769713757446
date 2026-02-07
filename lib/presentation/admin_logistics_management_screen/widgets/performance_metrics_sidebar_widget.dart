@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
-import '../../../models/driver_model.dart';
 import '../../../models/order_model.dart';
 
 class PerformanceMetricsSidebarWidget extends StatelessWidget {
-  final List<DriverModel> drivers;
+  final List<dynamic> drivers;
   final List<OrderModel> orders;
 
   const PerformanceMetricsSidebarWidget({
@@ -16,17 +15,17 @@ class PerformanceMetricsSidebarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final onlineDrivers = drivers.where((d) => d.isOnline).length;
+    final onlineDrivers = drivers.where((d) => (d as dynamic).isOnline == true).length;
     final totalDrivers = drivers.length;
     final utilizationRate =
         totalDrivers > 0 ? (onlineDrivers / totalDrivers * 100) : 0.0;
 
     final avgRating = drivers.isNotEmpty
-        ? drivers.map((d) => d.rating).reduce((a, b) => a + b) / drivers.length
+        ? drivers.map((d) => ((d as dynamic).rating ?? 0.0) as double).reduce((a, b) => a + b) / drivers.length
         : 0.0;
 
     final totalDeliveries =
-        drivers.fold<int>(0, (sum, d) => sum + d.totalDeliveries);
+        drivers.fold<int>(0, (sum, d) => sum + (((d as dynamic).totalDeliveries ?? 0) as int));
 
     return Container(
       width: 70.w,

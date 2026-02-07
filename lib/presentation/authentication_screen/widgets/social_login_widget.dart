@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../providers/auth_provider.dart';
-import '../../../theme/app_theme.dart';
 
 class SocialLoginWidget extends StatelessWidget {
   final VoidCallback? onGooglePressed;

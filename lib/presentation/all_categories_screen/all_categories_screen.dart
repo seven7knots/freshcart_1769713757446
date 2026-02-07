@@ -1,139 +1,241 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
+import '../../models/category_model.dart';
 import '../../routes/app_routes.dart';
-import '../marketplace_screen/widgets/marketplace_bottom_nav_widget.dart';
+import '../../services/category_service.dart';
 
-class AllCategoriesScreen extends StatelessWidget {
+class AllCategoriesScreen extends StatefulWidget {
   const AllCategoriesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final primaryCategories = [
-      {'id': 'vehicles', 'icon': Icons.directions_car, 'name': 'Vehicles'},
-      {'id': 'properties', 'icon': Icons.home, 'name': 'Properties'},
-      {
-        'id': 'mobiles',
-        'icon': Icons.phone_android,
-        'name': 'Mobiles & Accessories',
-      },
-      {
-        'id': 'electronics',
-        'icon': Icons.tv,
-        'name': 'Electronics & Appliances',
-      },
-      {'id': 'furniture', 'icon': Icons.chair, 'name': 'Furniture & Decor'},
-    ];
+  State<AllCategoriesScreen> createState() => _AllCategoriesScreenState();
+}
 
-    final otherCategories = [
-      {
-        'id': 'business',
-        'icon': Icons.business_center,
-        'name': 'Businesses & Industrial',
-      },
-      {'id': 'pets', 'icon': Icons.pets, 'name': 'Pets'},
-      {'id': 'kids', 'icon': Icons.child_care, 'name': 'Kids & Babies'},
-      {
-        'id': 'sports',
-        'icon': Icons.sports_basketball,
-        'name': 'Sports & Equipment',
-      },
-      {'id': 'hobbies', 'icon': Icons.palette, 'name': 'Hobbies'},
-      {'id': 'jobs', 'icon': Icons.work, 'name': 'Jobs'},
-      {'id': 'fashion', 'icon': Icons.checkroom, 'name': 'Fashion & Beauty'},
-      {'id': 'services', 'icon': Icons.build, 'name': 'Services'},
-    ];
+class _AllCategoriesScreenState extends State<AllCategoriesScreen> {
+  bool _isLoading = true;
+  String? _error;
+  List<Category> _categories = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // Get all top-level categories with their subcategories
+      final categories = await CategoryService.getCategoriesWithSubcategories();
+      
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[ALL_CATEGORIES] Error loading categories: $e');
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _onCategoryTap(Category category) async {
+    // Check if this category has subcategories
+    if (category.hasSubcategories) {
+      Navigator.pushNamed(
+        context,
+        AppRoutes.subcategoriesScreen,
+        arguments: {
+          'parentCategoryId': category.id,
+          'parentCategoryName': category.name,
+        },
+      );
+    } else {
+      // Check from database if it has subcategories
+      final hasSubcats = await CategoryService.hasSubcategories(category.id);
+      
+      if (!mounted) return;
+
+      if (hasSubcats) {
+        Navigator.pushNamed(
+          context,
+          AppRoutes.subcategoriesScreen,
+          arguments: {
+            'parentCategoryId': category.id,
+            'parentCategoryName': category.name,
+          },
+        );
+      } else {
+        // Navigate to category listings
+        Navigator.pushNamed(
+          context,
+          AppRoutes.categoryListingsScreen,
+          arguments: category.id,
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'All categories',
+          'All Categories',
           style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600),
         ),
         centerTitle: true,
-      ),
-      body: ListView(
-        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-        children: [
-          ...primaryCategories.map((category) {
-            return _buildCategoryTile(
-              context,
-              icon: category['icon'] as IconData,
-              name: category['name'] as String,
-              categoryId: category['id'] as String,
-            );
-          }),
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: 2.h),
-            child: Text(
-              'Others',
-              style: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadCategories,
+            tooltip: 'Refresh',
           ),
-          ...otherCategories.map((category) {
-            return _buildCategoryTile(
-              context,
-              icon: category['icon'] as IconData,
-              name: category['name'] as String,
-              categoryId: category['id'] as String,
-            );
-          }),
         ],
       ),
-      bottomNavigationBar: MarketplaceBottomNavWidget(
-        currentIndex: 0,
-        onIndexChanged: (index) {
-          if (index == 0) {
-            Navigator.pop(context);
-          } else if (index == 1) {
-            Navigator.pushNamed(context, AppRoutes.chatListScreen);
-          } else if (index == 2) {
-            Navigator.pushNamed(context, AppRoutes.createListingScreen);
-          } else if (index == 3) {
-            Navigator.pushNamed(context, '/my-ads-screen');
-          } else if (index == 4) {
-            Navigator.pushNamed(context, '/marketplace-account-screen');
-          }
+      body: _buildBody(theme),
+    );
+  }
+
+  Widget _buildBody(ThemeData theme) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return _buildErrorState(theme);
+    }
+
+    if (_categories.isEmpty) {
+      return _buildEmptyState(theme);
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadCategories,
+      child: ListView.builder(
+        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+        itemCount: _categories.length,
+        itemBuilder: (context, index) {
+          final category = _categories[index];
+          return _buildCategoryTile(context, category);
         },
       ),
     );
   }
 
-  Widget _buildCategoryTile(
-    BuildContext context, {
-    required IconData icon,
-    required String name,
-    required String categoryId,
-  }) {
+  Widget _buildErrorState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(6.w),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 15.w,
+              color: theme.colorScheme.error,
+            ),
+            SizedBox(height: 2.h),
+            Text(
+              'Failed to load categories',
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 1.h),
+            Text(
+              _error!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            SizedBox(height: 3.h),
+            ElevatedButton.icon(
+              onPressed: _loadCategories,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(ThemeData theme) {
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(6.w),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.category_outlined,
+              size: 15.w,
+              color: theme.colorScheme.outline,
+            ),
+            SizedBox(height: 2.h),
+            Text(
+              'No Categories',
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 1.h),
+            Text(
+              'Categories will appear here once created by admin',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12.sp,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryTile(BuildContext context, Category category) {
+    final theme = Theme.of(context);
+    final iconData = _getIconForCategory(category.icon);
+    final color = _getColorForType(category.type);
+    final hasSubcategories = category.hasSubcategories;
+
     return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(
-          context,
-          AppRoutes.categoryListingsScreen,
-          arguments: categoryId,
-        );
-      },
+      onTap: () => _onCategoryTap(category),
       child: Container(
         margin: EdgeInsets.only(bottom: 1.5.h),
         padding: EdgeInsets.all(3.w),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(3.w),
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color:
-                  Theme.of(context).colorScheme.shadow.withValues(alpha: 0.05),
+              color: theme.colorScheme.shadow.withOpacity(0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -141,31 +243,207 @@ class AllCategoriesScreen extends StatelessWidget {
         ),
         child: Row(
           children: [
+            // Icon container
             Container(
               padding: EdgeInsets.all(3.w),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                color: color.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                icon,
+                iconData,
                 size: 6.w,
-                color: Theme.of(context).colorScheme.primary,
+                color: color,
               ),
             ),
             SizedBox(width: 4.w),
+            
+            // Category info
             Expanded(
-              child: Text(
-                name,
-                style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    category.name,
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (category.description != null && category.description!.isNotEmpty) ...[
+                    SizedBox(height: 0.3.h),
+                    Text(
+                      category.description!,
+                      style: TextStyle(
+                        fontSize: 11.sp,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  if (hasSubcategories) ...[
+                    SizedBox(height: 0.3.h),
+                    Text(
+                      '${category.subcategories!.length} subcategories',
+                      style: TextStyle(
+                        fontSize: 10.sp,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-            Icon(Icons.chevron_right,
+            
+            // Arrow or count badge
+            if (hasSubcategories)
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${category.subcategories!.length}',
+                      style: TextStyle(
+                        fontSize: 11.sp,
+                        fontWeight: FontWeight.w600,
+                        color: color,
+                      ),
+                    ),
+                    SizedBox(width: 1.w),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 4.w,
+                      color: color,
+                    ),
+                  ],
+                ),
+              )
+            else
+              Icon(
+                Icons.chevron_right,
                 size: 6.w,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
           ],
         ),
       ),
     );
+  }
+
+  IconData _getIconForCategory(String? iconName) {
+    if (iconName == null || iconName.isEmpty) return Icons.category;
+    
+    switch (iconName.toLowerCase()) {
+      case 'restaurant':
+      case 'food':
+        return Icons.restaurant;
+      case 'store':
+      case 'shop':
+        return Icons.store;
+      case 'pharmacy':
+      case 'local_pharmacy':
+      case 'medical':
+        return Icons.local_pharmacy;
+      case 'grocery':
+      case 'local_grocery_store':
+        return Icons.local_grocery_store;
+      case 'shopping_bag':
+      case 'shopping':
+        return Icons.shopping_bag;
+      case 'fastfood':
+      case 'fast_food':
+        return Icons.fastfood;
+      case 'coffee':
+      case 'cafe':
+        return Icons.coffee;
+      case 'bakery':
+      case 'cake':
+        return Icons.cake;
+      case 'electronics':
+      case 'devices':
+        return Icons.devices;
+      case 'fashion':
+      case 'checkroom':
+        return Icons.checkroom;
+      case 'home':
+      case 'house':
+        return Icons.home;
+      case 'sports':
+      case 'fitness':
+        return Icons.sports;
+      case 'pets':
+      case 'pet':
+        return Icons.pets;
+      case 'services':
+      case 'handyman':
+        return Icons.handyman;
+      case 'beauty':
+      case 'spa':
+        return Icons.spa;
+      case 'marketplace':
+        return Icons.storefront;
+      case 'vehicles':
+      case 'car':
+        return Icons.directions_car;
+      case 'properties':
+      case 'real_estate':
+        return Icons.apartment;
+      case 'mobiles':
+      case 'phone':
+        return Icons.phone_android;
+      case 'furniture':
+        return Icons.chair;
+      case 'business':
+        return Icons.business_center;
+      case 'kids':
+      case 'baby':
+        return Icons.child_care;
+      case 'hobbies':
+        return Icons.palette;
+      case 'jobs':
+      case 'work':
+        return Icons.work;
+      default:
+        return Icons.category;
+    }
+  }
+
+  Color _getColorForType(String? type) {
+    if (type == null || type.isEmpty) return Colors.blue;
+    
+    switch (type.toLowerCase()) {
+      case 'restaurant':
+      case 'food':
+        return Colors.orange;
+      case 'grocery':
+        return Colors.green;
+      case 'pharmacy':
+        return Colors.red;
+      case 'retail':
+      case 'shopping':
+        return Colors.blue;
+      case 'services':
+        return Colors.purple;
+      case 'marketplace':
+        return Colors.teal;
+      case 'bakery':
+        return Colors.brown;
+      case 'electronics':
+        return Colors.indigo;
+      case 'fashion':
+        return Colors.pink;
+      case 'vehicles':
+        return Colors.blueGrey;
+      case 'properties':
+        return Colors.amber;
+      default:
+        return Colors.blue;
+    }
   }
 }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart' as provider;
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/admin_action_button.dart';
 import './widgets/marketplace_ad_box_widget.dart';
@@ -165,9 +166,9 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
             MarketplaceSearchBarWidget(onSearchChanged: _onSearchChanged),
             const MarketplaceAdBoxWidget(),
             // Admin Controls Section
-            provider.Consumer<AuthProvider>(
-              builder: (context, authProvider, child) {
-                if (authProvider.isAdmin) {
+            provider.Consumer2<AuthProvider, AdminProvider>(
+              builder: (context, authProvider, adminProvider, child) {
+                if (adminProvider.isAdmin) {
                   return Container(
                     padding:
                         EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),

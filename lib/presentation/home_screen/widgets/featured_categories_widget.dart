@@ -1,95 +1,89 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../models/category_model.dart';
 import '../../../providers/admin_provider.dart';
-import '../../../providers/auth_provider.dart';
+import '../../../services/category_service.dart';
 import '../../../widgets/admin_editable_item_wrapper.dart';
 
-class FeaturedCategoriesWidget extends StatelessWidget {
+class FeaturedCategoriesWidget extends StatefulWidget {
   const FeaturedCategoriesWidget({super.key});
 
-  static const List<Map<String, dynamic>> _categories = [
-    {
-      "id": "cat-1",
-      "categoryId": 1,
-      "name": "Fresh Produce",
-      "subtitle": "Fruits & Vegetables",
-      "image": "https://images.unsplash.com/photo-1667988672217-10a31d5cca30",
-      "semanticLabel":
-          "Fresh organic vegetables including broccoli, carrots, and leafy greens in a wooden basket",
-      "color": Color(0xFFFF3B30),
-      "itemCount": 150,
-    },
-    {
-      "id": "cat-2",
-      "categoryId": 2,
-      "name": "Dairy & Eggs",
-      "subtitle": "Fresh from farm",
-      "image": "https://images.unsplash.com/photo-1558475890-1ebfc06edcf5",
-      "semanticLabel":
-          "Glass bottles of fresh milk and various dairy products on a rustic wooden table",
-      "color": Color(0xFF2196F3),
-      "itemCount": 85,
-    },
-    {
-      "id": "cat-3",
-      "categoryId": 3,
-      "name": "Meat & Seafood",
-      "subtitle": "Premium quality",
-      "image": "https://images.unsplash.com/photo-1580980906245-af3b357dcc84",
-      "semanticLabel":
-          "Fresh raw meat steaks with asparagus and herbs on dark wooden cutting board",
-      "color": Color(0xFFE91E63),
-      "itemCount": 120,
-    },
-    {
-      "id": "cat-4",
-      "categoryId": 4,
-      "name": "Bakery",
-      "subtitle": "Fresh baked daily",
-      "image": "https://images.unsplash.com/photo-1596662850405-75dafe9a0338",
-      "semanticLabel":
-          "Sliced whole wheat bread loaf on wooden cutting board with flour dusting",
-      "color": Color(0xFFFF9800),
-      "itemCount": 95,
-    },
-    {
-      "id": "cat-5",
-      "categoryId": 5,
-      "name": "Pantry Staples",
-      "subtitle": "Essentials & more",
-      "image": "https://images.unsplash.com/photo-1570384182225-e00c5765cd01",
-      "semanticLabel":
-          "Glass jars filled with various grains, pasta, and pantry staples on wooden shelves",
-      "color": Color(0xFF795548),
-      "itemCount": 200,
-    },
-    {
-      "id": "cat-6",
-      "categoryId": 6,
-      "name": "Beverages",
-      "subtitle": "Drinks & more",
-      "image": "https://images.unsplash.com/photo-1676159434936-9c19c551d262",
-      "semanticLabel":
-          "Various colorful fruit juices and beverages in glass bottles arranged on white surface",
-      "color": Color(0xFF9C27B0),
-      "itemCount": 75,
-    },
+  @override
+  State<FeaturedCategoriesWidget> createState() => _FeaturedCategoriesWidgetState();
+}
+
+class _FeaturedCategoriesWidgetState extends State<FeaturedCategoriesWidget> {
+  bool _isLoading = false;
+  String? _error;
+  List<Category> _categories = [];
+
+  // Fallback images for categories without images
+  static const List<String> _fallbackImages = [
+    'https://images.unsplash.com/photo-1667988672217-10a31d5cca30',
+    'https://images.unsplash.com/photo-1558475890-1ebfc06edcf5',
+    'https://images.unsplash.com/photo-1580980906245-af3b357dcc84',
+    'https://images.unsplash.com/photo-1596662850405-75dafe9a0338',
+    'https://images.unsplash.com/photo-1570384182225-e00c5765cd01',
+    'https://images.unsplash.com/photo-1676159434936-9c19c551d262',
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // Get all active top-level categories
+      final categories = await CategoryService.getTopLevelCategories();
+      
+      if (mounted) {
+        setState(() {
+          _categories = categories;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('[FEATURED_CATEGORIES] Error loading categories: $e');
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
+    final theme = Theme.of(context);
     final adminProvider = Provider.of<AdminProvider>(context);
-    final isEditMode = authProvider.isAdmin && adminProvider.isEditMode;
+    final isEditMode = adminProvider.isAdmin && adminProvider.isEditMode;
+
+    // Don't show section if loading or no categories
+    if (_isLoading) {
+      return _buildLoadingState();
+    }
+
+    if (_error != null || _categories.isEmpty) {
+      // Show nothing or minimal state - don't clutter the home page
+      return const SizedBox.shrink();
+    }
 
     return Container(
       margin: EdgeInsets.symmetric(vertical: 2.h),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 4.w),
             child: Row(
@@ -100,18 +94,17 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                   children: [
                     Text(
                       'Shop by Category',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
                     SizedBox(height: 0.5.h),
                     Text(
                       'Find everything you need',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
@@ -119,12 +112,10 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                   children: [
                     if (isEditMode)
                       InkWell(
-                        onTap: () => Navigator.pushNamed(
-                            context, AppRoutes.adminCategories),
+                        onTap: () => Navigator.pushNamed(context, AppRoutes.adminCategories),
                         borderRadius: BorderRadius.circular(20),
                         child: Container(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 3.w, vertical: 0.5.h),
+                          padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
                           margin: EdgeInsets.only(right: 2.w),
                           decoration: BoxDecoration(
                             color: Colors.orange,
@@ -133,7 +124,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.add, color: Colors.white, size: 16),
+                              const Icon(Icons.add, color: Colors.white, size: 16),
                               SizedBox(width: 1.w),
                               Text(
                                 'Add',
@@ -151,19 +142,15 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                       onPressed: () {
                         Navigator.pushNamed(
                           context,
-                          AppRoutes.categoryListingsScreen,
-                          arguments: const {
-                            'categoryId': 'all',
-                            'fromTab': true,
-                          },
+                          AppRoutes.allCategoriesScreen,
                         );
                       },
                       child: Text(
                         'See All',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -172,6 +159,8 @@ class FeaturedCategoriesWidget extends StatelessWidget {
             ),
           ),
           SizedBox(height: 2.h),
+          
+          // Horizontal scrolling cards
           SizedBox(
             height: 28.h,
             child: ListView.builder(
@@ -180,22 +169,16 @@ class FeaturedCategoriesWidget extends StatelessWidget {
               itemCount: _categories.length,
               itemBuilder: (context, index) {
                 final category = _categories[index];
-                final categoryCard = _buildCategoryCard(context, category);
+                final categoryCard = _buildCategoryCard(context, category, index);
 
                 // Wrap with admin edit controls if in edit mode
                 if (isEditMode) {
                   return AdminEditableItemWrapper(
                     contentType: 'category',
-                    contentId: category['id']?.toString(),
-                    contentData: {
-                      'id': category['id'],
-                      'name': category['name'],
-                      'description': category['subtitle'],
-                      'image_url': category['image'],
-                      'is_active': true,
-                    },
-                    onDeleted: () {},
-                    onUpdated: () {},
+                    contentId: category.id,
+                    contentData: category.toMap(),
+                    onDeleted: _loadCategories,
+                    onUpdated: _loadCategories,
                     child: categoryCard,
                   );
                 }
@@ -209,8 +192,25 @@ class FeaturedCategoriesWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildCategoryCard(
-      BuildContext context, Map<String, dynamic> category) {
+  Widget _buildLoadingState() {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 2.h),
+      height: 28.h,
+      child: const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  Widget _buildCategoryCard(BuildContext context, Category category, int index) {
+    final theme = Theme.of(context);
+    
+    // Get image URL or use fallback
+    final imageUrl = category.imageUrl ?? _fallbackImages[index % _fallbackImages.length];
+    
+    // Get color based on category type
+    final cardColor = _getColorForType(category.type);
+
     return GestureDetector(
       onTap: () => _handleCategoryTap(context, category),
       child: Container(
@@ -220,7 +220,7 @@ class FeaturedCategoriesWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Theme.of(context).colorScheme.shadow.withOpacity(0.1),
+              color: theme.colorScheme.shadow.withOpacity(0.1),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -230,13 +230,16 @@ class FeaturedCategoriesWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           child: Stack(
             children: [
+              // Background image
               Positioned.fill(
                 child: CustomImageWidget(
-                  imageUrl: category["image"] as String,
+                  imageUrl: imageUrl,
                   fit: BoxFit.cover,
-                  semanticLabel: category["semanticLabel"] as String,
+                  semanticLabel: '${category.name} category image',
                 ),
               ),
+              
+              // Gradient overlay
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
@@ -251,6 +254,29 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                   ),
                 ),
               ),
+              
+              // Category type badge
+              Positioned(
+                top: 3.w,
+                left: 3.w,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                  decoration: BoxDecoration(
+                    color: cardColor.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    (category.type ?? 'General').toUpperCase(),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 8.sp,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Category info
               Positioned(
                 left: 4.w,
                 right: 4.w,
@@ -259,19 +285,44 @@ class FeaturedCategoriesWidget extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      category["name"] as String,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                          ),
+                      category.name,
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 0.5.h),
-                    Text(
-                      category["subtitle"] as String,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withOpacity(0.9),
+                    if (category.description != null && category.description!.isNotEmpty) ...[
+                      SizedBox(height: 0.5.h),
+                      Text(
+                        category.description!,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: Colors.white.withOpacity(0.9),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                    if (category.storeCount > 0) ...[
+                      SizedBox(height: 0.5.h),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.store,
+                            color: Colors.white.withOpacity(0.8),
+                            size: 3.5.w,
                           ),
-                    ),
+                          SizedBox(width: 1.w),
+                          Text(
+                            '${category.storeCount} stores',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.white.withOpacity(0.8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -282,17 +333,58 @@ class FeaturedCategoriesWidget extends StatelessWidget {
     );
   }
 
-  void _handleCategoryTap(BuildContext context, Map<String, dynamic> category) {
-    final int categoryId = (category["categoryId"] as int?) ?? 0;
+  Future<void> _handleCategoryTap(BuildContext context, Category category) async {
+    // Check if this category has subcategories
+    final hasSubcats = await CategoryService.hasSubcategories(category.id);
+    
+    if (!mounted) return;
 
-    Navigator.pushNamed(
-      context,
-      AppRoutes.categoryListingsScreen,
-      arguments: {
-        'categoryId': categoryId,
-        'fromTab': true,
-      },
-    );
+    if (hasSubcats) {
+      // Navigate to subcategories screen
+      Navigator.pushNamed(
+        context,
+        AppRoutes.subcategoriesScreen,
+        arguments: {
+          'parentCategoryId': category.id,
+          'parentCategoryName': category.name,
+        },
+      );
+    } else {
+      // Navigate to category listings
+      Navigator.pushNamed(
+        context,
+        AppRoutes.categoryListingsScreen,
+        arguments: category.id,
+      );
+    }
+  }
+
+  Color _getColorForType(String? type) {
+    if (type == null || type.isEmpty) return Colors.blue;
+    
+    switch (type.toLowerCase()) {
+      case 'restaurant':
+      case 'food':
+        return Colors.orange;
+      case 'grocery':
+        return Colors.green;
+      case 'pharmacy':
+        return Colors.red;
+      case 'retail':
+      case 'shopping':
+        return Colors.blue;
+      case 'services':
+        return Colors.purple;
+      case 'marketplace':
+        return Colors.teal;
+      case 'bakery':
+        return Colors.brown;
+      case 'electronics':
+        return Colors.indigo;
+      case 'fashion':
+        return Colors.pink;
+      default:
+        return Colors.blue;
+    }
   }
 }
-
