@@ -9,6 +9,38 @@ import './supabase_service.dart';
 class StoreService {
   static SupabaseClient get _client => SupabaseService.client;
 
+  /// Valid category values that satisfy the stores_category_check constraint
+  static const List<String> validCategoryTypes = [
+    'food',
+    'grocery',
+    'pharmacy',
+    'retail',
+    'marketplace',
+    'restaurant',
+    'services',
+    'electronics',
+    'fashion',
+    'beauty',
+    'sports',
+    'pets',
+    'home',
+    'bakery',
+    'coffee',
+    'other',
+  ];
+
+  /// Normalize a category string to one of the valid values
+  static String normalizeCategoryType(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return 'retail';
+    final lower = raw.trim().toLowerCase();
+    if (validCategoryTypes.contains(lower)) return lower;
+    // Try partial matching
+    for (final valid in validCategoryTypes) {
+      if (lower.contains(valid) || valid.contains(lower)) return valid;
+    }
+    return 'retail'; // Safe default
+  }
+
   // ============================================================
   // READ OPERATIONS
   // ============================================================
@@ -19,24 +51,19 @@ class StoreService {
   }) async {
     try {
       debugPrint('[STORE] Fetching all stores...');
-
       var query = _client.from('stores').select();
-
       if (activeOnly) query = query.eq('is_active', true);
-      if (excludeDemo) query = query.eq('is_demo', false);
-
+      // Only exclude stores explicitly marked as demo (NULL is treated as non-demo)
+      if (excludeDemo) query = query.neq('is_demo', true);
       final response = await query.order('created_at', ascending: false);
-
-      return (response as List)
-          .map((s) => Store.fromMap(s as Map<String, dynamic>))
-          .toList();
+      debugPrint('[STORE] Fetched ${(response as List).length} stores');
+      return response.map((s) => Store.fromMap(s as Map<String, dynamic>)).toList();
     } catch (e) {
       debugPrint('[STORE] Error fetching stores: $e');
       rethrow;
     }
   }
 
-  /// Legacy category string filter (kept for backward compatibility)
   static Future<List<Store>> getStoresByCategory(
     String category, {
     bool activeOnly = true,
@@ -44,24 +71,17 @@ class StoreService {
   }) async {
     try {
       debugPrint('[STORE] Fetching stores for legacy category: $category');
-
       var query = _client.from('stores').select().eq('category', category);
-
       if (activeOnly) query = query.eq('is_active', true);
       if (excludeDemo) query = query.eq('is_demo', false);
-
       final response = await query.order('rating', ascending: false);
-
-      return (response as List)
-          .map((s) => Store.fromMap(s as Map<String, dynamic>))
-          .toList();
+      return (response as List).map((s) => Store.fromMap(s as Map<String, dynamic>)).toList();
     } catch (e) {
       debugPrint('[STORE] Error fetching stores by category: $e');
       rethrow;
     }
   }
 
-  /// Preferred: filter by category_id (UUID FK)
   static Future<List<Store>> getStoresByCategoryId(
     String categoryId, {
     bool activeOnly = true,
@@ -69,19 +89,31 @@ class StoreService {
   }) async {
     try {
       debugPrint('[STORE] Fetching stores for category_id: $categoryId');
-
-      var query = _client.from('stores').select().eq('category_id', categoryId);
-
+      var query = _client.from('stores').select().or('category_id.eq.$categoryId,subcategory_id.eq.$categoryId');
       if (activeOnly) query = query.eq('is_active', true);
       if (excludeDemo) query = query.eq('is_demo', false);
-
       final response = await query.order('rating', ascending: false);
-
-      return (response as List)
-          .map((s) => Store.fromMap(s as Map<String, dynamic>))
-          .toList();
+      return (response as List).map((s) => Store.fromMap(s as Map<String, dynamic>)).toList();
     } catch (e) {
       debugPrint('[STORE] Error fetching stores by category_id: $e');
+      rethrow;
+    }
+  }
+
+  static Future<List<Store>> getStoresBySubcategoryId(
+    String subcategoryId, {
+    bool activeOnly = true,
+    bool excludeDemo = true,
+  }) async {
+    try {
+      debugPrint('[STORE] Fetching stores for subcategory_id: $subcategoryId');
+      var query = _client.from('stores').select().eq('subcategory_id', subcategoryId);
+      if (activeOnly) query = query.eq('is_active', true);
+      if (excludeDemo) query = query.eq('is_demo', false);
+      final response = await query.order('rating', ascending: false);
+      return (response as List).map((s) => Store.fromMap(s as Map<String, dynamic>)).toList();
+    } catch (e) {
+      debugPrint('[STORE] Error fetching stores by subcategory_id: $e');
       rethrow;
     }
   }
@@ -92,20 +124,10 @@ class StoreService {
   }) async {
     try {
       debugPrint('[STORE] Fetching featured stores...');
-
-      var query = _client
-          .from('stores')
-          .select()
-          .eq('is_active', true)
-          .eq('is_featured', true);
-
+      var query = _client.from('stores').select().eq('is_active', true).eq('is_featured', true);
       if (excludeDemo) query = query.eq('is_demo', false);
-
       final response = await query.order('rating', ascending: false).limit(limit);
-
-      return (response as List)
-          .map((s) => Store.fromMap(s as Map<String, dynamic>))
-          .toList();
+      return (response as List).map((s) => Store.fromMap(s as Map<String, dynamic>)).toList();
     } catch (e) {
       debugPrint('[STORE] Error fetching featured stores: $e');
       rethrow;
@@ -118,15 +140,10 @@ class StoreService {
   }) async {
     try {
       debugPrint('[STORE] Fetching top rated stores...');
-
       var query = _client.from('stores').select().eq('is_active', true);
       if (excludeDemo) query = query.eq('is_demo', false);
-
       final response = await query.order('rating', ascending: false).limit(limit);
-
-      return (response as List)
-          .map((s) => Store.fromMap(s as Map<String, dynamic>))
-          .toList();
+      return (response as List).map((s) => Store.fromMap(s as Map<String, dynamic>)).toList();
     } catch (e) {
       debugPrint('[STORE] Error fetching top rated stores: $e');
       rethrow;
@@ -136,10 +153,7 @@ class StoreService {
   static Future<Store?> getStoreById(String id) async {
     try {
       debugPrint('[STORE] Fetching store: $id');
-
-      final response =
-          await _client.from('stores').select().eq('id', id).maybeSingle();
-
+      final response = await _client.from('stores').select().eq('id', id).maybeSingle();
       if (response == null) return null;
       return Store.fromMap(response);
     } catch (e) {
@@ -148,40 +162,22 @@ class StoreService {
     }
   }
 
-  /// Stores for a merchant row id
   static Future<List<Store>> getStoresByMerchant(String merchantId) async {
     try {
       debugPrint('[STORE] Fetching stores for merchant_id: $merchantId');
-
-      final response = await _client
-          .from('stores')
-          .select()
-          .eq('merchant_id', merchantId)
-          .order('created_at', ascending: false);
-
-      return (response as List)
-          .map((s) => Store.fromMap(s as Map<String, dynamic>))
-          .toList();
+      final response = await _client.from('stores').select().eq('merchant_id', merchantId).order('created_at', ascending: false);
+      return (response as List).map((s) => Store.fromMap(s as Map<String, dynamic>)).toList();
     } catch (e) {
       debugPrint('[STORE] Error fetching merchant stores: $e');
       rethrow;
     }
   }
 
-  /// Stores for an owner user id (auth uid)
   static Future<List<Store>> getStoresByOwner(String ownerUserId) async {
     try {
       debugPrint('[STORE] Fetching stores for owner_user_id: $ownerUserId');
-
-      final response = await _client
-          .from('stores')
-          .select()
-          .eq('owner_user_id', ownerUserId)
-          .order('created_at', ascending: false);
-
-      return (response as List)
-          .map((s) => Store.fromMap(s as Map<String, dynamic>))
-          .toList();
+      final response = await _client.from('stores').select().eq('owner_user_id', ownerUserId).order('created_at', ascending: false);
+      return (response as List).map((s) => Store.fromMap(s as Map<String, dynamic>)).toList();
     } catch (e) {
       debugPrint('[STORE] Error fetching owner stores: $e');
       rethrow;
@@ -192,26 +188,14 @@ class StoreService {
   // CREATE OPERATIONS
   // ============================================================
 
-  /// Create a new store
-  ///
-  /// Ownership rules:
-  /// - owner_user_id must be the auth user id (auth.uid()).
-  /// - merchant_id is optional but recommended; if omitted, we attempt to resolve it
-  ///   from merchants where merchants.user_id == owner_user_id AND status == 'approved'.
-  ///
-  /// Category rules:
-  /// - Prefer categoryId (UUID FK) if your DB has category_id.
-  /// - category (string) is legacy and optional.
   static Future<Store> createStore({
     String? merchantId,
     String? ownerUserId,
-
     required String name,
     String? nameAr,
-
-    String? categoryId, // preferred
-    String? category, // legacy
-
+    String? categoryId,
+    String? subcategoryId,
+    String? category,
     String? description,
     String? descriptionAr,
     String? imageUrl,
@@ -241,7 +225,6 @@ class StoreService {
               .select('id, status')
               .eq('user_id', uid)
               .maybeSingle();
-
           final status = (m?['status']?.toString() ?? '').trim().toLowerCase();
           if (m != null && status == 'approved') {
             resolvedMerchantId = m['id']?.toString();
@@ -252,18 +235,20 @@ class StoreService {
         }
       }
 
-      final data = <String, dynamic>{
-        // Ownership
-        'owner_user_id': uid,
-        'merchant_id': resolvedMerchantId,
+      // CRITICAL: Normalize the category string to satisfy the CHECK constraint
+      final normalizedCategory = normalizeCategoryType(category);
 
-        // Basic
+      final data = <String, dynamic>{
+        'owner_user_id': uid,
         'name': name,
         'name_ar': nameAr,
 
-        // Category (support both)
+        // Legacy category string — MUST be a valid value from the CHECK constraint
+        'category': normalizedCategory,
+
+        // FK references (preferred)
         'category_id': categoryId,
-        'category': category,
+        'subcategory_id': subcategoryId,
 
         'description': description,
         'description_ar': descriptionAr,
@@ -274,19 +259,20 @@ class StoreService {
         'location_lng': locationLng,
         'minimum_order': minimumOrder,
         'average_prep_time_minutes': averagePrepTimeMinutes,
-
-        // Flags
         'is_active': isActive,
         'is_featured': isFeatured,
         'is_accepting_orders': true,
         'is_demo': false,
-
-        // Defaults
         'rating': 0.0,
         'total_reviews': 0,
       };
 
-      // Remove nulls to avoid overwriting defaults / violating constraints
+      // Add merchant_id only if we have one (column may be NOT NULL or nullable)
+      if (resolvedMerchantId != null) {
+        data['merchant_id'] = resolvedMerchantId;
+      }
+
+      // Remove nulls to avoid overwriting DB defaults
       data.removeWhere((key, value) => value == null);
 
       final response = await _client.from('stores').insert(data).select().single();
@@ -311,15 +297,14 @@ class StoreService {
     try {
       debugPrint('[STORE] Updating store: $id');
 
+      // Normalize category if present
+      if (updates.containsKey('category') && updates['category'] != null) {
+        updates['category'] = normalizeCategoryType(updates['category'] as String?);
+      }
+
       updates['updated_at'] = DateTime.now().toIso8601String();
 
-      final response = await _client
-          .from('stores')
-          .update(updates)
-          .eq('id', id)
-          .select()
-          .single();
-
+      final response = await _client.from('stores').update(updates).eq('id', id).select().single();
       final store = Store.fromMap(response);
       debugPrint('[STORE] Store updated: ${store.id}');
       return store;
@@ -370,19 +355,10 @@ class StoreService {
   }) async {
     try {
       debugPrint('[STORE] Searching stores: $query');
-
-      var dbQuery = _client
-          .from('stores')
-          .select()
-          .or('name.ilike.%$query%,name_ar.ilike.%$query%');
-
+      var dbQuery = _client.from('stores').select().or('name.ilike.%$query%,name_ar.ilike.%$query%');
       if (activeOnly) dbQuery = dbQuery.eq('is_active', true);
-
       final response = await dbQuery.order('rating', ascending: false);
-
-      return (response as List)
-          .map((s) => Store.fromMap(s as Map<String, dynamic>))
-          .toList();
+      return (response as List).map((s) => Store.fromMap(s as Map<String, dynamic>)).toList();
     } catch (e) {
       debugPrint('[STORE] Error searching stores: $e');
       rethrow;
@@ -397,25 +373,16 @@ class StoreService {
   }) async {
     try {
       debugPrint('[STORE] Fetching nearby stores...');
-
       final latDelta = radiusKm / 111.0;
       final lngDelta = radiusKm / (111.0 * cos(lat * pi / 180));
-
-      var query = _client
-          .from('stores')
-          .select()
+      var query = _client.from('stores').select()
           .gte('location_lat', lat - latDelta)
           .lte('location_lat', lat + latDelta)
           .gte('location_lng', lng - lngDelta)
           .lte('location_lng', lng + lngDelta);
-
       if (activeOnly) query = query.eq('is_active', true);
-
       final response = await query;
-
-      return (response as List)
-          .map((s) => Store.fromMap(s as Map<String, dynamic>))
-          .toList();
+      return (response as List).map((s) => Store.fromMap(s as Map<String, dynamic>)).toList();
     } catch (e) {
       debugPrint('[STORE] Error fetching nearby stores: $e');
       rethrow;

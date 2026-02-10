@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../features/admin/categories/admin_categories_screen.dart';
 import '../features/admin/categories/admin_subcategories_screen.dart';
+import '../models/product_model.dart';
 import '../presentation/admin_ads_management_screen/admin_ads_management_screen.dart';
 import '../presentation/admin_applications_screen/admin_applications_screen.dart';
 import '../presentation/admin_dashboard_screen/admin_dashboard_screen.dart';
@@ -17,6 +18,7 @@ import '../presentation/auth_gate_screen/auth_gate_screen.dart';
 import '../presentation/authentication_screen/authentication_screen.dart';
 import '../presentation/available_orders_screen/available_orders_screen.dart';
 import '../presentation/category_listings_screen/category_listings_screen.dart';
+import '../presentation/category_stores_screen/category_stores_screen.dart';
 import '../presentation/chat_list_screen/chat_list_screen.dart';
 import '../presentation/checkout_screen/checkout_screen.dart';
 import '../presentation/create_listing_screen/create_listing_screen.dart';
@@ -44,15 +46,21 @@ import '../presentation/role_upgrade_request_screen/role_upgrade_request_screen.
 import '../presentation/service_booking_screen/service_booking_screen.dart';
 import '../presentation/service_detail_screen/service_detail_screen.dart';
 import '../presentation/service_listing_screen/service_listing_screen.dart';
+import '../presentation/shopping_cart_screen/shopping_cart_screen.dart';
 import '../presentation/splash_screen/splash_screen.dart';
 import '../presentation/store_detail_screen/store_detail_screen.dart';
 import '../presentation/stores_screen/stores_screen.dart';
 import '../presentation/subcategories_screen/subcategories_screen.dart';
 import '../presentation/subscription_management_screen/subscription_management_screen.dart';
 import '../widgets/main_layout_wrapper.dart';
-// Import the standalone admin edit screen
 import '../presentation/admin_edit_overlay_system_screen/admin_edit_standalone_screen.dart';
 
+/// UPDATED TAB INDICES:
+///   0 = Home
+///   1 = Search
+///   2 = AI Mate (was Cart — cart is now only a top-bar icon)
+///   3 = Stores
+///   4 = Profile
 class AppRoutes {
   // Unauthenticated routes
   static const String initial = '/';
@@ -66,20 +74,23 @@ class AppRoutes {
   // Main wrapper
   static const String mainLayout = '/main-layout';
 
-  // Tabs (aliases)
+  // Tabs (aliases matching new indices)
   static const String home = '/home-screen';
   static const String search = '/search-screen';
-  static const String shoppingCart = '/shopping-cart-screen';
-  static const String stores = '/stores-screen'; // CHANGED: Stores replaces orderHistory
+  static const String aiMate = '/ai-mate-screen';
+  static const String stores = '/stores-screen';
   static const String profile = '/profile-screen';
 
-  // Legacy route (kept for backward compatibility, but redirects to stores)
+  // Cart is now a standalone pushed screen (not a tab)
+  static const String shoppingCart = '/shopping-cart-screen';
+
+  // Legacy route (kept for backward compatibility)
   static const String orderHistory = '/order-history-screen';
 
   // Detail screens
   static const String productDetail = '/product-detail-screen';
   static const String productDetailScreen = productDetail;
-  static const String storeDetail = '/store-detail-screen'; // NEW
+  static const String storeDetail = '/store-detail-screen';
   static const String checkout = '/checkout-screen';
   static const String orderTracking = '/order-tracking-screen';
   static const String subscriptionManagement = '/subscription-management-screen';
@@ -89,10 +100,11 @@ class AppRoutes {
   static const String aiMealPlanning = '/ai-meal-planning-screen';
   static const String aiPoweredSearch = '/ai-powered-search-screen';
 
-  // Marketplace routes (non-tab screens)
+  // Marketplace routes
   static const String marketplaceScreen = '/marketplace-screen';
   static const String allCategoriesScreen = '/all-categories-screen';
   static const String categoryListingsScreen = '/category-listings-screen';
+  static const String categoryStoresScreen = '/category-stores-screen';
   static const String serviceListingScreen = '/service-listing-screen';
   static const String serviceDetailScreen = '/service-detail-screen';
   static const String serviceBookingScreen = '/service-booking-screen';
@@ -129,7 +141,6 @@ class AppRoutes {
   static const String adminAdsManagement = '/admin-ads-management-screen';
   static const String adminLogisticsManagement = '/admin-logistics-management-screen';
   static const String adminApplications = '/admin-applications-screen';
-  // Admin special routes
   static const String adminGlobalEditInterface = '/admin-global-edit-interface-screen';
   static const String adminEditOverlaySystem = '/admin-edit-overlay-system-screen';
 
@@ -150,7 +161,7 @@ class AppRoutes {
     phoneOtpVerification: (context) => const PhoneOtpVerificationScreen(),
     roleUpgradeRequest: (context) => const RoleUpgradeRequestScreen(),
 
-    // Main layout (supports arguments: {'initialIndex': int})
+    // Main layout
     mainLayout: (context) {
       final args = ModalRoute.of(context)?.settings.arguments;
       final int initialIndex = (args is Map && args['initialIndex'] is int)
@@ -159,18 +170,32 @@ class AppRoutes {
       return MainLayoutWrapper(initialIndex: initialIndex);
     },
 
-    // Tab aliases
+    // Tab aliases (new indices)
     home: (context) => const MainLayoutWrapper(initialIndex: 0),
     search: (context) => const MainLayoutWrapper(initialIndex: 1),
-    shoppingCart: (context) => const MainLayoutWrapper(initialIndex: 2),
-    stores: (context) => const MainLayoutWrapper(initialIndex: 3), // CHANGED: Now shows StoresScreen
+    aiMate: (context) => const MainLayoutWrapper(initialIndex: 2),
+    stores: (context) => const MainLayoutWrapper(initialIndex: 3),
     profile: (context) => const MainLayoutWrapper(initialIndex: 4),
 
-    // Legacy compatibility - orderHistory redirects to stores
+    // Cart is now a standalone pushed route (not in bottom bar)
+    shoppingCart: (context) => const ShoppingCartScreen(),
+
+    // Legacy compatibility
     orderHistory: (context) => const MainLayoutWrapper(initialIndex: 3),
 
     // Details
-    productDetail: (context) => const ProductDetailScreen(),
+    productDetail: (context) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Product) {
+        return ProductDetailScreen(product: args);
+      } else if (args is String) {
+        return ProductDetailScreen(productId: args);
+      } else if (args is Map) {
+        final productId = (args['productId'] ?? args['id'] ?? '').toString();
+        return ProductDetailScreen(productId: productId);
+      }
+      return const ProductDetailScreen();
+    },
     storeDetail: (context) {
       final args = ModalRoute.of(context)?.settings.arguments;
       final String storeId = (args is Map && args['storeId'] is String)
@@ -191,8 +216,26 @@ class AppRoutes {
     marketplaceScreen: (context) => const MarketplaceScreen(),
     allCategoriesScreen: (context) => const AllCategoriesScreen(),
     categoryListingsScreen: (context) {
-      final args = ModalRoute.of(context)?.settings.arguments as String?;
-      return CategoryListingsScreen(categoryId: args ?? 'all');
+      final args = ModalRoute.of(context)?.settings.arguments;
+      String categoryId = 'all';
+      if (args is String) {
+        categoryId = args;
+      } else if (args is Map) {
+        categoryId = (args['categoryId'] ?? 'all').toString();
+      }
+      return CategoryListingsScreen(categoryId: categoryId);
+    },
+    categoryStoresScreen: (context) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      String categoryId = 'all';
+      String categoryName = 'Stores';
+      if (args is String) {
+        categoryId = args;
+      } else if (args is Map) {
+        categoryId = (args['categoryId'] ?? 'all').toString();
+        categoryName = (args['categoryName'] ?? 'Stores').toString();
+      }
+      return CategoryStoresScreen(categoryId: categoryId, categoryName: categoryName);
     },
     serviceListingScreen: (context) => const ServiceListingScreen(),
     serviceDetailScreen: (context) => const ServiceDetailScreen(),
@@ -246,8 +289,6 @@ class AppRoutes {
 
     // Admin Categories module
     adminCategories: (context) => const AdminCategoriesScreen(),
-
-    // Admin Subcategories module
     adminSubcategories: (context) {
       final args = ModalRoute.of(context)?.settings.arguments as Map?;
       return AdminSubcategoriesScreen(
@@ -258,6 +299,7 @@ class AppRoutes {
     },
   };
 
+  /// Map tab index to route name
   static String getRouteForIndex(int index) {
     switch (index) {
       case 0:
@@ -265,9 +307,9 @@ class AppRoutes {
       case 1:
         return search;
       case 2:
-        return shoppingCart;
+        return aiMate;
       case 3:
-        return stores; // CHANGED: Index 3 now returns stores route
+        return stores;
       case 4:
         return profile;
       default:
@@ -275,6 +317,7 @@ class AppRoutes {
     }
   }
 
+  /// Switch to a tab within the MainLayoutWrapper, or push a new one.
   static void switchToTab(BuildContext context, int index) {
     final state = MainLayoutWrapper.of(context);
     if (state != null) {
@@ -288,5 +331,10 @@ class AppRoutes {
       (route) => false,
       arguments: {'initialIndex': index},
     );
+  }
+
+  /// Open the shopping cart as a standalone pushed screen
+  static void openCart(BuildContext context) {
+    Navigator.pushNamed(context, shoppingCart);
   }
 }

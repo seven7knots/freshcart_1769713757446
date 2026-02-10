@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../theme/app_theme.dart';
 import '../widgets/animated_press_button.dart';
 
 /// Custom bottom navigation bar implementing Contemporary Minimalist Commerce design
 /// with adaptive navigation and haptic feedback.
-/// Updated: Stores replaces Orders at index 3
+///
+/// UPDATED:
+/// - Removed Cart from bottom bar (cart is only in the top bar now)
+/// - Added AI Mate at index 2 (replaces Cart)
+/// - Final order: Home(0), Search(1), AI Mate(2), Stores(3), Profile(4)
 class CustomBottomBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int>? onTap;
@@ -28,7 +33,7 @@ class CustomBottomBar extends StatelessWidget {
         color: _getBackgroundColor(colorScheme),
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withValues(alpha: 0.10),
+            color: colorScheme.shadow.withOpacity(0.10),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -56,13 +61,9 @@ class CustomBottomBar extends StatelessWidget {
                 label: 'Search',
                 tooltip: 'Search products',
               ),
-              _buildNavItem(
+              _buildAiMateNavItem(
                 context: context,
                 index: 2,
-                icon: Icons.shopping_cart_outlined,
-                activeIcon: Icons.shopping_cart_rounded,
-                label: 'Cart',
-                tooltip: 'Shopping cart',
               ),
               _buildNavItem(
                 context: context,
@@ -79,6 +80,57 @@ class CustomBottomBar extends StatelessWidget {
                 activeIcon: Icons.person_rounded,
                 label: 'Profile',
                 tooltip: 'User profile',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Special AI Mate button with brand red accent
+  Widget _buildAiMateNavItem({
+    required BuildContext context,
+    required int index,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isSelected = currentIndex == index;
+
+    return Expanded(
+      child: AnimatedPressButton(
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          onTap?.call(index);
+        },
+        child: Tooltip(
+          message: 'AI Mate – Your smart assistant',
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSelected
+                      ? AppTheme.kjRed.withOpacity(0.12)
+                      : Colors.transparent,
+                ),
+                child: Icon(
+                  isSelected ? Icons.smart_toy : Icons.smart_toy_outlined,
+                  color: isSelected ? AppTheme.kjRed : colorScheme.onSurfaceVariant,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'AI Mate',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
+                  color: isSelected ? AppTheme.kjRed : colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -141,7 +193,7 @@ class CustomBottomBar extends StatelessWidget {
       case BottomBarVariant.primary:
         return colorScheme.surface;
       case BottomBarVariant.transparent:
-        return colorScheme.surface.withValues(alpha: 0.95);
+        return colorScheme.surface.withOpacity(0.95);
     }
   }
 }

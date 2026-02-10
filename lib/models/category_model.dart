@@ -2,6 +2,8 @@
 // FILE: lib/models/category_model.dart
 // ============================================================
 // Category model with subcategory support (self-referencing via parent_id)
+// FIX: Removed isMarketplace (column doesn't exist in DB)
+// ADDED: imageUrl field, storeId field for in-store categories
 // ============================================================
 
 class Category {
@@ -10,10 +12,11 @@ class Category {
   final String? nameAr;
   final String? type;
   final String? icon;
-  final String? imageUrl; // Optional category image
+  final String? imageUrl; // Category image
   final String? description;
   final String? descriptionAr;
-  final String? parentId; // null = top-level category, has value = subcategory
+  final String? parentId; // null = top-level, has value = subcategory
+  final String? storeId; // null = global category, has value = in-store category
   final int sortOrder;
   final bool isActive;
   final bool isDemo;
@@ -35,6 +38,7 @@ class Category {
     this.description,
     this.descriptionAr,
     this.parentId,
+    this.storeId,
     this.sortOrder = 0,
     this.isActive = true,
     this.isDemo = false,
@@ -52,11 +56,11 @@ class Category {
   bool get isSubcategory => parentId != null;
 
   /// Has subcategories?
-  bool get hasSubcategories => subcategories != null && subcategories!.isNotEmpty;
+  bool get hasSubcategories =>
+      subcategories != null && subcategories!.isNotEmpty;
 
-  /// Compatibility alias: some UI code expects `isMarketplace`
-  /// Map it to the existing `isDemo` flag to avoid breaking changes.
-  bool get isMarketplace => isDemo;
+  /// Is this an in-store category?
+  bool get isStoreCategory => storeId != null;
 
   /// Get display name (Arabic if available, fallback to English)
   String getDisplayName({bool preferArabic = false}) {
@@ -87,10 +91,11 @@ class Category {
     // Handle nested parent if present
     Category? parent;
     if (map['parent'] != null && map['parent'] is Map) {
-      parent = Category.fromMap(Map<String, dynamic>.from(map['parent'] as Map));
+      parent =
+          Category.fromMap(Map<String, dynamic>.from(map['parent'] as Map));
     }
 
-    // Defensive parsing for ints/bools that may come back as num/string
+    // Defensive parsing helpers
     int parseInt(dynamic v, {int fallback = 0}) {
       if (v == null) return fallback;
       if (v is int) return v;
@@ -105,8 +110,8 @@ class Category {
       if (v is num) return v != 0;
       if (v is String) {
         final s = v.toLowerCase().trim();
-        if (s == 'true' || s == 't' || s == '1' || s == 'yes' || s == 'y') return true;
-        if (s == 'false' || s == 'f' || s == '0' || s == 'no' || s == 'n') return false;
+        if (s == 'true' || s == '1' || s == 'yes') return true;
+        if (s == 'false' || s == '0' || s == 'no') return false;
       }
       return fallback;
     }
@@ -128,6 +133,7 @@ class Category {
       description: map['description'] as String?,
       descriptionAr: map['description_ar'] as String?,
       parentId: map['parent_id']?.toString(),
+      storeId: map['store_id']?.toString(),
       sortOrder: parseInt(map['sort_order'], fallback: 0),
       isActive: parseBool(map['is_active'], fallback: true),
       isDemo: parseBool(map['is_demo'], fallback: false),
@@ -139,7 +145,8 @@ class Category {
     );
   }
 
-  factory Category.fromJson(Map<String, dynamic> json) => Category.fromMap(json);
+  factory Category.fromJson(Map<String, dynamic> json) =>
+      Category.fromMap(json);
 
   Map<String, dynamic> toMap() {
     return {
@@ -152,6 +159,7 @@ class Category {
       'description': description,
       'description_ar': descriptionAr,
       'parent_id': parentId,
+      'store_id': storeId,
       'sort_order': sortOrder,
       'is_active': isActive,
       'is_demo': isDemo,
@@ -164,7 +172,7 @@ class Category {
 
   /// Create payload for inserting new category
   Map<String, dynamic> toInsertPayload() {
-    return {
+    final data = <String, dynamic>{
       'name': name,
       'name_ar': nameAr,
       'type': type,
@@ -177,6 +185,8 @@ class Category {
       'is_active': isActive,
       'is_demo': isDemo,
     };
+    if (storeId != null) data['store_id'] = storeId;
+    return data;
   }
 
   Category copyWith({
@@ -189,6 +199,7 @@ class Category {
     String? description,
     String? descriptionAr,
     String? parentId,
+    String? storeId,
     int? sortOrder,
     bool? isActive,
     bool? isDemo,
@@ -208,6 +219,7 @@ class Category {
       description: description ?? this.description,
       descriptionAr: descriptionAr ?? this.descriptionAr,
       parentId: parentId ?? this.parentId,
+      storeId: storeId ?? this.storeId,
       sortOrder: sortOrder ?? this.sortOrder,
       isActive: isActive ?? this.isActive,
       isDemo: isDemo ?? this.isDemo,

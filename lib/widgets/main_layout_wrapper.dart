@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../presentation/ai_chat_assistant_screen/ai_chat_assistant_screen.dart';
 import '../presentation/home_screen/home_screen.dart';
 import '../presentation/profile_screen/profile_screen.dart';
 import '../presentation/search_screen/search_screen.dart';
-import '../presentation/shopping_cart_screen/shopping_cart_screen.dart';
 import '../presentation/stores_screen/stores_screen.dart';
 import '../presentation/global_admin_controls_overlay_screen/global_admin_controls_overlay_screen.dart';
 import './custom_bottom_bar.dart';
-import './floating_ai_chatbox.dart';
 
 /// Global layout wrapper that maintains persistent bottom navigation across main screens.
 /// Uses IndexedStack to preserve state and prevent unnecessary rebuilds.
-/// Updated: Stores replaces Order History at index 3
+///
+/// UPDATED:
+/// - Removed FloatingAIChatbox (AI is only accessible via AI Mate tab)
+/// - Replaced Cart at index 2 with AI Chat Assistant screen
+/// - Tab order: Home(0), Search(1), AI Mate(2), Stores(3), Profile(4)
 class MainLayoutWrapper extends StatefulWidget {
   final int initialIndex;
 
@@ -34,11 +37,11 @@ class MainLayoutWrapperState extends State<MainLayoutWrapper> {
   late int _currentIndex;
 
   final List<Widget> _screens = const [
-    HomeScreen(),           // Index 0
-    SearchScreen(),         // Index 1
-    ShoppingCartScreen(),   // Index 2
-    StoresScreen(),         // Index 3 - CHANGED from OrderHistoryScreen
-    ProfileScreen(),        // Index 4
+    HomeScreen(),               // Index 0 - Home
+    SearchScreen(),             // Index 1 - Search
+    AIChatAssistantScreen(),    // Index 2 - AI Mate (replaces Cart)
+    StoresScreen(),             // Index 3 - Stores
+    ProfileScreen(),            // Index 4 - Profile
   ];
 
   @override
@@ -65,14 +68,9 @@ class MainLayoutWrapperState extends State<MainLayoutWrapper> {
   @override
   Widget build(BuildContext context) {
     final content = Scaffold(
-      body: Stack(
-        children: [
-          IndexedStack(
-            index: _currentIndex,
-            children: _screens,
-          ),
-          const FloatingAIChatbox(),
-        ],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
       ),
       bottomNavigationBar: CustomBottomBar(
         currentIndex: _currentIndex,

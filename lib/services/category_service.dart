@@ -38,6 +38,9 @@ class CategoryService {
         query = query.eq('is_demo', false);
       }
 
+      // Only get global categories (no store_id), not in-store categories
+      query = query.isFilter('store_id', null);
+
       final response = await query.order('sort_order', ascending: true);
 
       final categories = (response as List)
@@ -145,17 +148,14 @@ class CategoryService {
     try {
       debugPrint('[CATEGORY] Fetching categories with subcategories...');
 
-      // Get all categories
       final allCategories = await getAllCategories(
         activeOnly: activeOnly,
         excludeDemo: excludeDemo,
       );
 
-      // Separate top-level and subcategories
       final topLevel = allCategories.where((c) => c.isTopLevel).toList();
       final subs = allCategories.where((c) => c.isSubcategory).toList();
 
-      // Nest subcategories under their parents
       final result = topLevel.map((parent) {
         final children = subs.where((s) => s.parentId == parent.id).toList();
         return parent.copyWith(subcategories: children);
@@ -205,46 +205,42 @@ class CategoryService {
   }
 
   /// Get categories specific to a store (merchant-created categories)
-  /// These are categories that merchants create within their own stores
   static Future<List<Category>> getStoreCategories(
     String storeId, {
     bool activeOnly = true,
   }) async {
     try {
       debugPrint('[CATEGORY] Fetching categories for store: $storeId');
-      
-      // Note: This assumes your categories table has a store_id column
-      // If not, you'll need to add it with this SQL:
-      // ALTER TABLE categories ADD COLUMN store_id UUID REFERENCES stores(id);
-      // CREATE INDEX idx_categories_store_id ON categories(store_id);
-      
+
       var query = _client
           .from('categories')
           .select()
           .eq('store_id', storeId);
-      
+
       if (activeOnly) {
         query = query.eq('is_active', true);
       }
-      
+
       final response = await query.order('sort_order', ascending: true);
-      
+
       final categories = (response as List)
           .map((c) => Category.fromMap(c as Map<String, dynamic>))
           .toList();
-      
-      debugPrint('[CATEGORY] Loaded ${categories.length} store-specific categories');
+
+      debugPrint(
+          '[CATEGORY] Loaded ${categories.length} store-specific categories');
       return categories;
     } catch (e) {
       debugPrint('[CATEGORY] Error fetching store categories: $e');
-      
-      // If store_id column doesn't exist yet, return empty list instead of crashing
-      if (e.toString().contains('column') && e.toString().contains('store_id')) {
-        debugPrint('[CATEGORY] ⚠️ store_id column not found in categories table');
-        debugPrint('[CATEGORY] Run: ALTER TABLE categories ADD COLUMN store_id UUID REFERENCES stores(id);');
+
+      // If store_id column doesn't exist yet, return empty list
+      if (e.toString().contains('column') &&
+          e.toString().contains('store_id')) {
+        debugPrint(
+            '[CATEGORY] ⚠️ store_id column not found. Run migration first.');
         return [];
       }
-      
+
       rethrow;
     }
   }
@@ -272,41 +268,47 @@ class CategoryService {
 
   /// Create a new category
   ///
-  /// Fixes:
-  /// - Ensures type is never null/empty (DB NOT NULL safe)
-  /// - Saves is_marketplace when provided
+  /// FIX: Removed 'is_marketplace' field that doesn't exist in DB schema.
+  /// Only sends columns that actually exist in the categories table.
   static Future<Category> createCategory({
     required String name,
     String? nameAr,
     String? type,
     String? icon,
+    String? imageUrl,
     String? description,
     String? descriptionAr,
     String? parentId,
     String? storeId,
     int sortOrder = 0,
     bool isActive = true,
-    bool isMarketplace = false,
   }) async {
     try {
       debugPrint('[CATEGORY] Creating category: $name');
 
       final normalizedType = _normalizeType(type);
 
-      final data = {
+      final data = <String, dynamic>{
         'name': name,
         'name_ar': nameAr,
         'type': normalizedType,
         'icon': icon,
+        'image_url': imageUrl,
         'description': description,
         'description_ar': descriptionAr,
         'parent_id': parentId,
-        'store_id': storeId,
         'sort_order': sortOrder,
         'is_active': isActive,
-        'is_marketplace': isMarketplace,
         'is_demo': false,
       };
+
+      // Only include store_id if provided (avoids issues if column doesn't exist)
+      if (storeId != null && storeId.isNotEmpty) {
+        data['store_id'] = storeId;
+      }
+
+      // NOTE: 'is_marketplace' column does NOT exist in the database.
+      // Do NOT add it here. The old code had this bug.
 
       final response =
           await _client.from('categories').insert(data).select().single();
@@ -327,25 +329,25 @@ class CategoryService {
     String? nameAr,
     String? type,
     String? icon,
+    String? imageUrl,
     String? description,
     String? descriptionAr,
     String? storeId,
     int sortOrder = 0,
     bool isActive = true,
-    bool isMarketplace = false,
   }) async {
     return createCategory(
       name: name,
       nameAr: nameAr,
       type: type,
       icon: icon,
+      imageUrl: imageUrl,
       description: description,
       descriptionAr: descriptionAr,
       parentId: parentId,
       storeId: storeId,
       sortOrder: sortOrder,
       isActive: isActive,
-      isMarketplace: isMarketplace,
     );
   }
 
@@ -354,9 +356,6 @@ class CategoryService {
   // ============================================================
 
   /// Update a category
-  ///
-  /// Fixes:
-  /// - If updates include 'type', normalize it (no empty -> DB safe)
   static Future<Category> updateCategory(
     String id,
     Map<String, dynamic> updates,
@@ -368,7 +367,9 @@ class CategoryService {
         updates['type'] = _normalizeType(updates['type'] as String?);
       }
 
-      // Add updated_at timestamp
+      // Remove fields that don't exist in DB to prevent errors
+      updates.remove('is_marketplace');
+
       updates['updated_at'] = DateTime.now().toIso8601String();
 
       final response = await _client

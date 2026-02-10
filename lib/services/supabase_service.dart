@@ -2,21 +2,11 @@
 // FILE: lib/services/supabase_service.dart
 // ============================================================
 // FIXED:
-// - Remove incorrect isAdmin (appMetadata role is not your source of truth)
-// - Align stores ownership fields with the rest of your app:
-//    owner_user_id (auth.uid) and merchant_id (merchants.id)
-// - Fix categories filter bug (query.eq must be chained/assigned)
-// - Fix carousel_ads field name: link_url (not linkUrl) (most schemas use snake_case)
-// - Make uploadImage work on web + mobile (File vs Uint8List)
-// - Remove unused imports
-//
-// FIXED (PostgREST PGRST200):
-// - stores -> categories now has TWO FKs (category_id + subcategory_id)
-// - Must use explicit relationship embeds:
-//   categories!stores_category_id_fkey(...)
-//   categories!stores_subcategory_id_fkey(...)
+// - Changed default bucket from 'images' to 'uploads'
+// - uploadImageBytes now uses subfolder path: {folder}/{userId}/{timestamp}.{ext}
+//   This matches the RLS policies that check storage.foldername(name)
+// - Added explicit contentType for proper MIME handling
 // ============================================================
-
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -38,14 +28,9 @@ class SupabaseService {
   static User? get currentUser => client.auth.currentUser;
   static bool get isLoggedIn => currentUser != null;
 
-  // NOTE:
-  // Do NOT rely on appMetadata for admin.
-  // Use AdminProvider.isAdmin (RPC is_admin()) as the source of truth.
-
   static Future<void> signInWithGoogle() async {
     await client.auth.signInWithOAuth(
       OAuthProvider.google,
-      // Keep as you had it; if your deep link differs, change it here.
       redirectTo: 'com.freshcart.app://callback/',
     );
   }
@@ -86,7 +71,6 @@ class SupabaseService {
       'category_id': categoryId,
       'description': description,
       'image_url': imageUrl,
-      // Consistent with MerchantProvider fix:
       'owner_user_id': uid,
       if (merchantId != null) 'merchant_id': merchantId,
       'is_active': true,
@@ -253,7 +237,6 @@ class SupabaseService {
       'title': title,
       'image_url': imageUrl,
       'store_id': storeId,
-      // Most DB schemas use snake_case
       'link_url': linkUrl,
       'position': position,
     }..removeWhere((k, v) => v == null);
@@ -276,9 +259,6 @@ class SupabaseService {
   // ============================================================
 
   static Future<List<Map<String, dynamic>>> getMerchants() async {
-    // Your earlier code used profiles(email) which may not exist.
-    // Keep as-is only if you truly have profiles table and FK.
-    // Safer: join users(email, full_name) which you already use elsewhere.
     final res = await client
         .from('merchants')
         .select('*, users(email, full_name)')
@@ -291,29 +271,55 @@ class SupabaseService {
   // STORAGE UPLOADS
   // ============================================================
 
-  /// Upload bytes (web + mobile). Provide a file extension if you can (e.g. "jpg").
+  /// Upload bytes to Supabase Storage.
+  ///
+  /// FIXED:
+  /// - Default bucket changed from 'images' to 'uploads'
+  /// - Now uses subfolder path: {folder}/{userId}/{timestamp}.{ext}
+  ///   This matches the RLS policies that check storage.foldername(name)
+  /// - Added explicit contentType for proper MIME handling
   static Future<String> uploadImageBytes(
     Uint8List bytes, {
-    String bucket = 'images',
+    String bucket = 'uploads',
+    String? folder,
     String? extension,
     String? contentType,
   }) async {
-    final ext = (extension ?? 'jpg').replaceAll('.', '');
-    final fileName = '${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final ext = (extension ?? 'jpg').replaceAll('.', '').toLowerCase();
+    final uid = currentUser?.id ?? 'anon';
+    final ts = DateTime.now().millisecondsSinceEpoch;
+
+    // Map extension to proper MIME type
+    String mimeType;
+    switch (ext) {
+      case 'jpg': case 'jpeg': mimeType = 'image/jpeg';
+      case 'png': mimeType = 'image/png';
+      case 'gif': mimeType = 'image/gif';
+      case 'webp': mimeType = 'image/webp';
+      default: mimeType = 'image/jpeg';
+    }
+
+    // Use subfolder path: folder/userId/timestamp.ext
+    final effectiveFolder = folder ?? 'general';
+    final fileName = '$effectiveFolder/$uid/$ts.$ext';
+
+    debugPrint('[SUPABASE_UPLOAD] Bucket: $bucket, Path: $fileName, Size: ${bytes.length}, MIME: $mimeType');
 
     await client.storage.from(bucket).uploadBinary(
           fileName,
           bytes,
           fileOptions: FileOptions(
-            upsert: false,
-            contentType: contentType,
+            upsert: true,
+            contentType: contentType ?? mimeType,
           ),
         );
 
-    return client.storage.from(bucket).getPublicUrl(fileName);
+    final publicUrl = client.storage.from(bucket).getPublicUrl(fileName);
+    debugPrint('[SUPABASE_UPLOAD] ✅ Public URL: $publicUrl');
+    return publicUrl;
   }
 
-  /// Delete a stored object by path (filename)
+  /// Delete a stored object by path
   static Future<void> deleteImage(String bucket, String fileName) async {
     await client.storage.from(bucket).remove([fileName]);
   }

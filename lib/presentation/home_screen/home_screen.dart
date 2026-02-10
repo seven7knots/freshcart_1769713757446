@@ -63,11 +63,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _handleRefresh() async {
     HapticFeedback.lightImpact();
-
     ref.invalidate(cartItemCountProvider);
-
     await Future.delayed(const Duration(seconds: 1));
-
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -99,7 +96,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     color: Theme.of(context)
                         .colorScheme
                         .outline
-                        .withValues(alpha: 0.3),
+                        .withOpacity(0.3),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -131,14 +128,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ListTile(
                   leading: const Icon(Icons.shopping_bag_outlined),
                   title: const Text('Create Product'),
-                  subtitle:
-                      const Text('Requires store_id in the editor payload'),
                   onTap: () {
                     Navigator.pop(context);
-                    _openCreateEditor(
-                      contentType: 'product',
-                      contentData: const {'store_id': ''},
-                    );
+                    _openCreateEditor(contentType: 'product');
                   },
                 ),
               ],
@@ -204,8 +196,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 foregroundColor: theme.colorScheme.onSurface,
                 surfaceTintColor: Colors.transparent,
                 scrolledUnderElevation: 2,
-                shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.1),
+                shadowColor: theme.colorScheme.shadow.withOpacity(0.1),
                 actions: [
+                  // Admin badge + button
                   provider.Consumer2<AuthProvider, AdminProvider>(
                     builder: (context, authProvider, adminProvider, child) {
                       if (adminProvider.isAdmin) {
@@ -217,7 +210,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 vertical: 0.5.h,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.orange.withValues(alpha: 0.2),
+                                color: Colors.orange.withOpacity(0.2),
                                 borderRadius: BorderRadius.circular(12.0),
                               ),
                               child: Text(
@@ -248,48 +241,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       return const SizedBox.shrink();
                     },
                   ),
+                  // Marketplace icon
                   IconButton(
-                    icon: const Icon(Icons.store),
+                    icon: Icon(Icons.store, color: theme.colorScheme.onSurface),
                     onPressed: () {
                       Navigator.pushNamed(context, AppRoutes.marketplaceScreen);
                     },
                     tooltip: 'Marketplace',
                   ),
+                  // Search icon
                   IconButton(
-                    icon: const Icon(Icons.search_rounded),
+                    icon: Icon(Icons.search_rounded, color: theme.colorScheme.onSurface),
                     onPressed: () => AppRoutes.switchToTab(context, 1),
                     tooltip: 'Search products',
                   ),
+                  // Cart icon with RED badge — opens as standalone push
                   Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
+                    padding: const EdgeInsets.only(right: 4.0),
                     child: Stack(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.shopping_cart_outlined),
-                          onPressed: () => AppRoutes.switchToTab(context, 2),
+                          icon: Icon(
+                            Icons.shopping_cart_outlined,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                          onPressed: () => AppRoutes.openCart(context),
                           tooltip: 'Shopping cart',
                         ),
                         if (cartItemCount > 0)
                           Positioned(
-                            right: 8,
-                            top: 8,
+                            right: 6,
+                            top: 6,
                             child: Container(
                               padding: const EdgeInsets.all(2),
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.error,
+                                color: AppTheme.kjRed, // Red badge
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               constraints: const BoxConstraints(
-                                minWidth: 16,
-                                minHeight: 16,
+                                minWidth: 18,
+                                minHeight: 18,
                               ),
                               child: Text(
                                 cartItemCount > 99
                                     ? '99+'
                                     : cartItemCount.toString(),
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onError,
-                                  fontWeight: FontWeight.w600,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -298,6 +298,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ],
                     ),
                   ),
+                  // Notifications
                   IconButton(
                     icon: CustomIconWidget(
                       iconName: 'notifications_outlined',
@@ -356,6 +357,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               SliverToBoxAdapter(
                 child: Column(
                   children: [
+                    // Admin mode bar
                     provider.Consumer2<AuthProvider, AdminProvider>(
                       builder: (context, authProvider, adminProvider, child) {
                         if (!adminProvider.isAdmin) {
@@ -366,7 +368,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             horizontal: 4.w,
                             vertical: 1.h,
                           ),
-                          color: Colors.orange.withValues(alpha: 0.1),
+                          color: Colors.orange.withOpacity(0.1),
                           child: Row(
                             children: [
                               const Icon(
@@ -490,7 +492,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                    color: theme.colorScheme.outline.withOpacity(0.2),
                     width: 1,
                   ),
                 ),
@@ -577,7 +579,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               width: 12.w,
               height: 0.5.h,
               decoration: BoxDecoration(
-                color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                color: theme.colorScheme.outline.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -633,7 +635,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               width: 12.w,
               height: 0.5.h,
               decoration: BoxDecoration(
-                color: theme.colorScheme.outline.withValues(alpha: 0.3),
+                color: theme.colorScheme.outline.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -655,9 +657,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               subtitle: const Text('We\'ll detect your location automatically'),
               onTap: () {
                 Navigator.pop(context);
-                setState(() {
-                  _currentLocation = "Current Location";
-                });
+                setState(() => _currentLocation = "Current Location");
               },
             ),
             ListTile(
@@ -677,9 +677,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   : null,
               onTap: () {
                 Navigator.pop(context);
-                setState(() {
-                  _currentLocation = "Downtown, Seattle";
-                });
+                setState(() => _currentLocation = "Downtown, Seattle");
               },
             ),
             ListTile(
@@ -692,9 +690,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               subtitle: const Text('Bellevue, WA'),
               onTap: () {
                 Navigator.pop(context);
-                setState(() {
-                  _currentLocation = "Bellevue, WA";
-                });
+                setState(() => _currentLocation = "Bellevue, WA");
               },
             ),
             SizedBox(height: 2.h),

@@ -46,7 +46,7 @@ class _CategoryReorderListWidgetState extends State<CategoryReorderListWidget> {
       }
 
       // Changed from updateCategorySortOrders to reorderCategories
-      await _categoryService.reorderCategories(updates);
+      await _categoryService.updateCategorySortOrders(updates);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

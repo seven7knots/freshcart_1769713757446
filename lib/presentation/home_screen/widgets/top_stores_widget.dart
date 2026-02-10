@@ -8,6 +8,13 @@ import '../../../services/store_service.dart';
 import '../../../widgets/admin_editable_item_wrapper.dart';
 import '../../../widgets/animated_press_button.dart';
 
+/// Top Stores section on home screen.
+///
+/// UPDATED:
+/// - Shows ALL active stores (not just featured) so newly created stores appear
+/// - Featured stores appear first, then the rest sorted by rating
+/// - Horizontal scrollable ListView carousel
+/// - Admin edit mode (three dots) on all store cards
 class TopStoresWidget extends StatefulWidget {
   const TopStoresWidget({super.key});
 
@@ -19,35 +26,33 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
   bool _isLoading = false;
   String? _error;
   List<Store> _stores = [];
-  final PageController _pageController = PageController(viewportFraction: 0.33);
-  double _currentPage = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _loadTopStores();
-    _pageController.addListener(() {
-      setState(() {
-        _currentPage = _pageController.page ?? 0.0;
-      });
-    });
+    _loadStores();
   }
 
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadTopStores() async {
+  Future<void> _loadStores() async {
     setState(() {
       _isLoading = true;
       _error = null;
     });
 
     try {
-      final stores = await StoreService.getFeaturedStores(limit: 20);
-      
+      // Fetch ALL active stores (not just featured)
+      final stores = await StoreService.getAllStores(
+        activeOnly: true,
+        excludeDemo: true,
+      );
+
+      // Sort: featured first, then by rating descending
+      stores.sort((a, b) {
+        if (a.isFeatured && !b.isFeatured) return -1;
+        if (!a.isFeatured && b.isFeatured) return 1;
+        return b.rating.compareTo(a.rating);
+      });
+
       if (mounted) {
         setState(() {
           _stores = stores;
@@ -68,7 +73,7 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
   void _navigateToStore(Store store) {
     Navigator.pushNamed(
       context,
-      AppRoutes.merchantStore,
+      AppRoutes.storeDetail,
       arguments: {'storeId': store.id},
     );
   }
@@ -103,7 +108,7 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Navigate to store creation'),
+                          content: Text('Use the Create button in Admin bar to add stores'),
                           backgroundColor: Colors.orange,
                         ),
                       );
@@ -132,15 +137,24 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
                       ),
                     ),
                   ),
+                TextButton(
+                  onPressed: () => AppRoutes.switchToTab(context, 3),
+                  child: Text(
+                    'See All',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
                 IconButton(
-                  onPressed: _loadTopStores,
-                  icon: const Icon(Icons.refresh),
+                  onPressed: _loadStores,
+                  icon: const Icon(Icons.refresh, size: 20),
                   tooltip: 'Refresh stores',
                 ),
               ],
             ),
           ),
-          
+
           // Content
           if (_isLoading)
             _buildLoadingState()
@@ -199,7 +213,7 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
               ),
             ),
             IconButton(
-              onPressed: _loadTopStores,
+              onPressed: _loadStores,
               icon: const Icon(Icons.refresh),
             ),
           ],
@@ -219,11 +233,7 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
         ),
         child: Column(
           children: [
-            Icon(
-              Icons.store_outlined,
-              size: 10.w,
-              color: theme.colorScheme.outline,
-            ),
+            Icon(Icons.store_outlined, size: 10.w, color: theme.colorScheme.outline),
             SizedBox(height: 1.h),
             Text(
               'No stores yet',
@@ -245,191 +255,189 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
     );
   }
 
+  /// Horizontal scrollable ListView carousel
   Widget _buildStoresCarousel(ThemeData theme, bool isEditMode) {
     return SizedBox(
       height: 22.h,
-      child: PageView.builder(
-        controller: _pageController,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.symmetric(horizontal: 4.w),
         itemCount: _stores.length,
+        separatorBuilder: (_, __) => SizedBox(width: 3.w),
         itemBuilder: (context, index) {
           final store = _stores[index];
-          final storeCard = _buildStoreCard(store, theme, index);
+          final card = _buildStoreCard(store, theme);
 
           if (isEditMode) {
             return AdminEditableItemWrapper(
               contentType: 'store',
               contentId: store.id,
               contentData: store.toMap(),
-              onDeleted: _loadTopStores,
-              onUpdated: _loadTopStores,
-              child: storeCard,
+              onDeleted: _loadStores,
+              onUpdated: _loadStores,
+              child: card,
             );
           }
-
-          return storeCard;
+          return card;
         },
       ),
     );
   }
 
-  Widget _buildStoreCard(Store store, ThemeData theme, int index) {
-    // Calculate scale based on position
-    final double distanceFromCenter = (_currentPage - index).abs();
-    final double scale = 1.0 - (distanceFromCenter * 0.15).clamp(0.0, 0.15);
-
+  Widget _buildStoreCard(Store store, ThemeData theme) {
     return AnimatedPressButton(
       onPressed: () => _navigateToStore(store),
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: scale, end: scale),
-        duration: const Duration(milliseconds: 200),
-        builder: (context, value, child) {
-          return Transform.scale(
-            scale: value,
-            child: child,
-          );
-        },
-        child: Container(
-          margin: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: theme.colorScheme.shadow.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Store Image
-              Expanded(
-                flex: 3,
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CustomImageWidget(
-                        imageUrl: store.imageUrl ??
-                            'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
-                        fit: BoxFit.cover,
-                        semanticLabel: 'Store front of ${store.name}',
+      child: Container(
+        width: 40.w,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.shadow.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Store Image
+            Expanded(
+              flex: 3,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CustomImageWidget(
+                      imageUrl: store.imageUrl ??
+                          'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
+                      fit: BoxFit.cover,
+                      semanticLabel: 'Store front of ${store.name}',
+                    ),
+                    // Closed overlay
+                    if (!store.isActive || !store.isAcceptingOrders)
+                      Container(
+                        color: theme.colorScheme.surface.withOpacity(0.8),
+                        child: Center(
+                          child: Container(
+                            padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.error,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'Closed',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onError,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                      if (!store.isActive || !store.isAcceptingOrders)
-                        Container(
-                          color: theme.colorScheme.surface.withOpacity(0.8),
-                          child: Center(
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 3.w,
-                                vertical: 1.h,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.error,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                'Closed',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onError,
+                    // Featured badge
+                    if (store.isFeatured)
+                      Positioned(
+                        top: 1.h,
+                        left: 2.w,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.3.h),
+                          decoration: BoxDecoration(
+                            color: AppTheme.kjRed,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            '★ Featured',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 8.sp,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    // Rating badge
+                    if (store.rating > 0)
+                      Positioned(
+                        top: 1.h,
+                        right: 2.w,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.7),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.star, color: Colors.amber, size: 3.w),
+                              SizedBox(width: 1.w),
+                              Text(
+                                store.ratingDisplay,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9.sp,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            ),
+                            ],
                           ),
                         ),
-                      // Rating badge
-                      if (store.rating > 0)
-                        Positioned(
-                          top: 1.h,
-                          right: 2.w,
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 2.w,
-                              vertical: 0.5.h,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.7),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.star,
-                                  color: Colors.amber,
-                                  size: 3.w,
-                                ),
-                                SizedBox(width: 1.w),
-                                Text(
-                                  store.ratingDisplay,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9.sp,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
               ),
-              // Store Info
-              Expanded(
-                flex: 2,
-                child: Padding(
-                  padding: EdgeInsets.all(3.w),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+            ),
+            // Store Info
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: EdgeInsets.all(2.5.w),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      store.name,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    SizedBox(height: 0.3.h),
+                    if (store.category != null)
                       Text(
-                        store.name,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
+                        store.category!,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 9.sp,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      SizedBox(height: 0.5.h),
-                      if (store.category != null)
+                    const Spacer(),
+                    Row(
+                      children: [
+                        Icon(Icons.access_time, size: 3.w, color: theme.colorScheme.primary),
+                        SizedBox(width: 1.w),
                         Text(
-                          store.category!,
+                          store.prepTimeDisplay,
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      const Spacer(),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.access_time,
-                            size: 3.w,
                             color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 9.sp,
                           ),
-                          SizedBox(width: 1.w),
-                          Text(
-                            store.prepTimeDisplay,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.primary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
