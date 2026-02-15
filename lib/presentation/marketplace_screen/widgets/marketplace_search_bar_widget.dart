@@ -23,26 +23,39 @@ class _MarketplaceSearchBarWidgetState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
       child: TextField(
         controller: _controller,
         onChanged: widget.onSearchChanged,
+        style: TextStyle(color: theme.textTheme.bodyLarge?.color),
         decoration: InputDecoration(
           hintText: 'What are you looking for?',
-          hintStyle: TextStyle(fontSize: 13.sp, color: Colors.grey[500]),
-          prefixIcon: Icon(Icons.search, color: Colors.grey[600], size: 6.w),
+          hintStyle: TextStyle(
+            fontSize: 13.sp,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+          prefixIcon: Icon(Icons.search,
+              color: theme.colorScheme.onSurfaceVariant, size: 6.w),
           suffixIcon: _controller.text.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.clear, color: Colors.grey[600], size: 5.w),
+                  icon: Icon(Icons.clear,
+                      color: theme.colorScheme.onSurfaceVariant, size: 5.w),
                   onPressed: () {
                     _controller.clear();
                     widget.onSearchChanged('');
+                    setState(() {});
                   },
                 )
-              : Icon(Icons.mic, color: Colors.grey[600], size: 5.w),
+              : Icon(Icons.mic,
+                  color: theme.colorScheme.onSurfaceVariant, size: 5.w),
           filled: true,
-          fillColor: Colors.grey[100],
+          fillColor: isDark
+              ? theme.colorScheme.surfaceContainerHighest
+              : Colors.grey[100],
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(3.w),
             borderSide: BorderSide.none,

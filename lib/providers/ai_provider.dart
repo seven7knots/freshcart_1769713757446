@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/ai_service.dart';
 import '../services/analytics_service.dart';
@@ -58,6 +59,37 @@ class AIConversationNotifier extends StateNotifier<AIConversationState> {
     state = state.copyWith(contextData: contextData);
   }
 
+  /// Keywords that suggest the user is looking for products/stores
+  static const _searchKeywords = [
+    'find', 'search', 'look for', 'cheapest', 'cheap', 'buy',
+    'order', 'get me', 'show me', 'where can i', 'price',
+    'cost', 'deals', 'discount', 'offer', 'grocery', 'groceries',
+    'food', 'milk', 'bread', 'rice', 'chicken', 'meat', 'fruits',
+    'vegetables', 'snack', 'drink', 'water', 'juice', 'coffee',
+    'near me', 'nearby', 'closest', 'open now', 'available',
+    'store', 'restaurant', 'pharmacy', 'shop',
+    'hungry', 'eat', 'dinner', 'lunch', 'breakfast', 'meal',
+    'suggest', 'recommend', 'best', 'top rated',
+  ];
+
+  /// Keywords that indicate order tracking intent
+  static const _trackingKeywords = [
+    'track', 'tracking', 'my order', 'where is', 'status',
+    'delivery', 'when will', 'shipped', 'delivered',
+  ];
+
+  /// Detect if the user message is a product/search query
+  bool _isProductSearchQuery(String message) {
+    final lower = message.toLowerCase();
+    return _searchKeywords.any((kw) => lower.contains(kw));
+  }
+
+  /// Detect if the user is asking about order tracking
+  bool _isTrackingQuery(String message) {
+    final lower = message.toLowerCase();
+    return _trackingKeywords.any((kw) => lower.contains(kw));
+  }
+
   Future<void> sendMessage(String message) async {
     if (message.trim().isEmpty) return;
 
@@ -80,12 +112,59 @@ class AIConversationNotifier extends StateNotifier<AIConversationState> {
           .map((msg) => {'role': msg.role, 'content': msg.content})
           .toList();
 
+      // Check if this is a product search query - if so, also search database
+      Map<String, dynamic>? richMetadata;
+
+      if (_isProductSearchQuery(message)) {
+        richMetadata = await _performSmartSearch(message);
+      }
+
+      // Build context data with any search results
+      final contextData = Map<String, dynamic>.from(state.contextData ?? {});
+      if (richMetadata != null && richMetadata['results'] != null) {
+        final results = richMetadata['results'] as List;
+        if (results.isNotEmpty) {
+          contextData['search_results'] = results
+              .take(5)
+              .map((r) =>
+                  '${r['name']} - ${r['currency'] ?? 'USD'} ${r['price']} (${r['item_type']})')
+              .join('\n');
+          contextData['search_query'] = message;
+        }
+      }
+
+      // Generate AI response with context
       final response = await _aiService.generateResponse(
         userMessage: message,
         conversationId: state.conversationId,
         conversationHistory: conversationHistory,
-        contextData: state.contextData,
+        contextData: contextData.isNotEmpty ? contextData : null,
       );
+
+      // Build metadata for rich message content
+      Map<String, dynamic>? messageMetadata;
+
+      if (richMetadata != null &&
+          richMetadata['results'] != null &&
+          (richMetadata['results'] as List).isNotEmpty) {
+        final results = richMetadata['results'] as List;
+        final productCards = results.take(5).map((r) {
+          return {
+            'product_id': r['item_id'],
+            'name': r['name'],
+            'price': r['price'],
+            'currency': r['currency'] ?? 'USD',
+            'image_url': r['image_url'],
+            'store_name': r['merchant_id'] ?? '',
+            'is_available': r['availability'] ?? true,
+            'category': r['category'] ?? '',
+          };
+        }).toList();
+
+        messageMetadata = {
+          'products': productCards,
+        };
+      }
 
       final aiMessage = AIMessageModel(
         id: _uuid.v4(),
@@ -93,6 +172,7 @@ class AIConversationNotifier extends StateNotifier<AIConversationState> {
         role: 'assistant',
         content: response,
         timestamp: DateTime.now(),
+        metadata: messageMetadata,
       );
 
       state = state.copyWith(
@@ -102,17 +182,33 @@ class AIConversationNotifier extends StateNotifier<AIConversationState> {
 
       // Track AI feature usage
       await AnalyticsService.logAIFeatureUsage(
-        featureName: 'chat_assistant',
+        featureName: richMetadata != null ? 'smart_search_chat' : 'chat_assistant',
         additionalParams: {
           'conversation_id': state.conversationId,
           'message_count': state.messages.length,
+          'has_products': richMetadata != null,
         },
       );
     } catch (e) {
+      debugPrint('AI sendMessage error: $e');
       state = state.copyWith(
         isLoading: false,
-        error: 'Failed to get AI response: $e',
+        error: 'Failed to get AI response. Please try again.',
       );
+    }
+  }
+
+  /// Perform smart search across products and services
+  Future<Map<String, dynamic>?> _performSmartSearch(String query) async {
+    try {
+      final results = await _aiService.unifiedMarketplaceSearch(
+        query: query,
+        sortBy: 'relevance',
+      );
+      return results;
+    } catch (e) {
+      debugPrint('Smart search error: $e');
+      return null;
     }
   }
 

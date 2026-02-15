@@ -2,7 +2,7 @@ class OrderModel {
   final String id;
   final String? orderNumber;
   final String customerId;
-  final String storeId;
+  final String? storeId;
   final String? driverId;
   final String status;
   final double subtotal;
@@ -36,12 +36,17 @@ class OrderModel {
   final double? cashCollectedAmount;
   final DateTime? cashCollectedAt;
   final String? cashConfirmedByAdmin;
+  // Items stored as JSONB
+  final List<dynamic>? items;
+  final double? distanceKm;
+  final String? phone;
+  final String? instructions;
 
   const OrderModel({
     required this.id,
     this.orderNumber,
     required this.customerId,
-    required this.storeId,
+    this.storeId,
     this.driverId,
     this.status = 'pending',
     required this.subtotal,
@@ -74,23 +79,32 @@ class OrderModel {
     this.cashCollectedAmount,
     this.cashCollectedAt,
     this.cashConfirmedByAdmin,
+    this.items,
+    this.distanceKm,
+    this.phone,
+    this.instructions,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
+    // customer_id may come from 'customer_id' or 'user_id' depending on context
+    final customerId = (json['customer_id'] as String?) ??
+        (json['user_id'] as String?) ??
+        '';
+
     return OrderModel(
-      id: json['id'] as String,
+      id: json['id'] as String? ?? '',
       orderNumber: json['order_number'] as String?,
-      customerId: json['customer_id'] as String,
-      storeId: json['store_id'] as String,
+      customerId: customerId,
+      storeId: json['store_id'] as String?,
       driverId: json['driver_id'] as String?,
       status: json['status'] as String? ?? 'pending',
-      subtotal: (json['subtotal'] as num).toDouble(),
+      subtotal: (json['subtotal'] as num?)?.toDouble() ?? 0.0,
       deliveryFee: (json['delivery_fee'] as num?)?.toDouble() ?? 0.0,
       serviceFee: (json['service_fee'] as num?)?.toDouble() ?? 0.0,
       tip: (json['tip'] as num?)?.toDouble() ?? 0.0,
       discount: (json['discount'] as num?)?.toDouble() ?? 0.0,
       tax: (json['tax'] as num?)?.toDouble() ?? 0.0,
-      total: (json['total'] as num).toDouble(),
+      total: (json['total'] as num?)?.toDouble() ?? 0.0,
       currency: json['currency'] as String? ?? 'USD',
       paymentMethod: json['payment_method'] as String?,
       paymentStatus: json['payment_status'] as String? ?? 'pending',
@@ -98,38 +112,42 @@ class OrderModel {
       paymentGatewayResponse:
           json['payment_gateway_response'] as Map<String, dynamic>?,
       isPriority: json['is_priority'] as bool? ?? false,
-      deliveryAddress: json['delivery_address'] as String,
+      deliveryAddress: json['delivery_address'] as String? ?? '',
       deliveryLat: (json['delivery_lat'] as num?)?.toDouble(),
       deliveryLng: (json['delivery_lng'] as num?)?.toDouble(),
       deliveryInstructions: json['delivery_instructions'] as String?,
-      customerPhone: json['customer_phone'] as String?,
-      scheduledFor: json['scheduled_for'] != null
-          ? DateTime.parse(json['scheduled_for'] as String)
-          : null,
+      customerPhone: json['customer_phone'] as String? ?? json['phone'] as String?,
+      scheduledFor: _tryParseDate(json['scheduled_for']),
       estimatedPrepTime: json['estimated_prep_time'] as int?,
-      estimatedDeliveryTime: json['estimated_delivery_time'] != null
-          ? DateTime.parse(json['estimated_delivery_time'] as String)
-          : null,
-      actualDeliveryTime: json['actual_delivery_time'] != null
-          ? DateTime.parse(json['actual_delivery_time'] as String)
-          : null,
-      cancelledAt: json['cancelled_at'] != null
-          ? DateTime.parse(json['cancelled_at'] as String)
-          : null,
+      estimatedDeliveryTime: _tryParseDate(json['estimated_delivery_time']),
+      actualDeliveryTime: _tryParseDate(json['actual_delivery_time']),
+      cancelledAt: _tryParseDate(json['cancelled_at']),
       cancellationReason: json['cancellation_reason'] as String?,
       promoCodeId: json['promo_code_id'] as String?,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
-          : null,
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
-          : null,
+      createdAt: _tryParseDate(json['created_at']),
+      updatedAt: _tryParseDate(json['updated_at']),
       cashCollectedAmount: (json['cash_collected_amount'] as num?)?.toDouble(),
-      cashCollectedAt: json['cash_collected_at'] != null
-          ? DateTime.parse(json['cash_collected_at'] as String)
-          : null,
+      cashCollectedAt: _tryParseDate(json['cash_collected_at']),
       cashConfirmedByAdmin: json['cash_confirmed_by_admin'] as String?,
+      items: json['items'] as List<dynamic>?,
+      distanceKm: (json['distance_km'] as num?)?.toDouble(),
+      phone: json['phone'] as String?,
+      instructions: json['instructions'] as String?,
     );
+  }
+
+  /// Safely parse date strings — returns null on failure instead of crashing
+  static DateTime? _tryParseDate(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    if (value is String) {
+      try {
+        return DateTime.parse(value);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
   }
 
   Map<String, dynamic> toJson() {
@@ -170,6 +188,10 @@ class OrderModel {
       'cash_collected_amount': cashCollectedAmount,
       'cash_collected_at': cashCollectedAt?.toIso8601String(),
       'cash_confirmed_by_admin': cashConfirmedByAdmin,
+      'items': items,
+      'distance_km': distanceKm,
+      'phone': phone,
+      'instructions': instructions,
     };
   }
 }

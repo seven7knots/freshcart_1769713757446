@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
+import 'package:flutter_riverpod/flutter_riverpod.dart' show ConsumerStatefulWidget, ConsumerState;
 import 'package:provider/provider.dart' as provider;
 import 'package:sizer/sizer.dart';
 
+import '../../models/marketplace_listing_model.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/marketplace_provider.dart';
@@ -11,12 +13,21 @@ import '../../widgets/admin_action_button.dart';
 import '../../widgets/custom_image_widget.dart';
 import '../marketplace_screen/widgets/marketplace_search_bar_widget.dart';
 
-class CategoryListingsScreen extends ConsumerStatefulWidget {
-  final String categoryId; // Added categoryId as a required parameter
+/// Provider that fetches listings for a specific category string.
+/// Using String as family key — stable equality, no Map identity issues.
+final _categoryListingsProvider = riverpod.FutureProvider.autoDispose
+    .family<List<MarketplaceListingModel>, String>((ref, category) async {
+  final service = ref.watch(marketplaceServiceProvider);
+  return service.getListings(
+    category: category == 'all' ? null : category,
+  );
+});
 
-  const CategoryListingsScreen(
-      {super.key,
-      required this.categoryId}); // Receive categoryId as an argument
+/// This screen is EXCLUSIVELY for marketplace listing categories.
+class CategoryListingsScreen extends ConsumerStatefulWidget {
+  final String categoryId;
+
+  const CategoryListingsScreen({super.key, required this.categoryId});
 
   @override
   ConsumerState<CategoryListingsScreen> createState() =>
@@ -42,9 +53,8 @@ class _CategoryListingsScreenState
     });
   }
 
-  String _getCategoryName(Object categoryId) {
-    const namesByString = <String, String>{
-      // Marketplace-style
+  String _getMarketplaceCategoryName(String categoryId) {
+    const names = <String, String>{
       'vehicles': 'Vehicles',
       'properties': 'Properties',
       'mobiles': 'Mobiles & Accessories',
@@ -58,80 +68,42 @@ class _CategoryListingsScreenState
       'jobs': 'Jobs',
       'fashion': 'Fashion & Beauty',
       'services': 'Services',
-
-      // Grocery-style (home featured categories legacy)
-      'fresh_produce': 'Fresh Produce',
-      'dairy_eggs': 'Dairy & Eggs',
-      'meat_seafood': 'Meat & Seafood',
-      'bakery': 'Bakery',
-      'pantry': 'Pantry Staples',
-      'beverages': 'Beverages',
-
-      // Special
-      'marketplace': 'Marketplace',
-      'all': 'All Categories',
+      'all': 'All Listings',
     };
+    return names[categoryId.toLowerCase()] ?? 'Marketplace';
+  }
 
-    const namesByInt = <int, String>{
-      // Home top tiles (your goal list)
-      1: 'Restaurants',
-      2: 'Convenience Store',
-      3: 'Pharmacies',
-      4: 'Marketplace',
-      // FeaturedCategoriesWidget ids
-      5: 'Pantry Staples',
-      6: 'Beverages',
-    };
-
-    if (categoryId is int) return namesByInt[categoryId] ?? 'Category';
-    if (categoryId is String) return namesByString[categoryId] ?? 'Category';
-    return 'Category';
+  String _timeAgo(DateTime? dateTime) {
+    if (dateTime == null) return '';
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inDays > 30) return '${(diff.inDays / 30).floor()}mo ago';
+    if (diff.inDays > 0) return '${diff.inDays}d ago';
+    if (diff.inHours > 0) return '${diff.inHours}h ago';
+    if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+    return 'Just now';
   }
 
   @override
   Widget build(BuildContext context) {
-    final args = ModalRoute.of(context)?.settings.arguments;
-
-    // Required: categories come from Navigator.pushNamed(..., arguments: {'categoryId': ..., 'fromTab': true})
-    final Object categoryId;
-    final bool fromTab;
-
-    if (args is Map) {
-      final dynamic cid = args['categoryId'];
-      categoryId = (cid is int || cid is String) ? cid as Object : 'all';
-      fromTab = args['fromTab'] == true;
-    } else if (args is int) {
-      categoryId = args;
-      fromTab = false;
-    } else if (args is String && args.isNotEmpty) {
-      categoryId = args;
-      fromTab = false;
-    } else {
-      categoryId = 'all';
-      fromTab = false;
-    }
-
-    final filters = {
-      'category': widget.categoryId, // Use the categoryId passed to this screen
-      'limit': 50,
-      'offset': 0,
-    };
-
-    final listingsAsync = ref.watch(listingsProvider(filters));
+    final theme = Theme.of(context);
+    final listingsAsync = ref.watch(_categoryListingsProvider(widget.categoryId));
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(Icons.arrow_back, color: theme.iconTheme.color),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          _getCategoryName(widget
-              .categoryId), // Use widget.categoryId for dynamic category name
-          style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600),
+          _getMarketplaceCategoryName(widget.categoryId),
+          style: TextStyle(
+            fontSize: 18.sp,
+            fontWeight: FontWeight.w600,
+            color: theme.textTheme.bodyLarge?.color,
+          ),
         ),
         centerTitle: true,
         actions: [
@@ -145,21 +117,13 @@ class _CategoryListingsScreenState
                     label: 'Add',
                     isCompact: true,
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Add new item to category'),
-                        ),
-                      );
-                    },
-                  ),
-                  AdminActionButton(
-                    icon: Icons.edit,
-                    label: 'Edit',
-                    isCompact: true,
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Edit category')),
-                      );
+                      Navigator.pushNamed(context, AppRoutes.createListingScreen)
+                          .then((result) {
+                        if (result == true) {
+                          ref.invalidate(
+                              _categoryListingsProvider(widget.categoryId));
+                        }
+                      });
                     },
                   ),
                   SizedBox(width: 2.w),
@@ -178,9 +142,11 @@ class _CategoryListingsScreenState
                 var filtered = listings;
                 if (_searchQuery.isNotEmpty) {
                   final q = _searchQuery.toLowerCase();
-                  filtered = listings
-                      .where((l) => l.title.toLowerCase().contains(q))
-                      .toList();
+                  filtered = listings.where((l) {
+                    return l.title.toLowerCase().contains(q) ||
+                        (l.description?.toLowerCase().contains(q) ?? false) ||
+                        (l.locationText?.toLowerCase().contains(q) ?? false);
+                  }).toList();
                 }
 
                 if (filtered.isEmpty) {
@@ -188,217 +154,72 @@ class _CategoryListingsScreenState
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.search_off,
-                          size: 60,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                        Icon(Icons.search_off,
+                            size: 60,
+                            color: theme.colorScheme.onSurfaceVariant),
                         SizedBox(height: 2.h),
-                        Text(
-                          'No results found',
-                          style: TextStyle(
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w600,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+                        Text('No listings found',
+                            style: TextStyle(
+                                fontSize: 16.sp,
+                                fontWeight: FontWeight.w600,
+                                color: theme.colorScheme.onSurfaceVariant)),
                         SizedBox(height: 1.h),
-                        Text(
-                          'Try adjusting your search',
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+                        Text('Try a different category or search term',
+                            style: TextStyle(
+                                fontSize: 12.sp,
+                                color: theme.colorScheme.onSurfaceVariant)),
                       ],
                     ),
                   );
                 }
 
-                return ListView.builder(
-                  padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, index) {
-                    final listing = filtered[index];
-                    final isFavorite = _favorites.contains(listing.id);
-                    final imageUrl = listing.images.isNotEmpty
-                        ? listing.images[0]
-                        : 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e';
-
-                    return GestureDetector(
-                      onTap: () {
-                        // Non-tab screen navigation is allowed via pushNamed.
-                        Navigator.pushNamed(
-                          context,
-                          AppRoutes.marketplaceListingDetailScreen,
-                          arguments: listing.id,
-                        );
-                      },
-                      child: Container(
-                        margin: EdgeInsets.only(bottom: 2.h),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                          borderRadius: BorderRadius.circular(3.w),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .shadow
-                                  .withValues(alpha: 0.05),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.vertical(
-                                    top: Radius.circular(3.w),
-                                  ),
-                                  child: CustomImageWidget(
-                                    imageUrl: imageUrl,
-                                    width: double.infinity,
-                                    height: 20.h,
-                                    fit: BoxFit.cover,
-                                    semanticLabel: listing.title,
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 2.w,
-                                  right: 2.w,
-                                  child: GestureDetector(
-                                    onTap: () => _toggleFavorite(listing.id),
-                                    child: Container(
-                                      padding: EdgeInsets.all(2.w),
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .surface,
-                                        shape: BoxShape.circle,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .shadow
-                                                .withValues(alpha: 0.1),
-                                            blurRadius: 4,
-                                          ),
-                                        ],
-                                      ),
-                                      child: Icon(
-                                        isFavorite
-                                            ? Icons.favorite
-                                            : Icons.favorite_border,
-                                        color: isFavorite
-                                            ? Theme.of(context)
-                                                .colorScheme
-                                                .primary
-                                            : Theme.of(context)
-                                                .colorScheme
-                                                .onSurfaceVariant,
-                                        size: 5.w,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Padding(
-                              padding: EdgeInsets.all(3.w),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    listing.title,
-                                    style: TextStyle(
-                                      fontSize: 14.sp,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  SizedBox(height: 1.h),
-                                  Text(
-                                    '\$${listing.price.toStringAsFixed(0)}',
-                                    style: TextStyle(
-                                      fontSize: 16.sp,
-                                      fontWeight: FontWeight.bold,
-                                      color:
-                                          Theme.of(context).colorScheme.primary,
-                                    ),
-                                  ),
-                                  SizedBox(height: 1.h),
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.location_on,
-                                        size: 4.w,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                      ),
-                                      SizedBox(width: 1.w),
-                                      Text(
-                                        listing.locationText ?? 'Lebanon',
-                                        style: TextStyle(
-                                          fontSize: 11.sp,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(
+                        _categoryListingsProvider(widget.categoryId));
                   },
+                  child: ListView.builder(
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final listing = filtered[index];
+                      return _buildListingCard(context, listing, theme);
+                    },
+                  ),
                 );
               },
               loading: () => Center(
-                child: CircularProgressIndicator(
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                child:
+                    CircularProgressIndicator(color: theme.colorScheme.primary),
               ),
               error: (error, stack) => Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 60,
-                      color: Theme.of(context).colorScheme.error,
-                    ),
+                    Icon(Icons.error_outline,
+                        size: 60, color: theme.colorScheme.error),
                     SizedBox(height: 2.h),
-                    Text(
-                      'Error loading listings',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                    Text('Error loading listings',
+                        style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurfaceVariant)),
                     SizedBox(height: 1.h),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 6.w),
-                      child: Text(
-                        error.toString(),
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+                      child: Text(error.toString(),
+                          style: TextStyle(
+                              fontSize: 12.sp,
+                              color: theme.colorScheme.onSurfaceVariant),
+                          textAlign: TextAlign.center),
+                    ),
+                    SizedBox(height: 2.h),
+                    ElevatedButton.icon(
+                      onPressed: () => ref.invalidate(
+                          _categoryListingsProvider(widget.categoryId)),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
                     ),
                   ],
                 ),
@@ -407,11 +228,213 @@ class _CategoryListingsScreenState
           ),
         ],
       ),
+    );
+  }
 
-      // MANDATORY: no duplicated bottom bars.
-      // This screen is opened from Home via Navigator.pushNamed(...), so the persistent bottom
-      // nav from MainLayoutWrapper remains underneath in the stack flow (and must not be duplicated).
-      bottomNavigationBar: null,
+  Widget _buildListingCard(
+      BuildContext context, MarketplaceListingModel listing, ThemeData theme) {
+    final isFavorite = _favorites.contains(listing.id);
+    final imageUrl = listing.images.isNotEmpty ? listing.images[0] : null;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          AppRoutes.marketplaceListingDetailScreen,
+          arguments: listing.id,
+        );
+      },
+      child: Container(
+        margin: EdgeInsets.only(bottom: 2.h),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(3.w),
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.shadow.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(3.w)),
+                  child: imageUrl != null
+                      ? CustomImageWidget(
+                          imageUrl: imageUrl,
+                          width: double.infinity,
+                          height: 20.h,
+                          fit: BoxFit.cover,
+                          semanticLabel: listing.title,
+                        )
+                      : Container(
+                          width: double.infinity,
+                          height: 20.h,
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: Icon(Icons.image_not_supported_outlined,
+                              size: 12.w, color: theme.disabledColor),
+                        ),
+                ),
+                // Favorite
+                Positioned(
+                  top: 2.w,
+                  right: 2.w,
+                  child: GestureDetector(
+                    onTap: () => _toggleFavorite(listing.id),
+                    child: Container(
+                      padding: EdgeInsets.all(2.w),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.colorScheme.shadow.withOpacity(0.1),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: isFavorite
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurfaceVariant,
+                        size: 5.w,
+                      ),
+                    ),
+                  ),
+                ),
+                // Sold badge
+                if (listing.isSold)
+                  Positioned(
+                    top: 2.w,
+                    left: 2.w,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 2.w, vertical: 0.5.h),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(1.w),
+                      ),
+                      child: Text('SOLD',
+                          style: TextStyle(
+                              fontSize: 10.sp,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white)),
+                    ),
+                  ),
+                // Negotiable badge
+                if (listing.isNegotiable && !listing.isSold)
+                  Positioned(
+                    top: 2.w,
+                    left: 2.w,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 2.w, vertical: 0.5.h),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade700,
+                        borderRadius: BorderRadius.circular(1.w),
+                      ),
+                      child: Text('Negotiable',
+                          style: TextStyle(
+                              fontSize: 9.sp,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white)),
+                    ),
+                  ),
+              ],
+            ),
+            Padding(
+              padding: EdgeInsets.all(3.w),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    listing.title,
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                      color: theme.textTheme.bodyLarge?.color,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 1.h),
+                  Text(
+                    '\$${listing.price.toStringAsFixed(listing.price.truncateToDouble() == listing.price ? 0 : 2)}',
+                    style: TextStyle(
+                      fontSize: 16.sp,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                  SizedBox(height: 1.h),
+                  Row(
+                    children: [
+                      if (listing.locationText != null &&
+                          listing.locationText!.isNotEmpty) ...[
+                        Icon(Icons.location_on,
+                            size: 4.w,
+                            color: theme.colorScheme.onSurfaceVariant),
+                        SizedBox(width: 1.w),
+                        Flexible(
+                          child: Text(
+                            listing.locationText!,
+                            style: TextStyle(
+                                fontSize: 11.sp,
+                                color: theme.colorScheme.onSurfaceVariant),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        SizedBox(width: 3.w),
+                      ],
+                      if (listing.createdAt != null) ...[
+                        Icon(Icons.access_time,
+                            size: 4.w,
+                            color: theme.colorScheme.onSurfaceVariant),
+                        SizedBox(width: 1.w),
+                        Text(
+                          _timeAgo(listing.createdAt),
+                          style: TextStyle(
+                              fontSize: 11.sp,
+                              color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ],
+                  ),
+                  // Condition chip
+                  if (listing.condition != null &&
+                      listing.condition!.isNotEmpty) ...[
+                    SizedBox(height: 1.h),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 2.w, vertical: 0.3.h),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer
+                            .withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(1.w),
+                      ),
+                      child: Text(
+                        listing.condition!.replaceAll('_', ' ').toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 9.sp,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

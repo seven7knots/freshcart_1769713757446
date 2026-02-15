@@ -43,10 +43,24 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>KJ Delivery needs your location to show nearby stores and calculate delivery fees.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>KJ Delivery uses your location for real-time delivery tracking.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>KJ Delivery needs camera access to scan barcodes and take photos for listings.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>KJ Delivery needs photo library access to upload images for listings and profiles.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>KJ Delivery needs microphone access for voice search.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>KJ Delivery uses speech recognition for voice search.</string>
 	<key>NSAppTransportSecurity</key>
-    <dict>
-        <key>NSAllowsArbitraryLoads</key>
-        <true />
-    </dict>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
-import '../../../theme/app_theme.dart';
-
 class MarketplaceBottomNavWidget extends StatelessWidget {
   final int currentIndex;
   final Function(int) onIndexChanged;
@@ -15,12 +13,14 @@ class MarketplaceBottomNavWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: theme.colorScheme.shadow.withOpacity(0.1),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -33,25 +33,29 @@ class MarketplaceBottomNavWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildNavItem(
+                theme: theme,
                 icon: Icons.home_outlined,
                 activeIcon: Icons.home,
                 label: 'Home',
                 index: 0,
               ),
               _buildNavItem(
+                theme: theme,
                 icon: Icons.chat_bubble_outline,
                 activeIcon: Icons.chat_bubble,
                 label: 'Chats',
                 index: 1,
               ),
-              _buildSellButton(),
+              _buildSellButton(theme),
               _buildNavItem(
+                theme: theme,
                 icon: Icons.list_alt_outlined,
                 activeIcon: Icons.list_alt,
                 label: 'My Ads',
                 index: 3,
               ),
               _buildNavItem(
+                theme: theme,
                 icon: Icons.person_outline,
                 activeIcon: Icons.person,
                 label: 'Account',
@@ -65,6 +69,7 @@ class MarketplaceBottomNavWidget extends StatelessWidget {
   }
 
   Widget _buildNavItem({
+    required ThemeData theme,
     required IconData icon,
     required IconData activeIcon,
     required String label,
@@ -82,8 +87,8 @@ class MarketplaceBottomNavWidget extends StatelessWidget {
             Icon(
               isActive ? activeIcon : icon,
               color: isActive
-                  ? AppTheme.lightTheme.colorScheme.primary
-                  : Colors.grey[600],
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurfaceVariant,
               size: 6.w,
             ),
             SizedBox(height: 0.5.h),
@@ -93,8 +98,8 @@ class MarketplaceBottomNavWidget extends StatelessWidget {
                 fontSize: 10.sp,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
                 color: isActive
-                    ? AppTheme.lightTheme.colorScheme.primary
-                    : Colors.grey[600],
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -103,19 +108,17 @@ class MarketplaceBottomNavWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSellButton() {
+  Widget _buildSellButton(ThemeData theme) {
     return GestureDetector(
       onTap: () => onIndexChanged(2),
       child: Container(
         padding: EdgeInsets.all(3.w),
         decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.primary,
+          color: theme.colorScheme.primary,
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: AppTheme.lightTheme.colorScheme.primary.withValues(
-                alpha: 0.3,
-              ),
+              color: theme.colorScheme.primary.withOpacity(0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),

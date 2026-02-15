@@ -85,12 +85,16 @@ class _EnhancedOrderManagementScreenState
       await SupabaseService.client.from('orders').update({
         'status': 'accepted', 'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', orderId);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Order accepted'), backgroundColor: Colors.green));
+      }
       _loadOrders();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+      }
     }
   }
 
@@ -105,12 +109,16 @@ class _EnhancedOrderManagementScreenState
         'cancelled_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', orderId);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Order rejected'), backgroundColor: Colors.orange));
+      }
       _loadOrders();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+      }
     }
   }
 
@@ -203,8 +211,10 @@ class _EnhancedOrderManagementScreenState
         )),
       );
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load drivers: $e'), backgroundColor: Colors.red));
+      }
     }
   }
 
@@ -216,12 +226,16 @@ class _EnhancedOrderManagementScreenState
         'updated_at': DateTime.now().toIso8601String(),
       }).eq('id', orderId);
 
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Driver assigned successfully'), backgroundColor: Colors.green));
+      }
       _loadOrders();
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+      }
     }
   }
 

@@ -1,11 +1,9 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
@@ -19,9 +17,7 @@ import '../../services/product_service.dart';
 import '../../services/store_service.dart';
 import '../../services/supabase_service.dart';
 import '../../services/database_service.dart';
-import '../../theme/app_theme.dart';
 import '../../widgets/admin_editable_item_wrapper.dart';
-import '../../widgets/animated_press_button.dart';
 import '../admin_edit_overlay_system_screen/widgets/content_edit_modal_widget.dart';
 
 class StoreDetailScreen extends StatefulWidget {
@@ -261,9 +257,9 @@ class _StoreDetailScreenState extends State<StoreDetailScreen> with SingleTicker
                                     ? Image.memory(s.data!, fit: BoxFit.cover, width: double.infinity, height: 100)
                                     : const Center(child: CircularProgressIndicator(strokeWidth: 2)))
                             : Image.file(File(pickedImage!.path), fit: BoxFit.cover, width: double.infinity, height: 100))
-                    : existingImageUrl != null && existingImageUrl!.isNotEmpty
+                    : existingImageUrl != null && existingImageUrl.isNotEmpty
                         ? ClipRRect(borderRadius: BorderRadius.circular(10),
-                            child: Image.network(existingImageUrl!, fit: BoxFit.cover, width: double.infinity, height: 100,
+                            child: Image.network(existingImageUrl, fit: BoxFit.cover, width: double.infinity, height: 100,
                               errorBuilder: (_, __, ___) => _dialogImagePlaceholder(context, 'Tap to change image')))
                         : _dialogImagePlaceholder(context, 'Add thumbnail (optional)'),
               ),
@@ -626,7 +622,7 @@ class _StoreDetailScreenState extends State<StoreDetailScreen> with SingleTicker
               child: hasImage
                   ? Stack(fit: StackFit.expand, children: [
                       Image.network(
-                        imageUrl!,
+                        imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Center(
                           child: Icon(icon, size: 24,

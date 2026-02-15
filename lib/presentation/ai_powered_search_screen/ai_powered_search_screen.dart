@@ -4,7 +4,7 @@ import 'package:sizer/sizer.dart';
 import 'dart:convert';
 
 import '../../services/ai_service.dart';
-import '../../services/openai_service.dart';
+import '../../services/gemini_service.dart';
 import '../../services/analytics_service.dart';
 import './widgets/ai_search_bar_widget.dart';
 import './widgets/category_tabs_widget.dart';
@@ -132,11 +132,10 @@ Respond with JSON only.''';
       ];
 
       final completion =
-          await OpenAIClient(OpenAIService().dio).createChatCompletion(
+          await GeminiClient().createChatCompletion(
         messages: messages,
-        model: 'gpt-5-mini',
-        reasoningEffort: 'minimal',
-        options: {'max_completion_tokens': 200},
+        model: 'gemini-2.5-flash',
+        options: {'max_output_tokens': 200},
       );
 
       final jsonString = completion.text

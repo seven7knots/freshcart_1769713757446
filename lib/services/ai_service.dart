@@ -5,13 +5,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
 import './marketplace_service.dart';
-import './openai_service.dart';
+import './gemini_service.dart';
 import './order_service.dart';
 import './product_service.dart';
 import './supabase_service.dart';
 
 class AIService {
-  final OpenAIClient _openAIClient;
+  final GeminiClient _geminiClient;
   final ProductService _productService;
   final OrderService _orderService;
   final MarketplaceService _marketplaceService;
@@ -19,7 +19,7 @@ class AIService {
   final Uuid _uuid = const Uuid();
 
   AIService()
-      : _openAIClient = OpenAIClient(OpenAIService().dio),
+      : _geminiClient = GeminiClient(),
         _productService = ProductService(),
         _orderService = OrderService(),
         _marketplaceService = MarketplaceService(),
@@ -60,12 +60,11 @@ class AIService {
         contextData: contextData,
       );
 
-      // Generate AI response
-      final completion = await _openAIClient.createChatCompletion(
+      // Generate AI response via Gemini
+      final completion = await _geminiClient.createChatCompletion(
         messages: messages,
-        model: 'gpt-5-mini',
-        reasoningEffort: 'minimal',
-        options: {'max_completion_tokens': 500},
+        model: 'gemini-2.5-flash',
+        options: {'max_output_tokens': 500},
       );
 
       final aiResponse = completion.text;
@@ -117,10 +116,9 @@ class AIService {
 
       final fullResponse = StringBuffer();
 
-      await for (var chunk in _openAIClient.streamContentOnly(
+      await for (var chunk in _geminiClient.streamContentOnly(
         messages: messages,
-        model: 'gpt-5-mini',
-        reasoningEffort: 'minimal',
+        model: 'gemini-2.5-flash',
       )) {
         fullResponse.write(chunk);
         yield chunk;
@@ -254,11 +252,10 @@ Format as valid JSON only, no additional text.''';
         Message(role: 'user', content: prompt),
       ];
 
-      final completion = await _openAIClient.createChatCompletion(
+      final completion = await _geminiClient.createChatCompletion(
         messages: messages,
-        model: 'gpt-5-mini',
-        reasoningEffort: 'medium',
-        options: {'max_completion_tokens': 2000},
+        model: 'gemini-2.5-flash',
+        options: {'max_output_tokens': 2000},
       );
 
       // Parse JSON response
@@ -463,6 +460,21 @@ Format as valid JSON only, no additional text.''';
       }
       if (contextData['user_location'] != null) {
         buffer.writeln('- User location: ${contextData['user_location']}');
+      }
+      if (contextData['search_results'] != null) {
+        buffer.writeln('\nREAL SEARCH RESULTS FROM DATABASE:');
+        buffer.writeln(contextData['search_results']);
+        buffer.writeln(
+          '\nIMPORTANT: The above are REAL products/services from our database. '
+          'Reference them by name and price in your response. '
+          'Help the user choose the best option. '
+          'Users can add items to cart directly from the product cards shown below your message.',
+        );
+      }
+      if (contextData['search_query'] != null) {
+        buffer.writeln(
+          '- User search query: ${contextData['search_query']}',
+        );
       }
     }
 

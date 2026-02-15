@@ -4,13 +4,10 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../widgets/animated_press_button.dart';
 
-/// Custom bottom navigation bar implementing Contemporary Minimalist Commerce design
-/// with adaptive navigation and haptic feedback.
-///
-/// UPDATED:
-/// - Removed Cart from bottom bar (cart is only in the top bar now)
-/// - Added AI Mate at index 2 (replaces Cart)
-/// - Final order: Home(0), Search(1), AI Mate(2), Stores(3), Profile(4)
+/// Custom bottom navigation bar
+/// Light mode: Red background, white icons/text
+/// Dark mode: Dark surface background, red selected / grey unselected
+/// AI Mate icon: auto_awesome (sparkle) instead of smart_toy
 class CustomBottomBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int>? onTap;
@@ -26,14 +23,14 @@ class CustomBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final isLight = theme.brightness == Brightness.light;
 
     return Container(
       decoration: BoxDecoration(
-        color: _getBackgroundColor(colorScheme),
+        color: isLight ? AppTheme.kjRed : AppTheme.surfaceDark,
         boxShadow: [
           BoxShadow(
-            color: colorScheme.shadow.withOpacity(0.10),
+            color: theme.colorScheme.shadow.withOpacity(0.10),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -88,14 +85,28 @@ class CustomBottomBar extends StatelessWidget {
     );
   }
 
-  /// Special AI Mate button with brand red accent
+  /// AI Mate button — uses auto_awesome icon (sparkle)
   Widget _buildAiMateNavItem({
     required BuildContext context,
     required int index,
   }) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final isLight = theme.brightness == Brightness.light;
     final isSelected = currentIndex == index;
+
+    // Colors based on theme
+    final Color selectedColor;
+    final Color unselectedColor;
+
+    if (isLight) {
+      // Light mode: red bar → white icons
+      selectedColor = Colors.white;
+      unselectedColor = Colors.white.withOpacity(0.60);
+    } else {
+      // Dark mode: dark bar → red selected, grey unselected
+      selectedColor = AppTheme.kjRedDark;
+      unselectedColor = theme.colorScheme.onSurfaceVariant;
+    }
 
     return Expanded(
       child: AnimatedPressButton(
@@ -114,12 +125,12 @@ class CustomBottomBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isSelected
-                      ? AppTheme.kjRed.withOpacity(0.12)
+                      ? selectedColor.withOpacity(isLight ? 0.20 : 0.12)
                       : Colors.transparent,
                 ),
                 child: Icon(
-                  isSelected ? Icons.smart_toy : Icons.smart_toy_outlined,
-                  color: isSelected ? AppTheme.kjRed : colorScheme.onSurfaceVariant,
+                  isSelected ? Icons.auto_awesome : Icons.auto_awesome_outlined,
+                  color: isSelected ? selectedColor : unselectedColor,
                   size: 24,
                 ),
               ),
@@ -129,7 +140,7 @@ class CustomBottomBar extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                  color: isSelected ? AppTheme.kjRed : colorScheme.onSurfaceVariant,
+                  color: isSelected ? selectedColor : unselectedColor,
                 ),
               ),
             ],
@@ -148,8 +159,22 @@ class CustomBottomBar extends StatelessWidget {
     required String tooltip,
   }) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final isLight = theme.brightness == Brightness.light;
     final isSelected = currentIndex == index;
+
+    // Colors based on theme
+    final Color selectedColor;
+    final Color unselectedColor;
+
+    if (isLight) {
+      // Light mode: red bar → white icons
+      selectedColor = Colors.white;
+      unselectedColor = Colors.white.withOpacity(0.60);
+    } else {
+      // Dark mode: dark bar → red selected, grey unselected
+      selectedColor = theme.colorScheme.primary;
+      unselectedColor = theme.colorScheme.onSurfaceVariant;
+    }
 
     return Expanded(
       child: AnimatedPressButton(
@@ -165,9 +190,7 @@ class CustomBottomBar extends StatelessWidget {
             children: [
               Icon(
                 isSelected ? activeIcon : icon,
-                color: isSelected
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
+                color: isSelected ? selectedColor : unselectedColor,
                 size: 24,
               ),
               const SizedBox(height: 4),
@@ -176,9 +199,7 @@ class CustomBottomBar extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: isSelected
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
+                  color: isSelected ? selectedColor : unselectedColor,
                 ),
               ),
             ],
@@ -188,6 +209,7 @@ class CustomBottomBar extends StatelessWidget {
     );
   }
 
+  // No longer used for color — kept for variant API compatibility
   Color _getBackgroundColor(ColorScheme colorScheme) {
     switch (variant) {
       case BottomBarVariant.primary:

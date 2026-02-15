@@ -19,27 +19,21 @@ class OrderTrackingProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isLoading => _isLoading;
 
-  // Subscribe to order status changes
+  /// Subscribe to order status changes.
+  /// Fetches the order with a simple select (no risky joins) and sets up
+  /// real-time listeners for status changes and driver location.
   Future<void> subscribeToOrderUpdates(String orderId) async {
     try {
       _isLoading = true;
       _error = null;
       notifyListeners();
 
-      // Fetch initial order data
-      final orderData = await _client.from('orders').select('''
-            *,
-            order_items (*),
-            stores (name, name_ar, image_url, address),
-            drivers:driver_id (
-              id,
-              user_id,
-              vehicle_type,
-              vehicle_plate,
-              current_location_lat,
-              current_location_lng
-            )
-          ''').eq('id', orderId).single();
+      // Fetch order — simple select, no joins that might fail
+      final orderData = await _client
+          .from('orders')
+          .select('*')
+          .eq('id', orderId)
+          .single();
 
       _currentOrder = OrderModel.fromJson(orderData);
       _isLoading = false;
@@ -58,52 +52,57 @@ class OrderTrackingProvider extends ChangeNotifier {
               value: orderId,
             ),
             callback: (payload) async {
-              // Update order with new data
-              final updatedData = await _client.from('orders').select('''
-                    *,
-                    order_items (*),
-                    stores (name, name_ar, image_url, address),
-                    drivers:driver_id (
-                      id,
-                      user_id,
-                      vehicle_type,
-                      vehicle_plate,
-                      current_location_lat,
-                      current_location_lng
-                    )
-                  ''').eq('id', orderId).single();
+              try {
+                final updatedData = await _client
+                    .from('orders')
+                    .select('*')
+                    .eq('id', orderId)
+                    .single();
 
-              _currentOrder = OrderModel.fromJson(updatedData);
-              notifyListeners();
+                _currentOrder = OrderModel.fromJson(updatedData);
+                notifyListeners();
 
-              // Show local notification
+                // If a driver was just assigned, start listening for location
+                if (_currentOrder?.driverId != null &&
+                    _driverLocationChannel == null) {
+                  await _subscribeToDriverLocation(_currentOrder!.driverId!);
+                }
+              } catch (e) {
+                debugPrint('Error refreshing order: $e');
+              }
+
+              // Log status notification
               _showOrderStatusNotification(payload.newRecord);
             },
           )
           .subscribe();
 
-      // Subscribe to driver location if order has a driver
+      // Subscribe to driver location if order already has a driver
       if (_currentOrder?.driverId != null) {
         await _subscribeToDriverLocation(_currentOrder!.driverId!);
       }
     } catch (e) {
-      _error = 'Failed to subscribe to order updates: $e';
+      _error = 'Failed to load order: $e';
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // Subscribe to driver location updates
+  /// Subscribe to driver location updates via the deliveries table.
   Future<void> _subscribeToDriverLocation(String driverId) async {
     try {
-      // Get delivery ID for this order
+      // Try to get delivery record for this order
       final delivery = await _client
           .from('deliveries')
           .select('id')
           .eq('order_id', _currentOrder!.id)
           .maybeSingle();
 
-      if (delivery == null) return;
+      if (delivery == null) {
+        // No delivery record yet — try subscribing to driver table directly
+        debugPrint('No delivery record found for order ${_currentOrder!.id}');
+        return;
+      }
 
       final deliveryId = delivery['id'];
 
@@ -143,7 +142,7 @@ class OrderTrackingProvider extends ChangeNotifier {
     }
   }
 
-  // Show local notification for order status change
+  /// Show local notification for order status change
   void _showOrderStatusNotification(Map<String, dynamic> orderData) {
     final status = orderData['status'] as String?;
     if (status == null) return;
@@ -152,9 +151,13 @@ class OrderTrackingProvider extends ChangeNotifier {
     String body = '';
 
     switch (status) {
-      case 'confirmed':
-        title = 'Order Confirmed';
-        body = 'Your order has been confirmed and is being prepared.';
+      case 'accepted':
+        title = 'Order Accepted';
+        body = 'Your order has been accepted by the store.';
+        break;
+      case 'assigned':
+        title = 'Driver Assigned';
+        body = 'A driver has been assigned to your order.';
         break;
       case 'preparing':
         title = 'Order Being Prepared';
@@ -180,13 +183,17 @@ class OrderTrackingProvider extends ChangeNotifier {
         title = 'Order Cancelled';
         body = 'Your order has been cancelled.';
         break;
+      case 'rejected':
+        title = 'Order Rejected';
+        body = 'Unfortunately, your order was rejected.';
+        break;
     }
 
-    // In a real app, use flutter_local_notifications or awesome_notifications
+    // In a real app, use flutter_local_notifications
     debugPrint('Notification: $title - $body');
   }
 
-  // Unsubscribe from all channels
+  /// Unsubscribe from all channels
   void unsubscribe() {
     _orderStatusChannel?.unsubscribe();
     _driverLocationChannel?.unsubscribe();

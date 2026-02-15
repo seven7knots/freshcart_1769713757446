@@ -31,7 +31,7 @@ class SupabaseService {
   static Future<void> signInWithGoogle() async {
     await client.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: 'com.freshcart.app://callback/',
+      redirectTo: 'com.kjdelivery.app://callback/',
     );
   }
 

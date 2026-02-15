@@ -15,7 +15,6 @@ import '../../../services/marketplace_service.dart';
 import '../../../services/product_service.dart';
 import '../../../services/store_service.dart';
 import '../../../services/supabase_service.dart';
-import '../../../theme/app_theme.dart';
 
 class ContentEditModalWidget extends StatefulWidget {
   final String contentType;
@@ -629,7 +628,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
                     title: const Text('Active'),
                     subtitle: Text(_isActive ? 'Visible' : 'Hidden'),
                     value: _isActive,
-                    activeColor: theme.colorScheme.primary,
+                    activeThumbColor: theme.colorScheme.primary,
                     onChanged: _isLoading ? null : (v) => setState(() => _isActive = v),
                   ),
                   SizedBox(height: 3.h),
@@ -726,7 +725,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
         )
       else
         DropdownButtonFormField<String?>(
-          value: _selectedStoreCategoryId,
+          initialValue: _selectedStoreCategoryId,
           decoration: InputDecoration(
             border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.category_outlined),
@@ -971,7 +970,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
       Text('Store Type *', style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
       SizedBox(height: 1.h),
       DropdownButtonFormField<String>(
-        value: _storeCategoryType,
+        initialValue: _storeCategoryType,
         decoration: const InputDecoration(
           border: OutlineInputBorder(),
           prefixIcon: Icon(Icons.label_outline),

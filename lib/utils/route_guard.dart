@@ -25,8 +25,8 @@ class RouteGuard {
   static const Set<String> _tabRoutes = {
     AppRoutes.home,
     AppRoutes.search,
-    AppRoutes.shoppingCart,
-    AppRoutes.orderHistory,
+    AppRoutes.aiMate,
+    AppRoutes.stores,
     AppRoutes.profile,
   };
 
@@ -318,9 +318,9 @@ class RouteGuard {
         return 0;
       case AppRoutes.search:
         return 1;
-      case AppRoutes.shoppingCart:
+      case AppRoutes.aiMate:
         return 2;
-      case AppRoutes.orderHistory:
+      case AppRoutes.stores:
         return 3;
       case AppRoutes.profile:
         return 4;

@@ -57,7 +57,7 @@ class StoreService {
       if (excludeDemo) query = query.neq('is_demo', true);
       final response = await query.order('created_at', ascending: false);
       debugPrint('[STORE] Fetched ${(response as List).length} stores');
-      return response.map((s) => Store.fromMap(s as Map<String, dynamic>)).toList();
+      return response.map((s) => Store.fromMap(s)).toList();
     } catch (e) {
       debugPrint('[STORE] Error fetching stores: $e');
       rethrow;

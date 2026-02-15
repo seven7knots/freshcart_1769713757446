@@ -379,8 +379,8 @@ class _SearchScreenState extends State<SearchScreen> {
                 title: null,
                 pinned: true,
                 elevation: 0,
-                backgroundColor: cs.surface,
-                foregroundColor: cs.onSurface,
+                backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+                foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
                 surfaceTintColor: Colors.transparent,
                 scrolledUnderElevation: 2,
                 shadowColor: cs.shadow.withOpacity(0.10),
@@ -421,7 +421,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       onVoicePressed: _showVoiceSearch ? () {} : null,
                       onBarcodePressed: _showBarcodeScanner ? () {} : null,
                       onAIPressed: () =>
-                          Navigator.pushNamed(context, AppRoutes.aiChatAssistant),
+                          AppRoutes.switchToTab(context, 2),
                       isLoading: _isLoading,
                     ),
                     if (_activeFilters.isNotEmpty)
@@ -444,14 +444,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 setState(() => _recentSearches.clear());
                               },
                             )
-                          : ProductGridWidget(
-                              products: _searchResults,
-                              isLoading: _isLoading,
-                              onProductTap: _onProductTap,
-                              onAddToCart: _onAddToCart,
-                              onAddToWishlist: _onAddToWishlist,
-                              onShare: _onShare,
-                            ),
+                          : _buildProductGrid(),
                     ),
                   ],
                 ),
@@ -460,6 +453,17 @@ class _SearchScreenState extends State<SearchScreen> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildProductGrid() {
+    return ProductGridWidget(
+      products: _searchResults,
+      isLoading: _isLoading,
+      onProductTap: _onProductTap,
+      onAddToCart: _onAddToCart,
+      onAddToWishlist: _onAddToWishlist,
+      onShare: _onShare,
     );
   }
 }

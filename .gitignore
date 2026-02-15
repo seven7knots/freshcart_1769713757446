@@ -45,3 +45,20 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Secrets — NEVER commit these
+env.json
+*.env
+*.jks
+*.keystore
+key.properties
+google-services.json
+GoogleService-Info.plist
+
+# Build outputs
+*.apk
+*.aab
+*.ipa
+
+# Android local
+android/local.properties

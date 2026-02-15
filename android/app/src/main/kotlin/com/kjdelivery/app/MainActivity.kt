@@ -1,4 +1,4 @@
-package com.freshcart.app
+package com.kjdelivery.app
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.plugins.GeneratedPluginRegistrant

@@ -1,14 +1,34 @@
+// ============================================================
+// FILE: lib/presentation/profile_screen/profile_screen.dart
+// ============================================================
+// Fully functional profile screen with:
+// - No loyalty rewards widget
+// - Working privacy & security, notifications, delivery prefs
+// - Merged admin dashboard (single entry point)
+// - Help section with WhatsApp + phone support
+// - No language setting, theme only in preferences
+// - Admin subscription management
+// - Wishlist → favorites screen (functional)
+// ============================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_export.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notifications_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/supabase_service.dart';
 import '../../widgets/main_layout_wrapper.dart';
-import './widgets/loyalty_rewards_widget.dart';
+import '../my_addresses_screen/my_addresses_screen.dart';
+import '../privacy_security_screen/privacy_security_screen.dart';
+import '../notification_preferences_screen/notification_preferences_screen.dart';
+import '../delivery_preferences_screen/delivery_preferences_screen.dart';
+import '../admin_subscription_management_screen/admin_subscription_management_screen.dart';
+import '../favorites_screen/favorites_screen.dart';
 import './widgets/profile_header_widget.dart';
 import './widgets/settings_section_widget.dart';
 
@@ -21,16 +41,97 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final bool _isLoading = false;
+  int _totalOrders = 0;
+  double _totalSpent = 0.0;
+  bool _subscriptionsEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _refreshRoleData();
+    _loadStats();
+    _loadSubscriptionToggle();
   }
 
   Future<void> _refreshRoleData() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.refreshUserRole();
+  }
+
+  Future<void> _loadStats() async {
+    try {
+      final userId = SupabaseService.client.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final ordersResult = await SupabaseService.client
+          .from('orders')
+          .select('id, total_amount')
+          .eq('customer_id', userId);
+
+      if (mounted) {
+        final orders = ordersResult as List;
+        double spent = 0;
+        for (final o in orders) {
+          spent += (o['total_amount'] as num?)?.toDouble() ?? 0;
+        }
+        setState(() {
+          _totalOrders = orders.length;
+          _totalSpent = spent;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadSubscriptionToggle() async {
+    try {
+      final result = await SupabaseService.client
+          .from('app_config')
+          .select('value')
+          .eq('key', 'subscriptions_enabled')
+          .maybeSingle();
+
+      if (mounted) {
+        setState(() {
+          _subscriptionsEnabled = result?['value'] == 'true' || result?['value'] == true;
+        });
+      }
+    } catch (_) {
+      // If app_config table or key doesn't exist, default to false
+      if (mounted) setState(() => _subscriptionsEnabled = false);
+    }
+  }
+
+  Future<void> _toggleSubscriptions() async {
+    final newValue = !_subscriptionsEnabled;
+    setState(() => _subscriptionsEnabled = newValue);
+
+    try {
+      // Upsert the value in app_config
+      await SupabaseService.client.from('app_config').upsert({
+        'key': 'subscriptions_enabled',
+        'value': newValue.toString(),
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'key');
+
+      if (mounted) {
+        HapticFeedback.mediumImpact();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(newValue
+              ? 'Subscriptions enabled — users can now access'
+              : 'Subscriptions disabled — hidden from users'),
+          backgroundColor: newValue ? Colors.green : Colors.grey,
+        ));
+      }
+    } catch (e) {
+      // Rollback on error
+      if (mounted) {
+        setState(() => _subscriptionsEnabled = !newValue);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed to toggle subscriptions: $e'),
+          backgroundColor: Colors.red,
+        ));
+      }
+    }
   }
 
   bool get _shouldShowBack =>
@@ -65,21 +166,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     : null,
                 title: Text(
                   'Profile',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: theme.appBarTheme.titleTextStyle,
                 ),
                 automaticallyImplyLeading: false,
                 pinned: true,
                 elevation: 0,
-                backgroundColor: theme.scaffoldBackgroundColor,
-                foregroundColor: theme.colorScheme.onSurface,
+                backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+                foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
                 surfaceTintColor: Colors.transparent,
                 scrolledUnderElevation: 2,
                 shadowColor: theme.colorScheme.shadow.withOpacity(0.1),
                 actions: [
                   IconButton(
-                    icon: const Icon(Icons.settings_outlined),
+                    icon: Icon(Icons.settings_outlined, color: Theme.of(context).appBarTheme.foregroundColor),
                     onPressed: _showSettingsMenu,
                     tooltip: 'Settings',
                   ),
@@ -100,9 +199,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         return Consumer<AuthProvider>(
           builder: (context, authProvider, child) {
-            // Build user data from auth provider
             final userData = _buildUserData(authProvider);
-            final rewardsData = _buildRewardsData();
 
             return CustomScrollView(
               slivers: [
@@ -117,7 +214,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         ProfileHeaderWidget(
                           userData: userData,
-                          onEditPressed: _editProfile,
+                          onEditPressed: () => _showEditProfileDialog(authProvider),
+                          onAvatarChanged: (url) async {
+                            await authProvider.refreshUserRole();
+                            if (mounted) setState(() {});
+                          },
                         ),
                         SizedBox(height: 3.h),
 
@@ -125,13 +226,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         // ROLE-BASED SECTIONS
                         // ========================================
 
-                        // Merchant Section (if approved merchant)
+                        // Merchant Section
                         if (authProvider.isMerchant) ...[
                           _buildMerchantSection(authProvider),
                           SizedBox(height: 2.h),
                         ],
 
-                        // Driver Section (if approved driver)
+                        // Driver Section
                         if (authProvider.isDriver) ...[
                           _buildDriverSection(authProvider),
                           SizedBox(height: 2.h),
@@ -158,23 +259,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           SizedBox(height: 2.h),
                         ],
 
-                        // Apply Buttons (for customers without pending apps)
-                        if (authProvider.canApplyAsMerchant || authProvider.canApplyAsDriver) ...[
-                          _buildApplySection(authProvider),
-                          SizedBox(height: 2.h),
-                        ],
+                        // NO LOYALTY REWARDS WIDGET — removed completely
 
-                        LoyaltyRewardsWidget(
-                          rewardsData: rewardsData,
-                          onViewAllPressed: _viewAllRewards,
-                        ),
                         SettingsSectionWidget(
                           title: 'Quick Actions',
                           items: _getQuickActionItems(),
                         ),
                         SizedBox(height: 2.h),
 
-                        // Admin section (only if admin)
+                        // Admin section (only if admin) — MERGED single dashboard
                         Consumer<AdminProvider>(
                           builder: (context, adminProvider, child) {
                             if (!adminProvider.isAdmin) {
@@ -194,7 +287,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                         SettingsSectionWidget(
                           title: "Account",
-                          items: _getAccountItems(),
+                          items: _getAccountItems(authProvider),
                         ),
                         SettingsSectionWidget(
                           title: 'Delivery & Addresses',
@@ -233,81 +326,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildMerchantSection(AuthProvider authProvider) {
     final theme = Theme.of(context);
-
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: Colors.green.shade50,
+      color: theme.brightness == Brightness.dark
+          ? Colors.green.shade900.withOpacity(0.3)
+          : Colors.green.shade50,
       child: InkWell(
         onTap: () => Navigator.pushNamed(context, AppRoutes.merchantDashboard),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: EdgeInsets.all(4.w),
-          child: Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(3.w),
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.store,
-                  color: Colors.white,
-                  size: 8.w,
-                ),
-              ),
-              SizedBox(width: 4.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'My Store',
-                          style: TextStyle(
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green.shade800,
-                          ),
-                        ),
-                        SizedBox(width: 2.w),
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'MERCHANT',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 9.sp,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 0.5.h),
-                    Text(
-                      'Manage your stores, products & orders',
+          child: Row(children: [
+            Container(
+              padding: EdgeInsets.all(3.w),
+              decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(12)),
+              child: Icon(Icons.store, color: Colors.white, size: 8.w),
+            ),
+            SizedBox(width: 4.w),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Text('My Store',
                       style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                          color: theme.brightness == Brightness.dark ? Colors.green.shade300 : Colors.green.shade800)),
+                  SizedBox(width: 2.w),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                    decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(8)),
+                    child: Text('MERCHANT',
+                        style: TextStyle(color: Colors.white, fontSize: 9.sp, fontWeight: FontWeight.bold)),
+                  ),
+                ]),
+                SizedBox(height: 0.5.h),
+                Text('Manage your stores, products & orders',
+                    style: TextStyle(
                         fontSize: 12.sp,
-                        color: Colors.green.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right,
-                color: Colors.green.shade700,
-                size: 6.w,
-              ),
-            ],
-          ),
+                        color: theme.brightness == Brightness.dark ? Colors.green.shade400 : Colors.green.shade700)),
+              ]),
+            ),
+            Icon(Icons.chevron_right,
+                color: theme.brightness == Brightness.dark ? Colors.green.shade400 : Colors.green.shade700, size: 6.w),
+          ]),
         ),
       ),
     );
@@ -319,81 +381,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildDriverSection(AuthProvider authProvider) {
     final theme = Theme.of(context);
-
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: Colors.blue.shade50,
+      color: theme.brightness == Brightness.dark
+          ? Colors.blue.shade900.withOpacity(0.3)
+          : Colors.blue.shade50,
       child: InkWell(
         onTap: () => Navigator.pushNamed(context, AppRoutes.driverHome),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: EdgeInsets.all(4.w),
-          child: Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(3.w),
-                decoration: BoxDecoration(
-                  color: Colors.blue,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.delivery_dining,
-                  color: Colors.white,
-                  size: 8.w,
-                ),
-              ),
-              SizedBox(width: 4.w),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Driver Mode',
-                          style: TextStyle(
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade800,
-                          ),
-                        ),
-                        SizedBox(width: 2.w),
-                        Container(
-                          padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
-                          decoration: BoxDecoration(
-                            color: Colors.blue,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'DRIVER',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 9.sp,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 0.5.h),
-                    Text(
-                      'View assigned orders & start deliveries',
+          child: Row(children: [
+            Container(
+              padding: EdgeInsets.all(3.w),
+              decoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.circular(12)),
+              child: Icon(Icons.delivery_dining, color: Colors.white, size: 8.w),
+            ),
+            SizedBox(width: 4.w),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Text('Driver Mode',
                       style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.bold,
+                          color: theme.brightness == Brightness.dark ? Colors.blue.shade300 : Colors.blue.shade800)),
+                  SizedBox(width: 2.w),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                    decoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.circular(8)),
+                    child: Text('DRIVER',
+                        style: TextStyle(color: Colors.white, fontSize: 9.sp, fontWeight: FontWeight.bold)),
+                  ),
+                ]),
+                SizedBox(height: 0.5.h),
+                Text('View assigned orders & start deliveries',
+                    style: TextStyle(
                         fontSize: 12.sp,
-                        color: Colors.blue.shade700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right,
-                color: Colors.blue.shade700,
-                size: 6.w,
-              ),
-            ],
-          ),
+                        color: theme.brightness == Brightness.dark ? Colors.blue.shade400 : Colors.blue.shade700)),
+              ]),
+            ),
+            Icon(Icons.chevron_right,
+                color: theme.brightness == Brightness.dark ? Colors.blue.shade400 : Colors.blue.shade700, size: 6.w),
+          ]),
         ),
       ),
     );
@@ -415,41 +446,147 @@ class _ProfileScreenState extends State<ProfileScreen> {
       color: color.withOpacity(0.1),
       child: Padding(
         padding: EdgeInsets.all(4.w),
+        child: Row(children: [
+          Container(
+            padding: EdgeInsets.all(2.w),
+            decoration: BoxDecoration(color: color.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+            child: Icon(icon, color: color, size: 6.w),
+          ),
+          SizedBox(width: 3.w),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600, color: color.withOpacity(0.9))),
+              SizedBox(height: 0.5.h),
+              Text(subtitle, style: TextStyle(fontSize: 11.sp, color: color.withOpacity(0.7))),
+            ]),
+          ),
+          Icon(Icons.hourglass_top, color: color, size: 5.w),
+        ]),
+      ),
+    );
+  }
+
+  // ============================================================
+  // BECOME A PARTNER
+  // ============================================================
+
+  void _showPartnerOptions(AuthProvider authProvider) {
+    final theme = Theme.of(context);
+    HapticFeedback.lightImpact();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(5.w),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 12.w,
+                height: 0.5.h,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.outline.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              SizedBox(height: 2.5.h),
+              Icon(Icons.handshake, color: AppTheme.kjRed, size: 12.w),
+              SizedBox(height: 1.5.h),
+              Text('Become a Partner',
+                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+              SizedBox(height: 0.5.h),
+              Text('Choose how you want to partner with us',
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              SizedBox(height: 3.h),
+
+              if (authProvider.canApplyAsMerchant)
+                _buildPartnerOption(
+                  ctx: ctx,
+                  icon: Icons.store,
+                  title: 'Become a Merchant',
+                  subtitle: 'Create your store, list products, and start selling',
+                  color: Colors.green,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(context, AppRoutes.merchantApplication);
+                  },
+                ),
+
+              if (authProvider.canApplyAsMerchant && authProvider.canApplyAsDriver)
+                SizedBox(height: 1.5.h),
+
+              if (authProvider.canApplyAsDriver)
+                _buildPartnerOption(
+                  ctx: ctx,
+                  icon: Icons.delivery_dining,
+                  title: 'Become a Driver',
+                  subtitle: 'Deliver orders, set your own schedule, earn money',
+                  color: Colors.blue,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(context, AppRoutes.driverApplication);
+                  },
+                ),
+
+              SizedBox(height: 3.h),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPartnerOption({
+    required BuildContext ctx,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(ctx);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.all(4.w),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.2)),
+        ),
         child: Row(
           children: [
             Container(
-              padding: EdgeInsets.all(2.w),
+              padding: EdgeInsets.all(3.w),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
+                color: color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(icon, color: color, size: 6.w),
+              child: Icon(icon, color: color, size: 8.w),
             ),
-            SizedBox(width: 3.w),
+            SizedBox(width: 4.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      fontWeight: FontWeight.w600,
-                      color: color.withOpacity(0.9),
-                    ),
-                  ),
+                  Text(title, style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w700, color: color)),
                   SizedBox(height: 0.5.h),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 11.sp,
-                      color: color.withOpacity(0.7),
-                    ),
-                  ),
+                  Text(subtitle,
+                      style: TextStyle(fontSize: 11.sp, color: theme.colorScheme.onSurfaceVariant),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
-            Icon(Icons.hourglass_top, color: color, size: 5.w),
+            Icon(Icons.chevron_right, color: color, size: 6.w),
           ],
         ),
       ),
@@ -457,93 +594,122 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ============================================================
-  // APPLY SECTION (for customers)
+  // EDIT PROFILE DIALOG
   // ============================================================
 
-  Widget _buildApplySection(AuthProvider authProvider) {
+  void _showEditProfileDialog(AuthProvider authProvider) {
+    final nameController = TextEditingController(text: authProvider.fullName ?? '');
+    final phoneController = TextEditingController(text: authProvider.phone ?? '');
     final theme = Theme.of(context);
 
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: EdgeInsets.all(4.w),
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 5.w,
+          right: 5.w,
+          top: 3.h,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 3.h,
+        ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Become a Partner',
-              style: TextStyle(
-                fontSize: 16.sp,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 1.h),
-            Text(
-              'Expand your opportunities with us',
-              style: TextStyle(
-                fontSize: 12.sp,
-                color: theme.colorScheme.onSurfaceVariant,
+            Center(
+              child: Container(
+                width: 12.w,
+                height: 0.5.h,
+                decoration: BoxDecoration(
+                    color: theme.colorScheme.outline.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(4)),
               ),
             ),
             SizedBox(height: 2.h),
-            Row(
-              children: [
-                if (authProvider.canApplyAsMerchant)
-                  Expanded(
-                    child: _buildApplyButton(
-                      icon: Icons.store,
-                      label: 'Become a\nMerchant',
-                      color: Colors.green,
-                      onTap: () => Navigator.pushNamed(context, AppRoutes.merchantApplication),
-                    ),
-                  ),
-                if (authProvider.canApplyAsMerchant && authProvider.canApplyAsDriver)
-                  SizedBox(width: 3.w),
-                if (authProvider.canApplyAsDriver)
-                  Expanded(
-                    child: _buildApplyButton(
-                      icon: Icons.delivery_dining,
-                      label: 'Become a\nDriver',
-                      color: Colors.blue,
-                      onTap: () => Navigator.pushNamed(context, AppRoutes.driverApplication),
-                    ),
-                  ),
-              ],
+            Text('Edit Profile', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            SizedBox(height: 0.5.h),
+            Text('Update your personal information',
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            SizedBox(height: 3.h),
+            TextField(
+              controller: nameController,
+              decoration: InputDecoration(
+                labelText: 'Full Name',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.person),
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+              ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
+            SizedBox(height: 2.h),
+            TextField(
+              controller: phoneController,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: 'Phone Number',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.phone),
+                hintText: '+961 XX XXX XXX',
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+              ),
+            ),
+            SizedBox(height: 2.h),
+            TextField(
+              readOnly: true,
+              controller: TextEditingController(text: authProvider.email ?? ''),
+              decoration: InputDecoration(
+                labelText: 'Email',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.email),
+                filled: true,
+                fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+                suffixIcon: Icon(Icons.lock, size: 4.w, color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ),
+            SizedBox(height: 0.5.h),
+            Text('  Email cannot be changed here',
+                style: TextStyle(fontSize: 10.sp, color: theme.colorScheme.onSurfaceVariant)),
+            SizedBox(height: 3.h),
+            SizedBox(
+              width: double.infinity,
+              height: 6.h,
+              child: ElevatedButton(
+                onPressed: () async {
+                  final name = nameController.text.trim();
+                  final phone = phoneController.text.trim();
 
-  Widget _buildApplyButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: EdgeInsets.all(3.w),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 8.w),
-            SizedBox(height: 1.h),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11.sp,
-                fontWeight: FontWeight.w600,
-                color: color,
+                  if (name.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Name cannot be empty'), backgroundColor: Colors.red));
+                    return;
+                  }
+
+                  Navigator.pop(ctx);
+
+                  final success = await authProvider.updateProfile(
+                    fullName: name,
+                    phone: phone.isNotEmpty ? phone : null,
+                  );
+
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(success ? 'Profile updated!' : 'Failed to update profile'),
+                      backgroundColor: success ? Colors.green : Colors.red,
+                    ));
+                    if (success) setState(() {});
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.kjRed,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text('Save Changes', style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w600)),
               ),
             ),
           ],
@@ -562,45 +728,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
       "name": authProvider.fullName ?? 'User',
       "email": authProvider.email ?? '',
       "phone": authProvider.phone ?? '',
-      "avatar": authProvider.avatarUrl,
+      "avatar": authProvider.avatarUrl ?? '',
       "membershipTier": "Member",
-      "totalOrders": 0,
-      "loyaltyPoints": 0,
-      "totalSaved": 0.0,
+      "totalOrders": _totalOrders,
       "isPhoneVerified": authProvider.phoneVerified,
       "isEmailVerified": authProvider.emailVerified,
       "joinDate": "Recently",
     };
   }
 
-  Map<String, dynamic> _buildRewardsData() {
-    return {
-      "currentPoints": 0,
-      "nextTierPoints": 1000,
-      "nextTier": "Silver",
-      "freeDeliveries": 0,
-      "cashbackRate": 2,
-    };
-  }
-
   Widget _buildLoadingState() {
     final theme = Theme.of(context);
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(color: theme.colorScheme.primary),
-          SizedBox(height: 2.h),
-          Text(
-            'Loading profile...',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        CircularProgressIndicator(color: theme.colorScheme.primary),
+        SizedBox(height: 2.h),
+        Text('Loading profile...',
+            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+      ]),
     );
   }
+
+  // ============================================================
+  // SECTION ITEMS
+  // ============================================================
 
   List<Map<String, dynamic>> _getQuickActionItems() {
     final theme = Theme.of(context);
@@ -610,23 +761,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
         "iconColor": theme.colorScheme.primary,
         "title": "Order History",
         "subtitle": "View past orders and reorder",
-        "route": AppRoutes.orderHistory,
         "onTap": () => _goToTab(3),
       },
       {
         "icon": "shopping_cart",
-        "iconColor": theme.colorScheme.secondary,
+        "iconColor": theme.colorScheme.primary,
         "title": "Shopping Cart",
         "subtitle": "Continue your shopping",
-        "route": AppRoutes.shoppingCart,
-        "onTap": () => _goToTab(2),
+        "onTap": () => Navigator.pushNamed(context, AppRoutes.shoppingCart),
       },
       {
         "icon": "favorite",
         "iconColor": theme.colorScheme.error,
-        "title": "Wishlist",
-        "subtitle": "Saved items for later",
-        "route": null,
+        "title": "Favorites",
+        "subtitle": "Your saved items",
+        "onTap": () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+            ),
       },
     ];
   }
@@ -638,7 +790,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         "icon": "admin_panel_settings",
         "iconColor": theme.colorScheme.error,
         "title": "Admin Dashboard",
-        "subtitle": "Manage users, orders, and system",
+        "subtitle": "Full system management",
         "route": AppRoutes.adminDashboard,
       },
       {
@@ -657,37 +809,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
       {
         "icon": "shopping_bag",
-        "iconColor": theme.colorScheme.secondary,
+        "iconColor": Colors.blue,
         "title": "Order Management",
         "subtitle": "Monitor and manage orders",
         "route": AppRoutes.enhancedOrderManagement,
       },
+      {
+        "icon": "card_membership",
+        "iconColor": Colors.purple,
+        "title": "Subscription Plans",
+        "subtitle": "Manage plans & pricing",
+        "onTap": () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AdminSubscriptionManagementScreen()),
+            ),
+      },
     ];
   }
 
-  List<Map<String, dynamic>> _getAccountItems() {
+  List<Map<String, dynamic>> _getAccountItems(AuthProvider authProvider) {
     final theme = Theme.of(context);
     return [
       {
         "icon": "person",
         "iconColor": theme.colorScheme.primary,
         "title": "Personal Information",
-        "subtitle": "Name, email, phone number",
-        "route": null,
+        "subtitle": authProvider.fullName ?? 'Name, email, phone number',
+        "onTap": () => _showEditProfileDialog(authProvider),
       },
+      if (authProvider.canApplyAsMerchant || authProvider.canApplyAsDriver)
+        {
+          "icon": "handshake",
+          "iconColor": AppTheme.kjRed,
+          "title": "Become a Partner",
+          "subtitle": "Apply as a merchant or driver",
+          "onTap": () => _showPartnerOptions(authProvider),
+        },
       {
         "icon": "security",
-        "iconColor": theme.colorScheme.secondary,
+        "iconColor": theme.colorScheme.primary,
         "title": "Privacy & Security",
-        "subtitle": "Password, biometric settings",
-        "route": null,
+        "subtitle": "Password, account security",
+        "onTap": () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PrivacySecurityScreen()),
+            ),
       },
       {
         "icon": "notifications",
-        "iconColor": theme.colorScheme.tertiary,
+        "iconColor": Colors.orange,
         "title": "Notification Preferences",
         "subtitle": "Order updates, promotions",
-        "route": null,
+        "onTap": () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const NotificationPreferencesScreen()),
+            ),
       },
     ];
   }
@@ -700,61 +876,146 @@ class _ProfileScreenState extends State<ProfileScreen> {
         "iconColor": theme.colorScheme.primary,
         "title": "Delivery Addresses",
         "subtitle": "Manage your delivery locations",
-        "route": null,
+        "onTap": () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MyAddressesScreen()),
+            ),
       },
       {
         "icon": "schedule",
-        "iconColor": theme.colorScheme.secondary,
+        "iconColor": Colors.blue,
         "title": "Delivery Preferences",
         "subtitle": "Time slots, special instructions",
-        "route": null,
+        "onTap": () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const DeliveryPreferencesScreen()),
+            ),
       },
     ];
   }
 
   List<Map<String, dynamic>> _getPaymentItems() {
     final theme = Theme.of(context);
+    final adminProvider = Provider.of<AdminProvider>(context, listen: false);
+
     return [
       {
         "icon": "payment",
         "iconColor": theme.colorScheme.primary,
-        "title": "Payment Methods",
-        "subtitle": "Manage cards and payment options",
-        "route": null,
+        "title": "Payment Method",
+        "subtitle": "Cash on Delivery",
+        "onTap": () => _showCashOnlyInfo(),
       },
       {
-        "icon": "account_balance_wallet",
-        "iconColor": theme.colorScheme.secondary,
-        "title": "Wallet",
-        "subtitle": "View balance and transactions",
-        "route": null,
+        "icon": "receipt_long",
+        "iconColor": Colors.green,
+        "title": "Spending Summary",
+        "subtitle": "$_totalOrders order${_totalOrders == 1 ? '' : 's'} completed",
+        "onTap": () => _showSpendingSummary(),
       },
       {
         "icon": "card_membership",
-        "iconColor": theme.colorScheme.tertiary,
+        "iconColor": _subscriptionsEnabled ? Colors.purple : Colors.grey,
         "title": "Subscription Plans",
-        "subtitle": "Manage your subscription",
-        "route": AppRoutes.subscriptionManagement,
+        "subtitle": _subscriptionsEnabled
+            ? "Manage your subscription"
+            : "Coming soon",
+        "onTap": _subscriptionsEnabled
+            ? null
+            : () => _showComingSoon('Subscription Plans'),
+        "route": _subscriptionsEnabled ? AppRoutes.subscriptionManagement : null,
+      },
+      // Admin toggle for subscriptions (only visible to admins)
+      if (adminProvider.isAdmin) {
+        "icon": "admin_panel_settings",
+        "iconColor": _subscriptionsEnabled ? Colors.green : Colors.grey,
+        "title": "Subscriptions Toggle",
+        "subtitle": _subscriptionsEnabled ? "ON — Users can access" : "OFF — Hidden from users",
+        "onTap": () => _toggleSubscriptions(),
       },
     ];
   }
 
-  List<Map<String, dynamic>> _getPreferenceItems() {
+  void _showCashOnlyInfo() {
     final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(children: [
+          Icon(Icons.payment, color: theme.colorScheme.primary),
+          const SizedBox(width: 8),
+          const Text('Payment Method'),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.money, color: Colors.green),
+              ),
+              title: const Text('Cash on Delivery'),
+              subtitle: const Text('Pay when your order arrives'),
+              trailing: const Icon(Icons.check_circle, color: Colors.green),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+        ],
+      ),
+    );
+  }
+
+  void _showSpendingSummary() {
+    final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(children: [
+          Icon(Icons.receipt_long, color: Colors.green),
+          const SizedBox(width: 8),
+          const Text('Spending Summary'),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildSummaryRow('Total Orders', '$_totalOrders', Icons.shopping_bag, theme),
+            SizedBox(height: 2.h),
+            _buildSummaryRow('Total Spent', '\$${_totalSpent.toStringAsFixed(2)}', Icons.attach_money, theme),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryRow(String label, String value, IconData icon, ThemeData theme) {
+    return Row(
+      children: [
+        Icon(icon, color: theme.colorScheme.primary, size: 24),
+        SizedBox(width: 3.w),
+        Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
+        Text(value, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+
+  // Language REMOVED — only theme toggle remains
+  List<Map<String, dynamic>> _getPreferenceItems() {
     return [
       {
-        "icon": "language",
-        "iconColor": theme.colorScheme.primary,
-        "title": "Language",
-        "subtitle": "English (US)",
-        "route": null,
-      },
-      {
         "icon": "dark_mode",
-        "iconColor": theme.colorScheme.onSurfaceVariant,
+        "iconColor": Theme.of(context).colorScheme.onSurfaceVariant,
         "title": "App Theme",
         "subtitle": _themeModeLabel(context),
-        "route": null,
         "trailing": Consumer<ThemeProvider>(
           builder: (context, themeProvider, child) {
             final cs = Theme.of(context).colorScheme;
@@ -767,20 +1028,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 PopupMenuItem(value: ThemeMode.light, child: Text('Light')),
                 PopupMenuItem(value: ThemeMode.dark, child: Text('Dark')),
               ],
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _themeModeShortLabel(themeProvider.themeMode),
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: cs.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  SizedBox(width: 1.5.w),
-                  Icon(Icons.expand_more, color: cs.primary),
-                ],
-              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(
+                  _themeModeShortLabel(themeProvider.themeMode),
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelLarge
+                      ?.copyWith(color: cs.primary, fontWeight: FontWeight.w600),
+                ),
+                SizedBox(width: 1.5.w),
+                Icon(Icons.expand_more, color: cs.primary),
+              ]),
             );
           },
         ),
@@ -792,9 +1050,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final tp = Provider.of<ThemeProvider>(context, listen: false);
     switch (tp.themeMode) {
       case ThemeMode.system:
-        return Theme.of(context).brightness == Brightness.dark
-            ? "System (Dark)"
-            : "System (Light)";
+        return Theme.of(context).brightness == Brightness.dark ? "System (Dark)" : "System (Light)";
       case ThemeMode.dark:
         return "Dark mode";
       case ThemeMode.light:
@@ -813,32 +1069,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // Help section: WhatsApp + Phone, no help center, no live chat, no about
   List<Map<String, dynamic>> _getHelpItems() {
-    final theme = Theme.of(context);
     return [
       {
-        "icon": "help",
-        "iconColor": theme.colorScheme.primary,
-        "title": "Help Center",
-        "subtitle": "FAQs and support articles",
-        "route": null,
+        "icon": "phone",
+        "iconColor": Colors.green,
+        "title": "Customer Support 24/7",
+        "subtitle": "+961 81-483570",
+        "onTap": () => _launchPhone('+96181483570'),
       },
       {
         "icon": "chat",
-        "iconColor": theme.colorScheme.secondary,
-        "title": "Live Chat",
-        "subtitle": "Get instant help",
-        "route": null,
-      },
-      {
-        "icon": "info",
-        "iconColor": theme.colorScheme.onSurfaceVariant,
-        "title": "About KJ Delivery",
-        "subtitle": "Version 2.1.0",
-        "route": null,
+        "iconColor": const Color(0xFF25D366),
+        "title": "WhatsApp Support 24/7",
+        "subtitle": "Chat with us on WhatsApp",
+        "onTap": () => _launchWhatsApp('+96181483570'),
       },
     ];
   }
+
+  // ============================================================
+  // LAUNCH PHONE / WHATSAPP
+  // ============================================================
+
+  Future<void> _launchPhone(String number) async {
+    final uri = Uri.parse('tel:$number');
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not launch phone dialer'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not launch phone dialer'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Future<void> _launchWhatsApp(String number) async {
+    // Try WhatsApp deep link first, fallback to web
+    final whatsappUri = Uri.parse('https://wa.me/${number.replaceAll('+', '')}');
+    try {
+      await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open WhatsApp'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // COMING SOON (minimal usage now)
+  // ============================================================
+
+  void _showComingSoon(String feature) {
+    HapticFeedback.lightImpact();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$feature — coming soon!'),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+  }
+
+  // ============================================================
+  // SIGN OUT
+  // ============================================================
 
   Widget _buildSignOutButton() {
     final theme = Theme.of(context);
@@ -847,42 +1155,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: authProvider.isLoading
-                ? null
-                : () => _handleSignOut(authProvider),
+            onPressed: authProvider.isLoading ? null : () => _handleSignOut(authProvider),
             style: ElevatedButton.styleFrom(
               padding: EdgeInsets.symmetric(vertical: 2.h),
               backgroundColor: theme.colorScheme.error,
-              foregroundColor: theme.colorScheme.onError,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: authProvider.isLoading
                 ? SizedBox(
                     height: 5.w,
                     width: 5.w,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        theme.colorScheme.onError,
-                      ),
-                    ),
+                    child: const CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)),
                   )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.logout, size: 20),
-                      SizedBox(width: 2.w),
-                      Text(
-                        'Sign Out',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: theme.colorScheme.onError,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
+                : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.logout, size: 20),
+                    SizedBox(width: 2.w),
+                    Text('Sign Out',
+                        style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+                  ]),
           ),
         );
       },
@@ -898,15 +1189,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text('Sign Out'),
         content: const Text('Are you sure you want to sign out?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(
-              foregroundColor: theme.colorScheme.error,
-            ),
+            style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
             child: const Text('Sign Out'),
           ),
         ],
@@ -914,47 +1200,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirm == true && mounted) {
-      final notificationsProvider = Provider.of<NotificationsProvider>(
-        context,
-        listen: false,
-      );
+      final notificationsProvider = Provider.of<NotificationsProvider>(context, listen: false);
       notificationsProvider.clearNotifications();
 
       await authProvider.signOut();
 
       if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          AppRoutes.authentication,
-          (route) => false,
-        );
+        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.authentication, (route) => false);
       }
     }
   }
 
-  void _editProfile() {
-    HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Edit profile feature coming soon!'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  void _viewAllRewards() {
-    HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Rewards center coming soon!'),
-        backgroundColor: Theme.of(context).colorScheme.secondary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
+  // ============================================================
+  // SETTINGS MENU
+  // ============================================================
 
   void _showSettingsMenu() {
     final theme = Theme.of(context);
@@ -967,69 +1226,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       builder: (context) => Container(
         padding: EdgeInsets.all(4.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 12.w,
-              height: 0.5.h,
-              decoration: BoxDecoration(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 12.w,
+            height: 0.5.h,
+            decoration: BoxDecoration(
                 color: theme.colorScheme.outline.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            SizedBox(height: 3.h),
-            ListTile(
-              leading: CustomIconWidget(
-                iconName: 'share',
-                color: theme.colorScheme.primary,
-                size: 6.w,
-              ),
-              title: const Text('Share Profile'),
-              onTap: () {
-                Navigator.pop(context);
-                _shareProfile();
-              },
-            ),
-            ListTile(
-              leading: CustomIconWidget(
-                iconName: 'download',
-                color: theme.colorScheme.secondary,
-                size: 6.w,
-              ),
-              title: const Text('Export Data'),
-              onTap: () {
-                Navigator.pop(context);
-                _exportData();
-              },
-            ),
-            SizedBox(height: 2.h),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _shareProfile() {
-    HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Profile sharing feature coming soon!'),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  void _exportData() {
-    HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Data export feature coming soon!'),
-        backgroundColor: Theme.of(context).colorScheme.secondary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(4)),
+          ),
+          SizedBox(height: 3.h),
+          ListTile(
+            leading: Icon(Icons.share, color: theme.colorScheme.primary),
+            title: const Text('Share Profile'),
+            onTap: () {
+              Navigator.pop(context);
+              _showComingSoon('Profile Sharing');
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.download, color: theme.colorScheme.primary),
+            title: const Text('Export Data'),
+            onTap: () {
+              Navigator.pop(context);
+              _showComingSoon('Data Export');
+            },
+          ),
+          SizedBox(height: 2.h),
+        ]),
       ),
     );
   }

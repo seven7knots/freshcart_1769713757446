@@ -492,7 +492,7 @@ class AuthProvider extends ChangeNotifier {
 
       await SupabaseService.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: kIsWeb ? null : 'io.supabase.freshcart://login-callback/',
+        redirectTo: kIsWeb ? null : 'com.kjdelivery.app://login-callback/',
       );
 
       await AnalyticsService.logLogin(method: 'google', success: true);
@@ -531,7 +531,7 @@ class AuthProvider extends ChangeNotifier {
 
       await SupabaseService.client.auth.resetPasswordForEmail(
         email,
-        redirectTo: kIsWeb ? null : 'io.supabase.freshcart://reset-password/',
+        redirectTo: kIsWeb ? null : 'com.kjdelivery.app://reset-password/',
       );
 
       return true;
@@ -841,4 +841,3 @@ class AuthProvider extends ChangeNotifier {
     super.dispose();
   }
 }
-

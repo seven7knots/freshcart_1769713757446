@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/service_model.dart';
 import '../models/service_booking_model.dart';
@@ -9,7 +10,6 @@ class MarketplaceService {
 
   // ========== SERVICES SECTION ==========
 
-  // Get services by type
   Future<List<ServiceModel>> getServicesByType(
     String type, {
     int limit = 50,
@@ -34,7 +34,6 @@ class MarketplaceService {
     }
   }
 
-  // Get service by ID
   Future<ServiceModel?> getServiceById(String serviceId) async {
     try {
       final response = await _client
@@ -50,7 +49,6 @@ class MarketplaceService {
     }
   }
 
-  // Create service booking
   Future<ServiceBookingModel> createBooking({
     required String serviceId,
     required String providerId,
@@ -114,7 +112,6 @@ class MarketplaceService {
     }
   }
 
-  // Get my bookings
   Future<List<ServiceBookingModel>> getMyBookings({
     String? status,
     int limit = 50,
@@ -141,7 +138,6 @@ class MarketplaceService {
     }
   }
 
-  // Update booking status
   Future<void> updateBookingStatus(String bookingId, String status) async {
     try {
       await _client.from('service_bookings').update({
@@ -153,7 +149,6 @@ class MarketplaceService {
     }
   }
 
-  // Cancel booking
   Future<void> cancelBooking(String bookingId, String reason) async {
     try {
       final userId = _client.auth.currentUser?.id;
@@ -170,7 +165,6 @@ class MarketplaceService {
     }
   }
 
-  // Rate service
   Future<void> rateService(String bookingId, int rating, String? review) async {
     try {
       await _client.from('service_bookings').update({
@@ -183,7 +177,6 @@ class MarketplaceService {
     }
   }
 
-  // Search services across all types
   Future<List<ServiceModel>> searchServices(
     String query, {
     String? type,
@@ -213,17 +206,25 @@ class MarketplaceService {
 
   // ========== MARKETPLACE LISTINGS SECTION ==========
 
-  // Get listings with filters
+  /// Get listings with filters including location-based filtering.
+  ///
+  /// If [locationLat] and [locationLng] are provided, filters listings
+  /// within [radiusKm] km using a bounding box approach.
+  /// If [locationCity] is provided (without lat/lng), matches on location_text.
   Future<List<MarketplaceListingModel>> getListings({
     String? category,
     String? condition,
     int limit = 50,
     int offset = 0,
+    double? locationLat,
+    double? locationLng,
+    String? locationCity,
+    double radiusKm = 30,
   }) async {
     try {
       print('🔍 Fetching marketplace listings...');
       print('   Category: ${category ?? "all"}');
-      print('   Condition: ${condition ?? "all"}');
+      print('   Location: ${locationCity ?? "all"} (${locationLat ?? "no"}, ${locationLng ?? "no"})');
 
       var query = _client
           .from('marketplace_listings')
@@ -238,21 +239,66 @@ class MarketplaceService {
         query = query.eq('condition', condition);
       }
 
+      // Location filtering using bounding box
+      if (locationLat != null && locationLng != null) {
+        // Calculate bounding box for radiusKm
+        final latDelta = radiusKm / 111.0; // ~111km per degree of latitude
+        final lngDelta = radiusKm / (111.0 * math.cos(locationLat * math.pi / 180));
+
+        final minLat = locationLat - latDelta;
+        final maxLat = locationLat + latDelta;
+        final minLng = locationLng - lngDelta;
+        final maxLng = locationLng + lngDelta;
+
+        query = query
+            .gte('location_lat', minLat)
+            .lte('location_lat', maxLat)
+            .gte('location_lng', minLng)
+            .lte('location_lng', maxLng);
+
+        print('   Bounding box: lat[$minLat, $maxLat] lng[$minLng, $maxLng]');
+      } else if (locationCity != null) {
+        // Fallback: match on location_text containing the city name
+        query = query.ilike('location_text', '%$locationCity%');
+      }
+
       final response = await query
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
 
       print('✅ Found ${(response as List).length} listings');
-      return (response as List)
+
+      var listings = (response as List)
           .map((json) => MarketplaceListingModel.fromJson(json))
           .toList();
+
+      // If lat/lng filtering was used, sort by distance (nearest first)
+      if (locationLat != null && locationLng != null) {
+        listings.sort((a, b) {
+          final distA = _haversine(locationLat, locationLng,
+              a.locationLat ?? 0, a.locationLng ?? 0);
+          final distB = _haversine(locationLat, locationLng,
+              b.locationLat ?? 0, b.locationLng ?? 0);
+          return distA.compareTo(distB);
+        });
+      }
+
+      return listings;
     } catch (e) {
       print('❌ Error loading listings: $e');
       throw Exception('Failed to load listings: $e');
     }
   }
 
-  // Get listing by ID
+  /// Haversine distance in km
+  double _haversine(double lat1, double lon1, double lat2, double lon2) {
+    const p = 0.017453292519943295;
+    final a = 0.5 -
+        math.cos((lat2 - lat1) * p) / 2 +
+        math.cos(lat1 * p) * math.cos(lat2 * p) * (1 - math.cos((lon2 - lon1) * p)) / 2;
+    return 12742 * math.asin(math.sqrt(a));
+  }
+
   Future<MarketplaceListingModel?> getListingById(String listingId) async {
     try {
       final response = await _client
@@ -268,7 +314,6 @@ class MarketplaceService {
     }
   }
 
-  // Create listing
   Future<MarketplaceListingModel> createListing({
     required String title,
     required String description,
@@ -312,7 +357,6 @@ class MarketplaceService {
     }
   }
 
-  // Update listing
   Future<void> updateListing(
     String listingId,
     Map<String, dynamic> updates,
@@ -327,7 +371,6 @@ class MarketplaceService {
     }
   }
 
-  // Delete listing
   Future<void> deleteListing(String listingId) async {
     try {
       await _client.from('marketplace_listings').update({
@@ -339,7 +382,6 @@ class MarketplaceService {
     }
   }
 
-  // Mark as sold
   Future<void> markAsSold(String listingId) async {
     try {
       await _client.from('marketplace_listings').update({
@@ -351,7 +393,6 @@ class MarketplaceService {
     }
   }
 
-  // Get my listings
   Future<List<MarketplaceListingModel>> getMyListings() async {
     try {
       final userId = _client.auth.currentUser?.id;
@@ -372,7 +413,6 @@ class MarketplaceService {
     }
   }
 
-  // Increment views
   Future<void> incrementViews(String listingId) async {
     try {
       await _client.rpc(
@@ -380,7 +420,6 @@ class MarketplaceService {
         params: {'listing_id': listingId},
       );
     } catch (e) {
-      // Silently fail if RPC doesn't exist, or manually increment
       try {
         final listing = await getListingById(listingId);
         if (listing != null) {
@@ -394,7 +433,6 @@ class MarketplaceService {
 
   // ========== STORAGE SECTION ==========
 
-  // Upload image to marketplace storage
   Future<String> uploadImage(File file) async {
     try {
       final userId = _client.auth.currentUser?.id;
@@ -411,7 +449,6 @@ class MarketplaceService {
     }
   }
 
-  // Upload multiple images
   Future<List<String>> uploadImages(List<File> files) async {
     try {
       final urls = <String>[];

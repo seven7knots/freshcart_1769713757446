@@ -1,9 +1,17 @@
+// ============================================================
+// FILE: lib/presentation/search_screen/widgets/product_grid_widget.dart
+// ============================================================
+// Product grid with HEART ICON on each card, wired to FavoritesProvider.
+// Tapping the heart saves/removes from Supabase user_favorites.
+// ============================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../models/product_model.dart';
+import '../../../providers/favorites_provider.dart';
 import '../../../widgets/animated_press_button.dart';
 
 class ProductGridWidget extends StatelessWidget {
@@ -61,7 +69,7 @@ class ProductGridWidget extends StatelessWidget {
 
   Widget _buildProductCard(BuildContext context, Product product) {
     final theme = Theme.of(context);
-    
+
     return AnimatedPressButton(
       onPressed: () {
         HapticFeedback.lightImpact();
@@ -87,7 +95,7 @@ class ProductGridWidget extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Product image
+              // Product image with heart overlay
               Expanded(
                 flex: 3,
                 child: Container(
@@ -134,6 +142,36 @@ class ProductGridWidget extends StatelessWidget {
                               ),
                             ),
                           ),
+                        // ========================================
+                        // HEART / FAVORITE ICON — TOP RIGHT
+                        // ========================================
+                        Positioned(
+                          top: 0.5.h,
+                          right: 0.5.h,
+                          child: Consumer<FavoritesProvider>(
+                            builder: (context, favProvider, _) {
+                              final isFav = favProvider.isDeliveryFavorite(product.id);
+                              return GestureDetector(
+                                onTap: () async {
+                                  HapticFeedback.lightImpact();
+                                  await favProvider.toggleDeliveryFavorite(product.id);
+                                },
+                                child: Container(
+                                  padding: EdgeInsets.all(1.5.w),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.35),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    isFav ? Icons.favorite : Icons.favorite_border,
+                                    color: isFav ? Colors.red : Colors.white,
+                                    size: 18,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                         // Out of stock overlay
                         if (!product.canOrder)
                           Positioned.fill(
@@ -266,7 +304,7 @@ class ProductGridWidget extends StatelessWidget {
 
   Widget _buildSkeletonCard(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Container(
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -350,7 +388,7 @@ class ProductGridWidget extends StatelessWidget {
 
   Widget _buildEmptyState(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Center(
       child: Padding(
         padding: EdgeInsets.all(8.w),
@@ -405,7 +443,6 @@ class ProductGridWidget extends StatelessWidget {
             return AnimatedPressButton(
               onPressed: () {
                 HapticFeedback.lightImpact();
-                // Navigate to category
               },
               child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
@@ -430,11 +467,11 @@ class ProductGridWidget extends StatelessWidget {
 
   void _showQuickActions(BuildContext context, Product product) {
     final theme = Theme.of(context);
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
+      builder: (ctx) => Container(
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
@@ -451,16 +488,23 @@ class ProductGridWidget extends StatelessWidget {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            ListTile(
-              leading: CustomIconWidget(
-                iconName: 'favorite_border',
-                color: theme.colorScheme.onSurface,
-                size: 24,
-              ),
-              title: const Text('Add to Wishlist'),
-              onTap: () {
-                Navigator.pop(context);
-                onAddToWishlist?.call(product);
+            // Favorite toggle in quick actions — also wired
+            Consumer<FavoritesProvider>(
+              builder: (context, favProvider, _) {
+                final isFav = favProvider.isDeliveryFavorite(product.id);
+                return ListTile(
+                  leading: Icon(
+                    isFav ? Icons.favorite : Icons.favorite_border,
+                    color: isFav ? Colors.red : theme.colorScheme.onSurface,
+                    size: 24,
+                  ),
+                  title: Text(isFav ? 'Remove from Favorites' : 'Add to Favorites'),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    HapticFeedback.lightImpact();
+                    await favProvider.toggleDeliveryFavorite(product.id);
+                  },
+                );
               },
             ),
             ListTile(
@@ -471,8 +515,7 @@ class ProductGridWidget extends StatelessWidget {
               ),
               title: const Text('View Similar'),
               onTap: () {
-                Navigator.pop(context);
-                // Navigate to similar products
+                Navigator.pop(ctx);
               },
             ),
             ListTile(
@@ -483,7 +526,7 @@ class ProductGridWidget extends StatelessWidget {
               ),
               title: const Text('Share Product'),
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pop(ctx);
                 onShare?.call(product);
               },
             ),

@@ -5,14 +5,15 @@ import '../models/product_model.dart';
 import '../presentation/admin_ads_management_screen/admin_ads_management_screen.dart';
 import '../presentation/admin_applications_screen/admin_applications_screen.dart';
 import '../presentation/admin_dashboard_screen/admin_dashboard_screen.dart';
-import '../presentation/admin_landing_dashboard_screen/admin_landing_dashboard_screen.dart';
+
 import '../presentation/admin_logistics_management_screen/admin_logistics_management_screen.dart';
 import '../presentation/admin_navigation_drawer_screen/admin_navigation_drawer_screen.dart';
 import '../presentation/admin_role_upgrade_management_screen/admin_role_upgrade_management_screen.dart';
 import '../presentation/admin_users_management_screen/admin_users_management_screen.dart';
 import '../presentation/ai_chat_assistant_screen/ai_chat_assistant_screen.dart';
 import '../presentation/ai_meal_planning_screen/ai_meal_planning_screen.dart';
-import '../presentation/ai_powered_search_screen/ai_powered_search_screen.dart';
+// AI Powered Search is now merged into AI Chat Assistant (AI Mate)
+// import '../presentation/ai_powered_search_screen/ai_powered_search_screen.dart';
 import '../presentation/all_categories_screen/all_categories_screen.dart';
 import '../presentation/auth_gate_screen/auth_gate_screen.dart';
 import '../presentation/authentication_screen/authentication_screen.dart';
@@ -49,7 +50,6 @@ import '../presentation/service_listing_screen/service_listing_screen.dart';
 import '../presentation/shopping_cart_screen/shopping_cart_screen.dart';
 import '../presentation/splash_screen/splash_screen.dart';
 import '../presentation/store_detail_screen/store_detail_screen.dart';
-import '../presentation/stores_screen/stores_screen.dart';
 import '../presentation/subcategories_screen/subcategories_screen.dart';
 import '../presentation/subscription_management_screen/subscription_management_screen.dart';
 import '../widgets/main_layout_wrapper.dart';
@@ -207,10 +207,11 @@ class AppRoutes {
     orderTracking: (context) => const OrderTrackingScreen(),
     subscriptionManagement: (context) => const SubscriptionManagementScreen(),
 
-    // AI
+    // AI (unified - all AI features accessible through AI Mate chat)
     aiChatAssistant: (context) => const AIChatAssistantScreen(),
     aiMealPlanning: (context) => const AIMealPlanningScreen(),
-    aiPoweredSearch: (context) => const AIPoweredSearchScreen(),
+    // AI Powered Search now redirects to unified AI Mate chat
+    aiPoweredSearch: (context) => const AIChatAssistantScreen(),
 
     // Marketplace
     marketplaceScreen: (context) => const MarketplaceScreen(),
@@ -266,7 +267,7 @@ class AppRoutes {
     // Admin
     adminDashboard: (context) => const AdminDashboardScreen(),
     adminNavigationDrawer: (context) => const AdminNavigationDrawerScreen(),
-    adminLandingDashboard: (context) => const AdminLandingDashboardScreen(),
+    adminLandingDashboard: (context) => const AdminDashboardScreen(),
     adminUsersManagement: (context) => const AdminUsersManagementScreen(),
     adminRoleUpgradeManagement: (context) => const AdminRoleUpgradeManagementScreen(),
     enhancedOrderManagement: (context) => const EnhancedOrderManagementScreen(),

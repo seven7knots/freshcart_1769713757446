@@ -1,7 +1,19 @@
-import 'package:flutter/material.dart';
+// ============================================================
+// FILE: lib/presentation/admin_dashboard_screen/admin_dashboard_screen.dart
+// ============================================================
+// MERGED Admin Dashboard — combines the profile admin dashboard
+// and the landing admin dashboard into ONE unified interface.
+// UPDATED: Added home icon + proper back button to navigate to main app.
+// ============================================================
 
-import '../../providers/admin_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:sizer/sizer.dart';
+
 import '../../core/app_export.dart';
+import '../../providers/admin_provider.dart';
+import '../../services/analytics_service.dart';
+import '../admin_subscription_management_screen/admin_subscription_management_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -11,246 +23,134 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  bool _isCheckingAdmin = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _initializeAdminStatus();
+    _verifyAdminAndLoadData();
+    AnalyticsService.logScreenView(screenName: 'admin_dashboard_screen');
   }
 
-  Future<void> _initializeAdminStatus() async {
+  Future<void> _verifyAdminAndLoadData() async {
     final adminProvider = Provider.of<AdminProvider>(context, listen: false);
-    await adminProvider.checkAdminStatus();
-    await adminProvider.loadPendingApplications(); // Load pending applications count
-    
+
+    if (!adminProvider.isAdmin) {
+      await adminProvider.checkAdminStatus();
+    }
+
+    if (!adminProvider.isAdmin && mounted) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access denied. Admin privileges required.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    await Future.wait([
+      adminProvider.loadDashboardStats(),
+      adminProvider.loadPendingApplications(),
+      adminProvider.loadRecentOrders(limit: 5),
+    ]);
+
     if (mounted) {
-      debugPrint('[AdminDashboard] Admin status initialized: ${adminProvider.isAdmin}');
+      setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _debugAdminCheck() async {
-    if (_isCheckingAdmin) return;
-    
-    setState(() {
-      _isCheckingAdmin = true;
-    });
+  Future<void> _handleRefresh() async {
+    HapticFeedback.lightImpact();
+    await _verifyAdminAndLoadData();
+  }
 
-    try {
-      final client = Supabase.instance.client;
-
-      // 1. Check current user
-      final uid = client.auth.currentUser?.id;
-      final email = client.auth.currentUser?.email;
-      debugPrint('[DEBUG] ===== ADMIN CHECK START =====');
-      debugPrint('[DEBUG] Current UID: $uid');
-      debugPrint('[DEBUG] Current Email: $email');
-
-      // 2. Check RPC directly
-      final rpcResult = await client.rpc('is_admin');
-      debugPrint('[DEBUG] RPC is_admin() result: $rpcResult');
-
-      // 3. Check database user record
-      final userRecord = await client
-          .from('users')
-          .select('id, email, role, is_active')
-          .eq('id', uid ?? '')
-          .maybeSingle();
-      debugPrint('[DEBUG] Database user record: $userRecord');
-
-      // 4. Check provider status
-      final adminProvider = Provider.of<AdminProvider>(context, listen: false);
-      await adminProvider.checkAdminStatus();
-      debugPrint('[DEBUG] AdminProvider.isAdmin: ${adminProvider.isAdmin}');
-      debugPrint('[DEBUG] AdminProvider.error: ${adminProvider.error}');
-      debugPrint('[DEBUG] ===== ADMIN CHECK END =====');
-
-      if (!mounted) return;
-
-      // Show comprehensive debug info
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'UID: ${uid ?? "null"}\n'
-            'Email: ${email ?? "null"}\n'
-            'DB Role: ${userRecord?['role'] ?? "not found"}\n'
-            'RPC Result: $rpcResult\n'
-            'Provider isAdmin: ${adminProvider.isAdmin}\n'
-            'Error: ${adminProvider.error ?? "none"}',
-            style: const TextStyle(fontSize: 11),
-          ),
-          duration: const Duration(seconds: 8),
-          backgroundColor: adminProvider.isAdmin ? Colors.green : Colors.red,
-          action: SnackBarAction(
-            label: 'COPY',
-            textColor: Colors.white,
-            onPressed: () {
-              debugPrint('Full debug info printed to console');
-            },
-          ),
-        ),
-      );
-    } catch (e, stackTrace) {
-      debugPrint('[DEBUG] ===== ERROR =====');
-      debugPrint('[DEBUG] Error: $e');
-      debugPrint('[DEBUG] StackTrace: $stackTrace');
-      
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('DEBUG FAILED: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isCheckingAdmin = false;
-        });
-      }
-    }
+  /// Navigate back to the main app interface
+  void _goToMainApp() {
+    HapticFeedback.lightImpact();
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.mainLayout,
+      (route) => false,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              _goToMainApp();
+            }
+          },
+          tooltip: 'Back',
+        ),
         title: const Text('Admin Dashboard'),
         actions: [
-          // Debug button to manually check admin status
+          // HOME BUTTON — takes admin back to main app
           IconButton(
-            icon: _isCheckingAdmin
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : const Icon(Icons.bug_report),
-            onPressed: _isCheckingAdmin ? null : _debugAdminCheck,
-            tooltip: 'Debug Admin Status',
+            icon: const Icon(Icons.home_outlined),
+            onPressed: _goToMainApp,
+            tooltip: 'Back to App',
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.emergency, color: Colors.yellowAccent),
+            onPressed: _showEmergencyControls,
+            tooltip: 'Emergency Controls',
           ),
         ],
       ),
       body: Consumer<AdminProvider>(
         builder: (context, adminProvider, child) {
-          if (adminProvider.isLoading) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+          if (_isLoading || adminProvider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
           }
 
           if (!adminProvider.isAdmin) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.lock, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Access Denied',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'You do not have admin privileges.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: _debugAdminCheck,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Check Admin Status'),
-                  ),
-                  const SizedBox(height: 12),
-                  if (adminProvider.error != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(
-                        'Error: ${adminProvider.error}',
-                        style: const TextStyle(color: Colors.red, fontSize: 12),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                ],
-              ),
-            );
+            return _buildAccessDenied(adminProvider);
           }
 
-          // Admin UI content
           return RefreshIndicator(
-            onRefresh: () async {
-              await adminProvider.checkAdminStatus();
-              await adminProvider.loadDashboardStats();
-              await adminProvider.loadPendingApplications();
-            },
+            onRefresh: _handleRefresh,
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Welcome card
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.admin_panel_settings, size: 48),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Welcome, Admin',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'You have full admin access',
-                                  style: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Pending Applications Alert
+                  _buildSystemStatusHeader(theme),
+                  SizedBox(height: 2.h),
+                  _buildMetricsCards(adminProvider, theme),
+                  SizedBox(height: 2.h),
                   if (adminProvider.pendingApplicationsCount > 0) ...[
-                    _buildPendingApplicationsAlert(adminProvider),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // Dashboard stats
-                  if (adminProvider.dashboardStats != null) ...[
-                    const Text(
-                      'Dashboard Overview',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4.w),
+                      child: _buildPendingApplicationsAlert(adminProvider, theme),
                     ),
-                    const SizedBox(height: 12),
-                    _buildStatsGrid(adminProvider.dashboardStats!),
-                    const SizedBox(height: 24),
+                    SizedBox(height: 2.h),
                   ],
-
-                  // Quick actions
-                  const Text(
-                    'Quick Actions',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 12),
-                  _buildQuickActions(context, adminProvider),
+                  _buildManagementGrid(theme),
+                  SizedBox(height: 2.h),
+                  _buildQuickActions(adminProvider, theme),
+                  SizedBox(height: 2.h),
+                  _buildLiveActivityFeed(adminProvider, theme),
+                  SizedBox(height: 2.h),
+                  _buildPerformanceOverview(adminProvider, theme),
+                  SizedBox(height: 4.h),
                 ],
               ),
             ),
@@ -260,11 +160,104 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildPendingApplicationsAlert(AdminProvider adminProvider) {
+  Widget _buildAccessDenied(AdminProvider adminProvider) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.lock, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          const Text('Access Denied', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          const Text('You do not have admin privileges.', style: TextStyle(color: Colors.grey)),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: _verifyAdminAndLoadData,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Check Admin Status'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _goToMainApp,
+            icon: const Icon(Icons.home),
+            label: const Text('Go to Main App'),
+          ),
+          if (adminProvider.error != null) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text('Error: ${adminProvider.error}',
+                  style: const TextStyle(color: Colors.red, fontSize: 12), textAlign: TextAlign.center),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSystemStatusHeader(ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(4.w),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [AppTheme.kjRed, AppTheme.kjRed.withOpacity(0.8)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 12, height: 12, decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle)),
+          SizedBox(width: 2.w),
+          Text('System Operational', style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600, color: Colors.white)),
+        ]),
+        SizedBox(height: 1.h),
+        Text('All services running normally', style: TextStyle(fontSize: 12.sp, color: Colors.white.withOpacity(0.8))),
+      ]),
+    );
+  }
+
+  Widget _buildMetricsCards(AdminProvider adminProvider, ThemeData theme) {
+    final stats = adminProvider.dashboardStats;
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4.w),
+      child: Column(children: [
+        Row(children: [
+          Expanded(child: _buildMetricCard(icon: Icons.shopping_bag, title: 'Active Orders', value: stats?['active_orders']?.toString() ?? stats?['total_orders']?.toString() ?? '0', color: Colors.blue, onTap: () => Navigator.pushNamed(context, AppRoutes.enhancedOrderManagement), theme: theme)),
+          SizedBox(width: 3.w),
+          Expanded(child: _buildMetricCard(icon: Icons.local_shipping, title: 'Online Drivers', value: stats?['online_drivers']?.toString() ?? '0', color: Colors.green, onTap: () => Navigator.pushNamed(context, AppRoutes.adminUsersManagement), theme: theme)),
+        ]),
+        SizedBox(height: 3.w),
+        Row(children: [
+          Expanded(child: _buildMetricCard(icon: Icons.attach_money, title: 'Revenue Today', value: '\$${stats?['revenue_today']?.toStringAsFixed(2) ?? stats?['total_revenue']?.toStringAsFixed(2) ?? '0.00'}', color: Colors.orange, onTap: () {}, theme: theme)),
+          SizedBox(width: 3.w),
+          Expanded(child: _buildMetricCard(icon: Icons.people, title: 'Total Users', value: stats?['total_users']?.toString() ?? '0', color: Colors.purple, onTap: () => Navigator.pushNamed(context, AppRoutes.adminUsersManagement), theme: theme)),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _buildMetricCard({required IconData icon, required String title, required String value, required Color color, required VoidCallback onTap, required ThemeData theme}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(4.w),
+        decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: theme.colorScheme.shadow.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))]),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: color, size: 30),
+          SizedBox(height: 1.h),
+          Text(value, style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+          SizedBox(height: 0.5.h),
+          Text(title, style: TextStyle(fontSize: 12.sp, color: theme.colorScheme.onSurfaceVariant)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _buildPendingApplicationsAlert(AdminProvider adminProvider, ThemeData theme) {
     final count = adminProvider.pendingApplicationsCount;
     final merchantCount = adminProvider.pendingMerchants.length;
     final driverCount = adminProvider.pendingDrivers.length;
-
     return Card(
       color: Colors.orange.shade50,
       child: InkWell(
@@ -272,223 +265,203 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.pending_actions, color: Colors.white, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$count Pending Application${count > 1 ? 's' : ''}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '$merchantCount merchant${merchantCount != 1 ? 's' : ''}, '
-                      '$driverCount driver${driverCount != 1 ? 's' : ''} waiting for review',
-                      style: TextStyle(
-                        color: Colors.grey[700],
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right, color: Colors.orange),
-            ],
-          ),
+          child: Row(children: [
+            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.pending_actions, color: Colors.white, size: 28)),
+            const SizedBox(width: 16),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('$count Pending Application${count > 1 ? 's' : ''}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 4),
+              Text('$merchantCount merchant${merchantCount != 1 ? 's' : ''}, $driverCount driver${driverCount != 1 ? 's' : ''} waiting', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+            ])),
+            const Icon(Icons.chevron_right, color: Colors.orange),
+          ]),
         ),
       ),
     );
   }
 
-  Widget _buildStatsGrid(Map<String, dynamic> stats) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.5,
-      children: [
-        _buildStatCard(
-          'Total Users',
-          stats['total_users']?.toString() ?? '0',
-          Icons.people,
-          Colors.blue,
-        ),
-        _buildStatCard(
-          'Active Users',
-          stats['active_users']?.toString() ?? '0',
-          Icons.verified_user,
-          Colors.green,
-        ),
-        _buildStatCard(
-          'Total Orders',
-          stats['total_orders']?.toString() ?? '0',
-          Icons.shopping_cart,
-          Colors.orange,
-        ),
-        _buildStatCard(
-          'Revenue',
-          '\$${stats['total_revenue']?.toStringAsFixed(2) ?? '0.00'}',
-          Icons.attach_money,
-          Colors.purple,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+  Widget _buildManagementGrid(ThemeData theme) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4.w),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Management', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+        SizedBox(height: 1.h),
+        GridView.count(
+          crossAxisCount: 3, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.0,
           children: [
-            Icon(icon, size: 32, color: color),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
+            _buildMgmtTile(Icons.people, 'Users', Colors.blue, () => Navigator.pushNamed(context, AppRoutes.adminUsersManagement), theme),
+            _buildMgmtTile(Icons.receipt_long, 'Orders', Colors.orange, () => Navigator.pushNamed(context, AppRoutes.enhancedOrderManagement), theme),
+            _buildMgmtTile(Icons.pending_actions, 'Applications', Colors.deepOrange, () => Navigator.pushNamed(context, AppRoutes.adminApplications), theme),
+            _buildMgmtTile(Icons.campaign, 'Ads', Colors.pink, () => Navigator.pushNamed(context, AppRoutes.adminAdsManagement), theme),
+            _buildMgmtTile(Icons.local_shipping, 'Logistics', Colors.teal, () => Navigator.pushNamed(context, AppRoutes.adminLogisticsManagement), theme),
+            _buildMgmtTile(Icons.category, 'Categories', Colors.indigo, () => Navigator.pushNamed(context, AppRoutes.adminCategories), theme),
+            _buildMgmtTile(Icons.assignment_ind, 'Roles', Colors.brown, () => Navigator.pushNamed(context, AppRoutes.adminRoleUpgradeManagement), theme),
+            _buildMgmtTile(Icons.card_membership, 'Subscriptions', Colors.purple, () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminSubscriptionManagementScreen())), theme),
+            _buildMgmtTile(Icons.edit, 'Edit System', Colors.grey, () => Navigator.pushNamed(context, AppRoutes.adminEditOverlaySystem), theme),
           ],
         ),
+      ]),
+    );
+  }
+
+  Widget _buildMgmtTile(IconData icon, String label, Color color, VoidCallback onTap, ThemeData theme) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: theme.colorScheme.shadow.withOpacity(0.08), blurRadius: 6, offset: const Offset(0, 2))]),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 24)),
+          SizedBox(height: 1.h),
+          Text(label, style: TextStyle(fontSize: 11.sp, fontWeight: FontWeight.w500, color: theme.colorScheme.onSurface), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ]),
       ),
     );
   }
 
-  Widget _buildQuickActions(BuildContext context, AdminProvider adminProvider) {
-    return Column(
-      children: [
-        // NEW: Applications button with badge
-        _buildActionButtonWithBadge(
-          context,
-          'Applications',
-          Icons.pending_actions,
-          AppRoutes.adminApplications,
-          badgeCount: adminProvider.pendingApplicationsCount,
-        ),
-        const SizedBox(height: 8),
-        _buildActionButton(
-          context,
-          'Manage Users',
-          Icons.people_alt,
-          AppRoutes.adminUsersManagement,
-        ),
-        const SizedBox(height: 8),
-        _buildActionButton(
-          context,
-          'Manage Orders',
-          Icons.receipt_long,
-          AppRoutes.enhancedOrderManagement,
-        ),
-        const SizedBox(height: 8),
-        _buildActionButton(
-          context,
-          'Manage Ads',
-          Icons.campaign,
-          AppRoutes.adminAdsManagement,
-        ),
-        const SizedBox(height: 8),
-        _buildActionButton(
-          context,
-          'Logistics',
-          Icons.local_shipping,
-          AppRoutes.adminLogisticsManagement,
-        ),
-      ],
+  Widget _buildQuickActions(AdminProvider adminProvider, ThemeData theme) {
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4.w),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Quick Actions', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+        SizedBox(height: 1.h),
+        Row(children: [
+          Expanded(child: _buildQuickActionTile(icon: Icons.pending_actions, title: 'Pending Approvals', count: adminProvider.pendingApplicationsCount, onTap: () => Navigator.pushNamed(context, AppRoutes.adminApplications), theme: theme)),
+          SizedBox(width: 3.w),
+          Expanded(child: _buildQuickActionTile(icon: Icons.assignment_ind, title: 'Driver Assign', count: 0, onTap: () => Navigator.pushNamed(context, AppRoutes.adminLogisticsManagement), theme: theme)),
+        ]),
+        SizedBox(height: 3.w),
+        Row(children: [
+          Expanded(child: _buildQuickActionTile(icon: Icons.verified_user, title: 'Merchant Review', count: adminProvider.pendingMerchants.length, onTap: () => Navigator.pushNamed(context, AppRoutes.adminApplications), theme: theme)),
+          SizedBox(width: 3.w),
+          Expanded(child: _buildQuickActionTile(icon: Icons.card_membership, title: 'Subscriptions', count: 0, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AdminSubscriptionManagementScreen())), theme: theme)),
+        ]),
+      ]),
     );
   }
 
-  Widget _buildActionButton(
-    BuildContext context,
-    String label,
-    IconData icon,
-    String route,
-  ) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: () {
-          Navigator.pushNamed(context, route);
-        },
-        icon: Icon(icon),
-        label: Text(label),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.all(16),
-          alignment: Alignment.centerLeft,
-        ),
+  Widget _buildQuickActionTile({required IconData icon, required String title, required int count, required VoidCallback onTap, required ThemeData theme}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(3.w),
+        decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12), border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3))),
+        child: Row(children: [
+          Icon(icon, color: AppTheme.kjRed),
+          SizedBox(width: 2.w),
+          Expanded(child: Text(title, style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w500, color: theme.colorScheme.onSurface), overflow: TextOverflow.ellipsis)),
+          if (count > 0) Container(padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h), decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(12)), child: Text(count.toString(), style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.bold, color: Colors.white))),
+        ]),
       ),
     );
   }
 
-  Widget _buildActionButtonWithBadge(
-    BuildContext context,
-    String label,
-    IconData icon,
-    String route, {
-    int badgeCount = 0,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () {
-          Navigator.pushNamed(context, route);
-        },
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.all(16),
-          backgroundColor: badgeCount > 0 ? Colors.orange : null,
+  Widget _buildLiveActivityFeed(AdminProvider adminProvider, ThemeData theme) {
+    final orders = adminProvider.recentOrders;
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4.w),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Recent Activity', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+        SizedBox(height: 1.h),
+        Container(
+          padding: EdgeInsets.all(3.w),
+          decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: theme.colorScheme.shadow.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))]),
+          child: orders.isEmpty
+              ? Padding(padding: EdgeInsets.all(4.w), child: Center(child: Text('No recent activity', style: TextStyle(color: theme.colorScheme.onSurfaceVariant))))
+              : Column(children: orders.take(5).map((order) {
+                  final status = order['status']?.toString() ?? 'unknown';
+                  final storeName = order['stores']?['name'] ?? 'Unknown Store';
+                  final total = (order['total_amount'] as num?)?.toStringAsFixed(2) ?? '0.00';
+                  return _buildActivityItem(icon: _getStatusIcon(status), title: 'Order - $storeName', subtitle: '\$$total - $status', time: _formatTime(order['created_at']), theme: theme);
+                }).toList()),
         ),
-        child: Row(
-          children: [
-            Icon(icon),
-            const SizedBox(width: 12),
-            Text(label),
-            const Spacer(),
-            if (badgeCount > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$badgeCount',
-                  style: const TextStyle(
-                    color: Colors.orange,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-          ],
+      ]),
+    );
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending': return Icons.hourglass_top;
+      case 'confirmed': return Icons.check_circle;
+      case 'preparing': return Icons.restaurant;
+      case 'ready': return Icons.local_shipping;
+      case 'delivered': return Icons.done_all;
+      case 'cancelled': return Icons.cancel;
+      default: return Icons.receipt;
+    }
+  }
+
+  String _formatTime(dynamic dateStr) {
+    if (dateStr == null) return '';
+    try {
+      final dt = DateTime.parse(dateStr.toString());
+      final diff = DateTime.now().difference(dt);
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      return '${diff.inDays}d ago';
+    } catch (_) { return ''; }
+  }
+
+  Widget _buildActivityItem({required IconData icon, required String title, required String subtitle, required String time, required ThemeData theme}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 1.h),
+      child: Row(children: [
+        CircleAvatar(radius: 20, backgroundColor: AppTheme.kjRed.withOpacity(0.1), child: Icon(icon, color: AppTheme.kjRed, size: 20)),
+        SizedBox(width: 3.w),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface)),
+          SizedBox(height: 0.3.h),
+          Text(subtitle, style: TextStyle(fontSize: 12.sp, color: theme.colorScheme.onSurfaceVariant)),
+        ])),
+        Text(time, style: TextStyle(fontSize: 11.sp, color: theme.colorScheme.onSurfaceVariant)),
+      ]),
+    );
+  }
+
+  Widget _buildPerformanceOverview(AdminProvider adminProvider, ThemeData theme) {
+    final stats = adminProvider.dashboardStats;
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4.w),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Performance', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+        SizedBox(height: 1.h),
+        Container(
+          padding: EdgeInsets.all(4.w),
+          decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: theme.colorScheme.shadow.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))]),
+          child: Column(children: [
+            _buildPerformanceMetric(title: 'Total Orders', value: stats?['total_orders']?.toString() ?? '0', theme: theme),
+            SizedBox(height: 2.h),
+            _buildPerformanceMetric(title: 'Total Users', value: stats?['total_users']?.toString() ?? '0', theme: theme),
+            SizedBox(height: 2.h),
+            _buildPerformanceMetric(title: 'Active Users', value: stats?['active_users']?.toString() ?? '0', theme: theme),
+            SizedBox(height: 2.h),
+            _buildPerformanceMetric(title: 'Total Revenue', value: '\$${stats?['total_revenue']?.toStringAsFixed(2) ?? '0.00'}', theme: theme),
+          ]),
         ),
+      ]),
+    );
+  }
+
+  Widget _buildPerformanceMetric({required String title, required String value, required ThemeData theme}) {
+    return Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      Text(title, style: TextStyle(fontSize: 13.sp, color: theme.colorScheme.onSurfaceVariant)),
+      Text(value, style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
+    ]);
+  }
+
+  void _showEmergencyControls() {
+    final theme = Theme.of(context);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(children: [Icon(Icons.emergency, color: theme.colorScheme.error), const SizedBox(width: 8), const Text('Emergency Controls')]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(leading: const Icon(Icons.warning, color: Colors.orange), title: const Text('System Alert'), onTap: () => Navigator.pop(context)),
+          ListTile(leading: const Icon(Icons.cancel, color: Colors.red), title: const Text('Emergency Order Cancel'), onTap: () => Navigator.pop(context)),
+          ListTile(leading: const Icon(Icons.swap_horiz, color: Colors.blue), title: const Text('Reassign Driver'), onTap: () => Navigator.pop(context)),
+        ]),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
       ),
     );
   }
 }
-

@@ -1,97 +1,130 @@
+// ============================================================
+// FILE: lib/presentation/marketplace_screen/widgets/marketplace_top_bar_widget.dart
+// ============================================================
+// Replaces hardcoded city dropdown with tappable location bar
+// that opens the Google Maps location picker.
+// ============================================================
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
-import '../../../theme/app_theme.dart';
+import '../../../core/app_export.dart';
 
 class MarketplaceTopBarWidget extends StatelessWidget {
   final String selectedLocation;
-  final Function(String) onLocationChanged;
+  final VoidCallback onLocationTap;
+  final VoidCallback? onClearLocation;
+  final bool hasCustomLocation;
 
   const MarketplaceTopBarWidget({
     super.key,
     required this.selectedLocation,
-    required this.onLocationChanged,
+    required this.onLocationTap,
+    this.onClearLocation,
+    this.hasCustomLocation = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final locations = [
-      'Lebanon',
-      'Beirut',
-      'Tripoli',
-      'Saida',
-      'Jounieh',
-      'Achrafieh',
-      'Tyre',
-    ];
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
+      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 1.h),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: theme.colorScheme.shadow.withOpacity(0.05),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // Back button
           IconButton(
-            icon: Icon(Icons.arrow_back, size: 6.w, color: Colors.black87),
-            onPressed: () {
-              Navigator.pop(context);
-            },
+            icon: Icon(Icons.arrow_back, size: 6.w, color: theme.iconTheme.color),
+            onPressed: () => Navigator.pop(context),
           ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(2.w),
-            ),
-            child: DropdownButton<String>(
-              value: selectedLocation,
-              underline: const SizedBox(),
-              icon: Icon(Icons.keyboard_arrow_down, size: 5.w),
-              style: TextStyle(
-                fontSize: 13.sp,
-                fontWeight: FontWeight.w500,
-                color: Colors.black87,
-              ),
-              items: locations.map((location) {
-                return DropdownMenuItem(
-                  value: location,
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 4.w,
-                        color: AppTheme.lightTheme.colorScheme.primary,
-                      ),
-                      SizedBox(width: 2.w),
-                      Text(location),
-                    ],
-                  ),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  onLocationChanged(value);
-                }
+
+          // Location bar — tappable, opens map picker
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                onLocationTap();
               },
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? theme.colorScheme.surfaceContainerHighest
+                      : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withOpacity(0.15),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.location_on, size: 4.5.w, color: AppTheme.kjRed),
+                    SizedBox(width: 1.5.w),
+                    Expanded(
+                      child: Text(
+                        selectedLocation,
+                        style: TextStyle(
+                          fontSize: 13.sp,
+                          fontWeight: FontWeight.w500,
+                          color: theme.textTheme.bodyLarge?.color,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    SizedBox(width: 1.w),
+                    // Map icon hint
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 1.5.w, vertical: 0.3.h),
+                      decoration: BoxDecoration(
+                        color: AppTheme.kjRed.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Icon(Icons.map_outlined, size: 3.5.w, color: AppTheme.kjRed),
+                    ),
+                    // Clear button (when custom location is set)
+                    if (hasCustomLocation && onClearLocation != null) ...[
+                      SizedBox(width: 1.w),
+                      GestureDetector(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          onClearLocation!();
+                        },
+                        child: Container(
+                          padding: EdgeInsets.all(0.8.w),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.withOpacity(0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.close, size: 3.w, color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ),
+                    ] else
+                      Icon(Icons.keyboard_arrow_down, size: 5.w, color: theme.colorScheme.onSurfaceVariant),
+                  ],
+                ),
+              ),
             ),
           ),
+
+          // Notifications
           Stack(
             children: [
               IconButton(
-                icon: Icon(
-                  Icons.notifications_outlined,
-                  size: 6.w,
-                  color: Colors.black87,
-                ),
+                icon: Icon(Icons.notifications_outlined, size: 6.w, color: theme.iconTheme.color),
                 onPressed: () {},
               ),
               Positioned(

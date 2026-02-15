@@ -1,3 +1,10 @@
+// ============================================================
+// FILE: lib/presentation/product_detail_screen/product_detail_screen.dart
+// ============================================================
+// Product detail with REAL favorites integration via FavoritesProvider.
+// Heart icon now saves/removes from Supabase user_favorites table.
+// ============================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -5,11 +12,10 @@ import 'package:sizer/sizer.dart';
 
 import '../../models/product_model.dart';
 import '../../providers/admin_provider.dart';
-import '../../providers/auth_provider.dart';
+import '../../providers/favorites_provider.dart';
 import '../../services/product_service.dart';
 import '../../services/store_service.dart';
 import '../../services/database_service.dart';
-import '../../theme/app_theme.dart';
 import '../../widgets/custom_image_widget.dart';
 import '../admin_edit_overlay_system_screen/widgets/content_edit_modal_widget.dart';
 import './widgets/expandable_section.dart';
@@ -30,7 +36,6 @@ class ProductDetailScreen extends StatefulWidget {
 
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int _quantity = 1;
-  bool _isFavorite = false;
   bool _isAddingToCart = false;
   bool _isLoading = false;
   Product? _product;
@@ -104,11 +109,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   bool _canManageProduct(BuildContext context) {
     final adminProvider = Provider.of<AdminProvider>(context, listen: false);
     if (adminProvider.isAdmin) return true;
-    if (_product == null) return false;
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final uid = authProvider.userId;
-    if (uid == null) return false;
-    // Check if user owns the store (would need store data, so for now admin-only inline)
     return false;
   }
 
@@ -146,12 +146,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               background: _buildImageGallery(product, theme),
             ),
             actions: [
-              IconButton(
-                icon: Icon(_isFavorite ? Icons.favorite : Icons.favorite_border,
-                    color: _isFavorite ? theme.colorScheme.error : Colors.white),
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  setState(() => _isFavorite = !_isFavorite);
+              // ========================================
+              // FAVORITE BUTTON — WIRED TO PROVIDER
+              // ========================================
+              Consumer<FavoritesProvider>(
+                builder: (context, favProvider, _) {
+                  final isFav = favProvider.isDeliveryFavorite(product.id);
+                  return IconButton(
+                    icon: Icon(
+                      isFav ? Icons.favorite : Icons.favorite_border,
+                      color: isFav ? Colors.red : Colors.white,
+                    ),
+                    onPressed: () async {
+                      HapticFeedback.lightImpact();
+                      final nowFav = await favProvider.toggleDeliveryFavorite(product.id);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(nowFav
+                              ? 'Added to favorites'
+                              : 'Removed from favorites'),
+                          backgroundColor: nowFav ? Colors.green : Colors.grey,
+                          duration: const Duration(seconds: 2),
+                        ));
+                      }
+                    },
+                  );
                 },
               ),
               IconButton(
@@ -166,15 +186,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           if (canManage)
             SliverToBoxAdapter(child: _buildAdminControls(theme, product)),
 
-          // Product Info
+          // Product Info — also wired to favorites
           SliverToBoxAdapter(
-            child: ProductInfoSection(
-              product: product,
-              storeName: _storeName,
-              isWishlisted: _isFavorite,
-              onWishlistToggle: () {
-                HapticFeedback.lightImpact();
-                setState(() => _isFavorite = !_isFavorite);
+            child: Consumer<FavoritesProvider>(
+              builder: (context, favProvider, _) {
+                return ProductInfoSection(
+                  product: product,
+                  storeName: _storeName,
+                  isWishlisted: favProvider.isDeliveryFavorite(product.id),
+                  onWishlistToggle: () async {
+                    HapticFeedback.lightImpact();
+                    await favProvider.toggleDeliveryFavorite(product.id);
+                  },
+                );
               },
             ),
           ),
@@ -221,7 +245,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
             )),
 
-          // Nutritional Info (if available)
+          // Nutritional Info
           if (product.nutritionalInfo != null && product.nutritionalInfo!.isNotEmpty)
             SliverToBoxAdapter(child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 4.w),
@@ -231,7 +255,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
             )),
 
-          // Reviews placeholder
+          // Reviews
           SliverToBoxAdapter(child: Padding(
             padding: EdgeInsets.symmetric(horizontal: 4.w),
             child: ProductReviewsSection(productId: product.id),
@@ -272,7 +296,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         itemCount: images.length,
         itemBuilder: (_, i) => CustomImageWidget(imageUrl: images[i], fit: BoxFit.cover),
       ),
-      // Gradient overlay for status bar readability
       Positioned(top: 0, left: 0, right: 0, height: 100,
         child: Container(decoration: BoxDecoration(gradient: LinearGradient(
           begin: Alignment.topCenter, end: Alignment.bottomCenter,
@@ -290,13 +313,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         SizedBox(width: 2.w),
         Expanded(child: Text('Manage Product',
             style: theme.textTheme.bodyMedium?.copyWith(color: Colors.orange, fontWeight: FontWeight.w600))),
-        // Edit
         _adminButton(Icons.edit, 'Edit', Colors.blue, () => _openEditModal(product)),
         SizedBox(width: 1.w),
-        // Sale / Pricing
         _adminButton(Icons.local_offer, 'Sale', Colors.deepOrange, () => _showSalePricingDialog(product)),
         SizedBox(width: 1.w),
-        // Delete
         _adminButton(Icons.delete, 'Delete', Colors.red, () => _confirmDeleteProduct(product)),
       ]),
     );
@@ -345,7 +365,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             const Text('Sale / Pricing'),
           ]),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
-            // Current price display
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -359,7 +378,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ]),
             ),
             const SizedBox(height: 16),
-            // Sale price input
             TextField(
               controller: salePriceCtrl,
               decoration: InputDecoration(
@@ -374,7 +392,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               onChanged: (_) => setDialogState(() {}),
             ),
             const SizedBox(height: 12),
-            // Quick discount buttons
             Wrap(spacing: 8, runSpacing: 8, children: [
               for (final pct in [10, 20, 25, 30, 50])
                 ActionChip(
@@ -410,17 +427,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     } else if (newSalePrice == null || salePriceCtrl.text.trim().isEmpty) {
                       await ProductService.removeSalePrice(product.id);
                     } else {
-                      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Sale price must be less than original price'), backgroundColor: Colors.red));
+                      }
                       return;
                     }
                   }
                   _refreshProduct();
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Pricing updated'), backgroundColor: Colors.green));
+                  }
                 } catch (e) {
-                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                  }
                 }
               },
               child: Text(removeSale ? 'Remove Sale' : 'Apply'),
@@ -448,8 +471,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 Navigator.pop(context);
               }
             } catch (e) {
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+              }
             }
           },
           style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),

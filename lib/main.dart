@@ -11,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import './providers/admin_provider.dart';
 import './providers/auth_provider.dart';
+import './providers/favorites_provider.dart';
 import './providers/merchant_provider.dart';
 import './providers/notifications_provider.dart';
 import './providers/theme_provider.dart';
@@ -60,6 +61,7 @@ Future<void> main() async {
 
   final authProvider = AuthProvider();
   final adminProvider = AdminProvider();
+  final favoritesProvider = FavoritesProvider();
 
   runApp(
     ProviderScope(
@@ -76,6 +78,9 @@ Future<void> main() async {
           provider.ChangeNotifierProvider<ThemeProvider>.value(
             value: themeProvider,
           ),
+          provider.ChangeNotifierProvider<FavoritesProvider>.value(
+            value: favoritesProvider,
+          ),
         ],
         child: const MyApp(),
       ),
@@ -86,6 +91,8 @@ Future<void> main() async {
     // Initial role resolve
     if (Supabase.instance.client.auth.currentUser != null) {
       await adminProvider.refreshRoles(reason: 'app-start-existing-session');
+      // Load favorites for existing session
+      favoritesProvider.loadFavorites();
     } else {
       await adminProvider.refreshRoles(reason: 'app-start-no-session');
     }
@@ -103,11 +110,15 @@ Future<void> main() async {
 
       if (shouldResolve) {
         adminProvider.refreshRoles(reason: 'supabase-auth-$event');
+        // Load favorites when user signs in
+        favoritesProvider.loadFavorites();
         return;
       }
 
       if (event == AuthChangeEvent.signedOut) {
         adminProvider.refreshRoles(reason: 'supabase-auth-signedOut');
+        // Clear favorites on sign out
+        favoritesProvider.clear();
       }
     });
 
@@ -149,13 +160,12 @@ class MyApp extends StatelessWidget {
             return MaterialApp(
               debugShowCheckedModeBanner: false,
               navigatorKey: navigatorKey,
-              title: 'FreshCart',
+              title: 'KJ Delivery',
               theme: AppTheme.lightTheme,
               darkTheme: AppTheme.darkTheme,
               themeMode: themeProvider.themeMode,
               initialRoute: AppRoutes.initial,
               onGenerateRoute: _guardedRoute,
-              routes: AppRoutes.routes,
               builder: (context, child) {
                 return MediaQuery(
                   data: MediaQuery.of(context).copyWith(

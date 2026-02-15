@@ -5,13 +5,16 @@ import 'package:provider/provider.dart' as provider;
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../models/user_address_model.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cart_provider.dart';
 import '../../services/analytics_service.dart';
+import '../../services/location_service.dart';
 import '../../services/supabase_service.dart';
 import '../../widgets/admin_action_button.dart';
 import '../admin_edit_overlay_system_screen/widgets/content_edit_modal_widget.dart';
+import '../map_location_picker/map_location_picker_screen.dart';
 import './widgets/categories_widget.dart';
 import './widgets/deals_of_day_widget.dart';
 import './widgets/featured_categories_widget.dart';
@@ -33,7 +36,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   bool _isLoading = false;
   String _userName = "Guest";
-  String _currentLocation = "Downtown, Seattle";
+  String _currentLocation = "Tap to set location";
+  bool _hasLocation = false;
+
+  final _locationService = LocationService();
 
   @override
   void initState() {
@@ -50,6 +56,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (user != null) {
         setState(() {
           _userName = user.email?.split('@')[0] ?? "Guest";
+        });
+      }
+
+      // Load cached delivery location
+      final cachedAddr = await _locationService.getCachedAddress();
+      if (cachedAddr != null && mounted) {
+        setState(() {
+          _currentLocation = cachedAddr.address;
+          _hasLocation = true;
         });
       }
     } catch (_) {}
@@ -173,6 +188,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
 
     final theme = Theme.of(context);
+    final barFg = theme.appBarTheme.foregroundColor ?? theme.colorScheme.onSurface;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -192,13 +208,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 floating: false,
                 snap: false,
                 elevation: 0,
-                backgroundColor: theme.scaffoldBackgroundColor,
-                foregroundColor: theme.colorScheme.onSurface,
+                backgroundColor: theme.appBarTheme.backgroundColor,
+                foregroundColor: barFg,
                 surfaceTintColor: Colors.transparent,
                 scrolledUnderElevation: 2,
                 shadowColor: theme.colorScheme.shadow.withOpacity(0.1),
                 actions: [
-                  // Admin badge + button
                   provider.Consumer2<AuthProvider, AdminProvider>(
                     builder: (context, authProvider, adminProvider, child) {
                       if (adminProvider.isAdmin) {
@@ -230,7 +245,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               onPressed: () {
                                 Navigator.pushNamed(
                                   context,
-                                  AppRoutes.adminLandingDashboard,
+                                  AppRoutes.adminDashboard,
                                 );
                               },
                               tooltip: 'Admin Dashboard',
@@ -241,30 +256,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       return const SizedBox.shrink();
                     },
                   ),
-                  // Marketplace icon
                   IconButton(
-                    icon: Icon(Icons.store, color: theme.colorScheme.onSurface),
-                    onPressed: () {
-                      Navigator.pushNamed(context, AppRoutes.marketplaceScreen);
-                    },
-                    tooltip: 'Marketplace',
-                  ),
-                  // Search icon
-                  IconButton(
-                    icon: Icon(Icons.search_rounded, color: theme.colorScheme.onSurface),
+                    icon: Icon(Icons.search_rounded, color: barFg),
                     onPressed: () => AppRoutes.switchToTab(context, 1),
                     tooltip: 'Search products',
                   ),
-                  // Cart icon with RED badge — opens as standalone push
                   Padding(
                     padding: const EdgeInsets.only(right: 4.0),
                     child: Stack(
                       children: [
                         IconButton(
-                          icon: Icon(
-                            Icons.shopping_cart_outlined,
-                            color: theme.colorScheme.onSurface,
-                          ),
+                          icon: Icon(Icons.shopping_cart_outlined, color: barFg),
                           onPressed: () => AppRoutes.openCart(context),
                           tooltip: 'Shopping cart',
                         ),
@@ -275,7 +277,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             child: Container(
                               padding: const EdgeInsets.all(2),
                               decoration: BoxDecoration(
-                                color: AppTheme.kjRed, // Red badge
+                                color: AppTheme.kjRed,
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               constraints: const BoxConstraints(
@@ -298,11 +300,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ],
                     ),
                   ),
-                  // Notifications
                   IconButton(
                     icon: CustomIconWidget(
                       iconName: 'notifications_outlined',
-                      color: theme.colorScheme.onSurface,
+                      color: barFg,
                       size: 6.w,
                     ),
                     onPressed: _showNotifications,
@@ -357,7 +358,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               SliverToBoxAdapter(
                 child: Column(
                   children: [
-                    // Admin mode bar
                     provider.Consumer2<AuthProvider, AdminProvider>(
                       builder: (context, authProvider, adminProvider, child) {
                         if (!adminProvider.isAdmin) {
@@ -520,15 +520,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               fontWeight: FontWeight.w600,
                               color: theme.colorScheme.onSurface,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
-                    CustomIconWidget(
-                      iconName: 'keyboard_arrow_down',
-                      color: theme.colorScheme.onSurfaceVariant,
-                      size: 5.w,
-                    ),
+                    if (_hasLocation)
+                      Icon(Icons.check_circle, color: Colors.green, size: 4.w)
+                    else
+                      CustomIconWidget(
+                        iconName: 'keyboard_arrow_down',
+                        color: theme.colorScheme.onSurfaceVariant,
+                        size: 5.w,
+                      ),
                   ],
                 ),
               ),
@@ -618,15 +623,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  void _showLocationSelector() {
+  // ============================================================
+  // LOCATION SELECTOR — now uses universal map picker
+  // ============================================================
+
+  void _showLocationSelector() async {
     final theme = Theme.of(context);
+    final savedAddresses = await _locationService.loadSavedAddresses();
+
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: theme.colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => Container(
+      builder: (sheetContext) => Container(
         padding: EdgeInsets.all(4.w),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -647,52 +660,89 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
             SizedBox(height: 3.h),
+
+            // Pick on map
             ListTile(
-              leading: CustomIconWidget(
-                iconName: 'my_location',
-                color: theme.colorScheme.primary,
-                size: 6.w,
-              ),
+              leading: Icon(Icons.map,
+                  color: theme.colorScheme.primary, size: 6.w),
+              title: const Text('Pick on Map'),
+              subtitle:
+                  const Text('Search or tap to select location'),
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                final result = await Navigator.push<UserAddress>(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const UniversalMapPickerScreen(
+                          mode: MapPickerMode.delivery)),
+                );
+                if (result != null && mounted) {
+                  await _locationService.cacheSelectedAddress(result);
+                  await _locationService
+                      .addAddress(result.copyWith(label: 'RECENT'));
+                  setState(() {
+                    _currentLocation = result.address;
+                    _hasLocation = true;
+                  });
+                }
+              },
+            ),
+
+            // Use current GPS
+            ListTile(
+              leading: Icon(Icons.my_location,
+                  color: theme.colorScheme.primary, size: 6.w),
               title: const Text('Use Current Location'),
-              subtitle: const Text('We\'ll detect your location automatically'),
-              onTap: () {
-                Navigator.pop(context);
-                setState(() => _currentLocation = "Current Location");
+              subtitle: const Text('Detect automatically'),
+              onTap: () async {
+                Navigator.pop(sheetContext);
+                final position =
+                    await _locationService.getCurrentPosition();
+                if (position != null && mounted) {
+                  final address = await _locationService.reverseGeocode(
+                      position.latitude, position.longitude);
+                  final userAddr = UserAddress(
+                      address: address,
+                      lat: position.latitude,
+                      lng: position.longitude,
+                      label: 'GPS');
+                  await _locationService.cacheSelectedAddress(userAddr);
+                  setState(() {
+                    _currentLocation = address;
+                    _hasLocation = true;
+                  });
+                }
               },
             ),
-            ListTile(
-              leading: CustomIconWidget(
-                iconName: 'home',
-                color: theme.colorScheme.secondary,
-                size: 6.w,
-              ),
-              title: const Text('Home'),
-              subtitle: const Text('Downtown, Seattle'),
-              trailing: _currentLocation == "Downtown, Seattle"
-                  ? CustomIconWidget(
-                      iconName: 'check_circle',
-                      color: theme.colorScheme.primary,
-                      size: 5.w,
-                    )
-                  : null,
-              onTap: () {
-                Navigator.pop(context);
-                setState(() => _currentLocation = "Downtown, Seattle");
-              },
-            ),
-            ListTile(
-              leading: CustomIconWidget(
-                iconName: 'work',
-                color: theme.colorScheme.tertiary,
-                size: 6.w,
-              ),
-              title: const Text('Office'),
-              subtitle: const Text('Bellevue, WA'),
-              onTap: () {
-                Navigator.pop(context);
-                setState(() => _currentLocation = "Bellevue, WA");
-              },
-            ),
+
+            // Saved addresses
+            ...savedAddresses.map((addr) => ListTile(
+                  leading: Icon(
+                    addr.label == 'WORK'
+                        ? Icons.work
+                        : addr.label == 'HOME'
+                            ? Icons.home
+                            : Icons.location_on,
+                    color: theme.colorScheme.secondary,
+                    size: 6.w,
+                  ),
+                  title: Text(addr.label),
+                  subtitle: Text(addr.address,
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  trailing: _currentLocation == addr.address
+                      ? Icon(Icons.check_circle,
+                          color: theme.colorScheme.primary, size: 5.w)
+                      : null,
+                  onTap: () async {
+                    Navigator.pop(sheetContext);
+                    await _locationService.cacheSelectedAddress(addr);
+                    setState(() {
+                      _currentLocation = addr.address;
+                      _hasLocation = true;
+                    });
+                  },
+                )),
+
             SizedBox(height: 2.h),
           ],
         ),

@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/driver_deliveries_provider.dart';
-import '../../providers/merchant_orders_provider.dart';
-import '../../providers/order_tracking_provider.dart';
+import 'driver_deliveries_provider.dart';
+import 'merchant_orders_provider.dart';
+import 'order_tracking_provider.dart';
 import '../services/order_service.dart';
 
 final orderServiceProvider = Provider((ref) => OrderService());

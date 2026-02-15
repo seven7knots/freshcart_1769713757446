@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:sizer/sizer.dart';
+import '../../../theme/app_theme.dart';
 
 class TypingIndicatorWidget extends StatefulWidget {
   const TypingIndicatorWidget({super.key});
@@ -16,7 +16,7 @@ class _TypingIndicatorWidgetState extends State<TypingIndicatorWidget>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 1200),
       vsync: this,
     )..repeat();
   }
@@ -30,47 +30,37 @@ class _TypingIndicatorWidgetState extends State<TypingIndicatorWidget>
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: 2.h),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // AI avatar
           Container(
-            width: 8.w,
-            height: 8.w,
+            width: 28,
+            height: 28,
+            margin: const EdgeInsets.only(top: 4),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFFE50914),
-                  const Color(0xFFE50914).withAlpha(179),
-                ],
-              ),
+              color: AppTheme.kjRed.withOpacity(0.15),
             ),
-            child: ColorFiltered(
-              colorFilter: const ColorFilter.mode(
-                Colors.white,
-                BlendMode.difference,
-              ),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/happy-robot-3d-ai-character-600nw-2464455965-1769833585327.jpg',
-                  width: 4.w,
-                  height: 4.w,
-                  fit: BoxFit.cover,
-                ),
-              ),
+            child: const Icon(
+              Icons.auto_awesome,
+              color: AppTheme.kjRed,
+              size: 15,
             ),
           ),
-          SizedBox(width: 2.w),
+          const SizedBox(width: 8),
           Container(
-            padding: EdgeInsets.symmetric(
-              horizontal: 4.w,
-              vertical: 1.5.h,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: const Color(0xFF1A1A1A),
-              borderRadius: BorderRadius.circular(4.w),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                topRight: Radius.circular(18),
+                bottomLeft: Radius.circular(4),
+                bottomRight: Radius.circular(18),
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -78,15 +68,19 @@ class _TypingIndicatorWidgetState extends State<TypingIndicatorWidget>
                 return AnimatedBuilder(
                   animation: _controller,
                   builder: (context, child) {
-                    final delay = index * 0.2;
-                    final value = (_controller.value - delay).clamp(0.0, 1.0);
-                    final opacity = (value * 2).clamp(0.3, 1.0);
+                    final delay = index * 0.25;
+                    final value =
+                        ((_controller.value - delay) % 1.0).clamp(0.0, 1.0);
+                    // Simple pulse: opacity goes from 0.25 to 1.0 and back
+                    final opacity = value < 0.5
+                        ? 0.25 + (value * 2 * 0.75)
+                        : 1.0 - ((value - 0.5) * 2 * 0.75);
 
                     return Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 1.w),
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
                       child: Container(
-                        width: 2.w,
-                        height: 2.w,
+                        width: 7,
+                        height: 7,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: Colors.white.withOpacity(opacity),

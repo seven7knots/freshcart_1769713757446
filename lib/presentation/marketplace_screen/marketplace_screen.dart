@@ -1,18 +1,52 @@
+// ============================================================
+// FILE: lib/presentation/marketplace_screen/marketplace_screen.dart
+// ============================================================
+// Updated: Location dropdown replaced with Google Maps picker.
+// Tapping location bar opens full-screen map.
+// Listings filtered by proximity when location is selected.
+// ============================================================
+
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
+import 'package:flutter_riverpod/flutter_riverpod.dart'
+    show ConsumerStatefulWidget, ConsumerState;
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart' as provider;
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../models/marketplace_listing_model.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/marketplace_provider.dart';
 import '../../widgets/admin_action_button.dart';
+import '../marketplace_admin_screen/marketplace_admin_screen.dart';
+import '../marketplace_home_screen/widgets/marketplace_location_picker.dart';
 import './widgets/marketplace_ad_box_widget.dart';
 import './widgets/marketplace_bottom_nav_widget.dart';
 import './widgets/marketplace_category_icons_widget.dart';
 import './widgets/marketplace_listings_feed_widget.dart';
 import './widgets/marketplace_search_bar_widget.dart';
 import './widgets/marketplace_top_bar_widget.dart';
+
+/// A simple provider that fetches ALL active marketplace listings directly.
+final _marketplaceHomeFeedProvider = riverpod.FutureProvider.autoDispose<
+    List<MarketplaceListingModel>>((ref) async {
+  final service = ref.watch(marketplaceServiceProvider);
+
+  // Read location state from providers
+  final locationLat = ref.watch(marketplaceLocationLatProvider);
+  final locationLng = ref.watch(marketplaceLocationLngProvider);
+  final locationCity = ref.watch(marketplaceLocationCityProvider);
+
+  return service.getListings(
+    locationLat: locationLat,
+    locationLng: locationLng,
+    locationCity: locationCity,
+    radiusKm: 30,
+  );
+});
 
 class MarketplaceScreen extends ConsumerStatefulWidget {
   const MarketplaceScreen({super.key});
@@ -22,100 +56,9 @@ class MarketplaceScreen extends ConsumerStatefulWidget {
 }
 
 class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
-  String _selectedLocation = 'Lebanon';
   String _searchQuery = '';
   String? _selectedCategory;
   int _currentNavIndex = 0;
-
-  // Demo listings data
-  final List<Map<String, dynamic>> _demoListings = [
-    {
-      'id': 'demo-1',
-      'title': '2020 Toyota Camry - Excellent Condition',
-      'price': 18500.0,
-      'category': 'vehicles',
-      'image': 'https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb',
-      'location': 'Beirut',
-      'postedDate': '2 days ago',
-      'isFavorite': false,
-    },
-    {
-      'id': 'demo-2',
-      'title': 'Modern 2BR Apartment in Achrafieh',
-      'price': 250000.0,
-      'category': 'properties',
-      'image': 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00',
-      'location': 'Achrafieh',
-      'postedDate': '1 week ago',
-      'isFavorite': false,
-    },
-    {
-      'id': 'demo-3',
-      'title': 'iPhone 14 Pro Max 256GB',
-      'price': 1200.0,
-      'category': 'mobiles',
-      'image': 'https://images.unsplash.com/photo-1678652197950-91e93a944f8d',
-      'location': 'Jounieh',
-      'postedDate': '3 days ago',
-      'isFavorite': false,
-    },
-    {
-      'id': 'demo-4',
-      'title': 'Samsung 65" 4K Smart TV',
-      'price': 850.0,
-      'category': 'electronics',
-      'image': 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1',
-      'location': 'Tripoli',
-      'postedDate': '5 days ago',
-      'isFavorite': false,
-    },
-    {
-      'id': 'demo-5',
-      'title': 'Modern L-Shaped Sofa Set',
-      'price': 650.0,
-      'category': 'furniture',
-      'image': 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc',
-      'location': 'Saida',
-      'postedDate': '1 day ago',
-      'isFavorite': false,
-    },
-    {
-      'id': 'demo-6',
-      'title': 'MacBook Pro 16" M2 Max',
-      'price': 2800.0,
-      'category': 'electronics',
-      'image': 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8',
-      'location': 'Beirut',
-      'postedDate': '4 days ago',
-      'isFavorite': false,
-    },
-  ];
-
-  List<Map<String, dynamic>> get _filteredListings {
-    var listings = _demoListings;
-
-    if (_searchQuery.isNotEmpty) {
-      listings = listings.where((listing) {
-        return listing['title'].toString().toLowerCase().contains(
-              _searchQuery.toLowerCase(),
-            );
-      }).toList();
-    }
-
-    if (_selectedCategory != null) {
-      listings = listings.where((listing) {
-        return listing['category'] == _selectedCategory;
-      }).toList();
-    }
-
-    return listings;
-  }
-
-  void _onLocationChanged(String location) {
-    setState(() {
-      _selectedLocation = location;
-    });
-  }
 
   void _onSearchChanged(String query) {
     setState(() {
@@ -141,41 +84,125 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
         Navigator.pushNamed(context, AppRoutes.chatListScreen);
         break;
       case 2:
-        Navigator.pushNamed(context, AppRoutes.createListingScreen);
+        Navigator.pushNamed(context, AppRoutes.createListingScreen)
+            .then((result) {
+          if (result == true) _refreshListings();
+        });
         break;
       case 3:
-        Navigator.pushNamed(context, '/my-ads-screen');
+        Navigator.pushNamed(context, AppRoutes.myAdsScreen);
         break;
       case 4:
-        Navigator.pushNamed(context, '/marketplace-account-screen');
+        Navigator.pushNamed(context, AppRoutes.marketplaceAccountScreen);
         break;
     }
   }
 
+  void _refreshListings() {
+    ref.invalidate(_marketplaceHomeFeedProvider);
+  }
+
+  /// Open the Google Maps location picker
+  Future<void> _openLocationPicker() async {
+    HapticFeedback.lightImpact();
+
+    final currentLat = ref.read(marketplaceLocationLatProvider);
+    final currentLng = ref.read(marketplaceLocationLngProvider);
+
+    final result = await Navigator.push<LocationPickerResult>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MarketplaceLocationPicker(
+          initialLocation: currentLat != null && currentLng != null
+              ? LatLng(currentLat, currentLng)
+              : null,
+        ),
+      ),
+    );
+
+    if (result != null) {
+      ref.read(marketplaceLocationLatProvider.notifier).state = result.latitude;
+      ref.read(marketplaceLocationLngProvider.notifier).state = result.longitude;
+      ref.read(marketplaceLocationCityProvider.notifier).state = result.city;
+      ref.read(marketplaceLocationAddressProvider.notifier).state =
+          result.address;
+      // Refresh listings with new location
+      _refreshListings();
+    }
+  }
+
+  /// Clear location filter back to "All Lebanon"
+  void _clearLocation() {
+    HapticFeedback.lightImpact();
+    ref.read(marketplaceLocationCityProvider.notifier).state = null;
+    ref.read(marketplaceLocationLatProvider.notifier).state = null;
+    ref.read(marketplaceLocationLngProvider.notifier).state = null;
+    ref.read(marketplaceLocationAddressProvider.notifier).state = 'All Lebanon';
+    _refreshListings();
+  }
+
+  /// Filter listings by local search query and selected category
+  List<MarketplaceListingModel> _applyFilters(
+      List<MarketplaceListingModel> listings) {
+    var filtered = listings;
+
+    // Category filter
+    if (_selectedCategory != null && _selectedCategory!.isNotEmpty) {
+      filtered =
+          filtered.where((l) => l.category == _selectedCategory).toList();
+    }
+
+    // Search filter
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      filtered = filtered.where((l) {
+        return l.title.toLowerCase().contains(q) ||
+            (l.description?.toLowerCase().contains(q) ?? false) ||
+            (l.locationText?.toLowerCase().contains(q) ?? false);
+      }).toList();
+    }
+
+    return filtered;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final listingsAsync = ref.watch(_marketplaceHomeFeedProvider);
+    final locationAddress = ref.watch(marketplaceLocationAddressProvider);
+    final hasCustomLocation =
+        ref.watch(marketplaceLocationCityProvider) != null;
+
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
+            // Top bar — now opens map picker on tap
             MarketplaceTopBarWidget(
-              selectedLocation: _selectedLocation,
-              onLocationChanged: _onLocationChanged,
+              selectedLocation: locationAddress,
+              onLocationTap: _openLocationPicker,
+              onClearLocation: _clearLocation,
+              hasCustomLocation: hasCustomLocation,
             ),
+
+            // Search bar
             MarketplaceSearchBarWidget(onSearchChanged: _onSearchChanged),
+
+            // Ad banner
             const MarketplaceAdBoxWidget(),
-            // Admin Controls Section
+
+            // Admin controls
             provider.Consumer2<AuthProvider, AdminProvider>(
               builder: (context, authProvider, adminProvider, child) {
                 if (adminProvider.isAdmin) {
                   return Container(
                     padding:
                         EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-                    color: Colors.orange.withValues(alpha: 0.1),
+                    color: Colors.orange.withOpacity(0.1),
                     child: Row(
                       children: [
-                        Icon(Icons.admin_panel_settings,
+                        const Icon(Icons.admin_panel_settings,
                             color: Colors.orange, size: 20),
                         SizedBox(width: 2.w),
                         Text(
@@ -188,12 +215,22 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                         ),
                         const Spacer(),
                         AdminActionButton(
-                          icon: Icons.add,
-                          label: 'Create',
+                          icon: Icons.settings,
+                          label: 'Manage',
                           onPressed: () {
-                            Navigator.pushNamed(
-                                context, AppRoutes.createListingScreen);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const MarketplaceAdminScreen(),
+                              ),
+                            );
                           },
+                        ),
+                        SizedBox(width: 2.w),
+                        AdminActionButton(
+                          icon: Icons.refresh,
+                          label: 'Refresh',
+                          onPressed: _refreshListings,
                         ),
                       ],
                     ),
@@ -202,6 +239,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                 return const SizedBox.shrink();
               },
             ),
+
+            // Categories header + See all
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
               child: Row(
@@ -212,17 +251,19 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                     style: TextStyle(
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w600,
+                      color: theme.textTheme.bodyLarge?.color,
                     ),
                   ),
                   GestureDetector(
                     onTap: () {
-                      Navigator.pushNamed(context, '/all-categories-screen');
+                      Navigator.pushNamed(
+                          context, AppRoutes.allCategoriesScreen);
                     },
                     child: Text(
                       'See all',
                       style: TextStyle(
                         fontSize: 14.sp,
-                        color: AppTheme.lightTheme.colorScheme.primary,
+                        color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -230,12 +271,105 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                 ],
               ),
             ),
+
+            // Category icons row
             MarketplaceCategoryIconsWidget(
               selectedCategory: _selectedCategory,
               onCategorySelected: _onCategorySelected,
             ),
+
+            // Listings feed
             Expanded(
-              child: MarketplaceListingsFeedWidget(listings: _filteredListings),
+              child: listingsAsync.when(
+                data: (listings) {
+                  final filtered = _applyFilters(listings);
+                  if (filtered.isEmpty && hasCustomLocation) {
+                    return Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(6.w),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.location_off_outlined,
+                                size: 12.w, color: Colors.grey[400]),
+                            SizedBox(height: 2.h),
+                            Text(
+                              'No listings near this location',
+                              style: TextStyle(
+                                fontSize: 14.sp,
+                                fontWeight: FontWeight.w600,
+                                color: theme.textTheme.bodyLarge?.color,
+                              ),
+                            ),
+                            SizedBox(height: 1.h),
+                            Text(
+                              'Try expanding your search area or browse all of Lebanon',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12.sp,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            SizedBox(height: 2.h),
+                            ElevatedButton.icon(
+                              onPressed: _clearLocation,
+                              icon: const Icon(Icons.public),
+                              label: const Text('Show All Lebanon'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.kjRed,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+                  return MarketplaceListingsFeedWidget(
+                    listings: filtered,
+                    onRefresh: _refreshListings,
+                  );
+                },
+                loading: () => const Center(
+                  child: CircularProgressIndicator(),
+                ),
+                error: (error, stack) => Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(6.w),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error_outline,
+                            size: 12.w, color: theme.colorScheme.error),
+                        SizedBox(height: 2.h),
+                        Text(
+                          'Failed to load listings',
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w600,
+                            color: theme.textTheme.bodyLarge?.color,
+                          ),
+                        ),
+                        SizedBox(height: 1.h),
+                        Text(
+                          error.toString(),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 11.sp,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        SizedBox(height: 2.h),
+                        ElevatedButton.icon(
+                          onPressed: _refreshListings,
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
