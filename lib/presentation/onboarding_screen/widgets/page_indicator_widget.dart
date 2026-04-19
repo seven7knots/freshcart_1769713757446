@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:sizer/sizer.dart';
 
 class PageIndicatorWidget extends StatelessWidget {
   final int currentIndex;
@@ -13,23 +12,25 @@ class PageIndicatorWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(
         totalPages,
-        (index) => AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          margin: EdgeInsets.symmetric(horizontal: 1.w),
-          width: currentIndex == index ? 8.w : 2.w,
-          height: 1.h,
-          decoration: BoxDecoration(
-            color: currentIndex == index
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outline.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
+        (index) {
+          final bool isActive = currentIndex == index;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            width: isActive ? 24 : 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: isActive
+                  ? const Color(0xFFE50913)
+                  : Colors.grey.shade400,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          );
+        },
       ),
     );
   }

@@ -1,4 +1,14 @@
-import 'package:flutter/material.dart';
+"""Issue 1: Onboarding CTA padding + page indicator dots.
+
+Full-file replacements for:
+  - lib/presentation/onboarding_screen/onboarding_screen.dart
+  - lib/presentation/onboarding_screen/widgets/page_indicator_widget.dart
+"""
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+
+ONBOARDING_SCREEN = r'''import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
@@ -239,3 +249,52 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 }
+'''
+
+PAGE_INDICATOR = r'''import 'package:flutter/material.dart';
+
+class PageIndicatorWidget extends StatelessWidget {
+  final int currentIndex;
+  final int totalPages;
+
+  const PageIndicatorWidget({
+    super.key,
+    required this.currentIndex,
+    required this.totalPages,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(
+        totalPages,
+        (index) {
+          final bool isActive = currentIndex == index;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            width: isActive ? 24 : 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: isActive
+                  ? const Color(0xFFE50913)
+                  : Colors.grey.shade400,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+'''
+
+def write(rel_path: str, content: str) -> None:
+    p = ROOT / rel_path
+    p.write_text(content, encoding='utf-8', newline='\n')
+    print(f"wrote {rel_path} ({len(content)} bytes)")
+
+write('lib/presentation/onboarding_screen/onboarding_screen.dart', ONBOARDING_SCREEN)
+write('lib/presentation/onboarding_screen/widgets/page_indicator_widget.dart', PAGE_INDICATOR)
+print("done")
