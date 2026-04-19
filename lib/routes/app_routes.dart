@@ -12,6 +12,7 @@ import '../presentation/admin_navigation_drawer_screen/admin_navigation_drawer_s
 import '../presentation/admin_role_upgrade_management_screen/admin_role_upgrade_management_screen.dart';
 import '../presentation/admin_users_management_screen/admin_users_management_screen.dart';
 import '../presentation/ai_chat_assistant_screen/ai_chat_assistant_screen.dart';
+import '../presentation/ai_conversation_history_screen/ai_conversation_history_screen.dart';
 import '../presentation/ai_meal_planning_screen/ai_meal_planning_screen.dart';
 import '../presentation/all_categories_screen/all_categories_screen.dart';
 import '../presentation/auth_gate_screen/auth_gate_screen.dart';
@@ -105,6 +106,7 @@ class AppRoutes {
   static const String aiChatAssistant = '/ai-chat-assistant-screen';
   static const String aiMealPlanning = '/ai-meal-planning-screen';
   static const String aiPoweredSearch = '/ai-powered-search-screen';
+  static const String aiConversationHistory = '/ai-conversation-history-screen';
 
   // Marketplace routes
   static const String marketplaceScreen = '/marketplace-screen';
@@ -223,6 +225,7 @@ class AppRoutes {
     aiChatAssistant: (context) => const AIChatAssistantScreen(),
     aiMealPlanning: (context) => const AIMealPlanningScreen(),
     aiPoweredSearch: (context) => const AIChatAssistantScreen(),
+    aiConversationHistory: (context) => const AIConversationHistoryScreen(),
 
     // Marketplace
     marketplaceScreen: (context) => const MarketplaceScreen(),

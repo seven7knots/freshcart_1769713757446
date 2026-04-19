@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -21,6 +22,9 @@ class AIConversationState {
   final bool isStreaming;
   final String? error;
   final Map<String, dynamic>? contextData;
+  // True once the conversation has a row in ai_conversations. Created on first
+  // user send so empty conversations never litter the history list.
+  final bool persisted;
 
   AIConversationState({
     required this.conversationId,
@@ -29,6 +33,7 @@ class AIConversationState {
     this.isStreaming = false,
     this.error,
     this.contextData,
+    this.persisted = false,
   });
 
   AIConversationState copyWith({
@@ -38,6 +43,7 @@ class AIConversationState {
     bool? isStreaming,
     String? error,
     Map<String, dynamic>? contextData,
+    bool? persisted,
   }) {
     return AIConversationState(
       conversationId: conversationId ?? this.conversationId,
@@ -46,6 +52,7 @@ class AIConversationState {
       isStreaming: isStreaming ?? this.isStreaming,
       error: error,
       contextData: contextData ?? this.contextData,
+      persisted: persisted ?? this.persisted,
     );
   }
 }
@@ -180,6 +187,9 @@ class AIConversationNotifier extends StateNotifier<AIConversationState> {
   Future<void> sendMessage(String message) async {
     if (message.trim().isEmpty) return;
 
+    // Ensure the conversation row exists before any DB insert of messages.
+    await _ensureConversationPersisted(firstMessage: message);
+
     final userMessage = AIMessageModel(
       id: _uuid.v4(),
       conversationId: state.conversationId,
@@ -193,6 +203,9 @@ class AIConversationNotifier extends StateNotifier<AIConversationState> {
       isLoading: true,
       error: null,
     );
+
+    // Fire-and-forget DB insert for user message. RLS guards by user_id.
+    unawaited(_persistMessage(role: 'user', content: message));
 
     try {
       final conversationHistory = state.messages
@@ -338,6 +351,8 @@ class AIConversationNotifier extends StateNotifier<AIConversationState> {
         isLoading: false,
       );
 
+      unawaited(_persistMessage(role: 'assistant', content: response));
+
       await AnalyticsService.logAIFeatureUsage(
         featureName:
             richMetadata != null ? 'smart_search_chat' : 'chat_assistant',
@@ -425,10 +440,94 @@ class AIConversationNotifier extends StateNotifier<AIConversationState> {
   }
 
   void clearConversation() {
+    // Fresh un-persisted conversation; row only gets created on next send.
     state = AIConversationState(conversationId: _uuid.v4());
   }
 
   void addQuickMessage(String message) {
     sendMessage(message);
   }
+
+  // ============================================================
+  // Chat history persistence
+  // ============================================================
+
+  Future<void> _ensureConversationPersisted({required String firstMessage}) async {
+    if (state.persisted) return;
+    final user = SupabaseService.client.auth.currentUser;
+    if (user == null) return;
+
+    final title = _titleFromMessage(firstMessage);
+    try {
+      await SupabaseService.client.from('ai_conversations').insert({
+        'id': state.conversationId,
+        'user_id': user.id,
+        'title': title,
+      });
+      state = state.copyWith(persisted: true);
+    } catch (e) {
+      debugPrint('[AI_HISTORY] Failed to create conversation row: $e');
+    }
+  }
+
+  Future<void> _persistMessage({
+    required String role,
+    required String content,
+  }) async {
+    if (!state.persisted) return;
+    try {
+      await SupabaseService.client.from('ai_messages').insert({
+        'conversation_id': state.conversationId,
+        'role': role,
+        'content': content,
+      });
+    } catch (e) {
+      debugPrint('[AI_HISTORY] Failed to persist $role message: $e');
+    }
+  }
+
+  String _titleFromMessage(String message) {
+    final trimmed = message.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (trimmed.length <= 40) return trimmed;
+    return '${trimmed.substring(0, 40)}...';
+  }
+
+  /// Load a past conversation by id and make it active.
+  Future<void> loadConversation(String conversationId) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final rows = await SupabaseService.client
+          .from('ai_messages')
+          .select('id, conversation_id, role, content, created_at')
+          .eq('conversation_id', conversationId)
+          .order('created_at', ascending: true);
+
+      final messages = (rows as List).map((raw) {
+        final m = Map<String, dynamic>.from(raw as Map);
+        return AIMessageModel(
+          id: m['id']?.toString() ?? _uuid.v4(),
+          conversationId: conversationId,
+          role: (m['role'] ?? 'user').toString(),
+          content: (m['content'] ?? '').toString(),
+          timestamp: m['created_at'] != null
+              ? DateTime.tryParse(m['created_at'].toString()) ?? DateTime.now()
+              : DateTime.now(),
+        );
+      }).toList();
+
+      state = AIConversationState(
+        conversationId: conversationId,
+        messages: messages,
+        persisted: true,
+      );
+    } catch (e) {
+      debugPrint('[AI_HISTORY] loadConversation failed: $e');
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Could not load conversation.',
+      );
+    }
+  }
+
+  void startNewConversation() => clearConversation();
 }

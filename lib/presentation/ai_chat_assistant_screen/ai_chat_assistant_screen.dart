@@ -454,6 +454,7 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
       body: SafeArea(
         child: Column(
           children: [
+            _buildTopBar(isLight),
             // Main content area
             Expanded(
               child: hasMessages
@@ -475,6 +476,37 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
             _buildInputBar(conversationState),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar(bool isLight) {
+    final Color iconColor =
+        isLight ? Colors.black54 : Colors.white.withOpacity(0.75);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            tooltip: 'New chat',
+            icon: Icon(Icons.add_circle_outline_rounded, color: iconColor),
+            onPressed: () {
+              ref.read(aiConversationProvider.notifier).startNewConversation();
+              _messageController.clear();
+            },
+          ),
+          IconButton(
+            tooltip: 'Chat history',
+            icon: Icon(Icons.history_rounded, color: iconColor),
+            onPressed: () async {
+              await Navigator.pushNamed(
+                context,
+                AppRoutes.aiConversationHistory,
+              );
+            },
+          ),
+        ],
       ),
     );
   }
