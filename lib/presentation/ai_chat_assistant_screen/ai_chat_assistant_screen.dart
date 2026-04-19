@@ -625,12 +625,10 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
     final Color iconColor = isLight ? Colors.grey : Colors.white.withOpacity(0.5);
     final Color textColor = isLight ? Colors.black87 : Colors.white;
     final Color hintColor = isLight ? Colors.grey.shade500 : Colors.white.withOpacity(0.35);
-    final Color sendBg = isLight
-        ? (isDisabled ? Colors.grey.shade300 : Colors.grey.shade400)
-        : (isDisabled ? Colors.white.withOpacity(0.06) : Colors.white.withOpacity(0.12));
-    final Color sendIcon = isLight
-        ? (isDisabled ? Colors.grey.shade500 : Colors.white)
-        : (isDisabled ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.8));
+    final Color sendInactiveBg =
+        isLight ? Colors.grey.shade400 : Colors.white.withOpacity(0.12);
+    final Color sendInactiveIcon =
+        isLight ? Colors.grey.shade600 : Colors.white.withOpacity(0.35);
 
     return Container(
       padding: EdgeInsets.fromLTRB(3.w, 1.h, 3.w, 1.h),
@@ -727,25 +725,38 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
                 ),
               ),
             ),
-            // Send button
-            GestureDetector(
-              onTap: isDisabled ? null : _sendMessage,
-              child: Padding(
-                padding: const EdgeInsets.only(right: 6, bottom: 6, top: 6),
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: sendBg,
+            // Send button — reacts to controller text AND disabled state.
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _messageController,
+              builder: (context, value, _) {
+                final bool hasText = value.text.trim().isNotEmpty;
+                final bool isActive = !isDisabled && hasText;
+                final Color bg =
+                    isActive ? const Color(0xFFE50913) : sendInactiveBg;
+                final Color fg =
+                    isActive ? Colors.white : sendInactiveIcon;
+                return GestureDetector(
+                  onTap: isActive ? _sendMessage : null,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.only(right: 6, bottom: 6, top: 6),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: bg,
+                      ),
+                      child: Icon(
+                        Icons.arrow_upward_rounded,
+                        color: fg,
+                        size: 18,
+                      ),
+                    ),
                   ),
-                  child: Icon(
-                    Icons.arrow_upward_rounded,
-                    color: sendIcon,
-                    size: 18,
-                  ),
-                ),
-              ),
+                );
+              },
             ),
           ],
         ),
