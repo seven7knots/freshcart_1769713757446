@@ -510,10 +510,12 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
   }
 
   Widget _buildMealPlanResults() {
-    final meals = _mealPlanData?['meals'] as List? ?? [];
+    final meals = _mealPlanData?['meals'] as List? ?? const [];
     final groceryList =
-        _mealPlanData?['grocery_list'] as Map<String, dynamic>? ?? {};
-    final totalCost = _mealPlanData?['total_estimated_cost'] ?? 0.0;
+        (_mealPlanData?['grocery_list'] as List?) ?? const [];
+    final totalCost = _mealPlanData?['total_est_price_usd']
+        ?? _mealPlanData?['total_estimated_cost']
+        ?? 0.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

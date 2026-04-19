@@ -16,6 +16,8 @@ class AIService {
   final SupabaseClient _supabaseClient;
 
   static const String _defaultModel = 'claude-haiku-4-5-20251001';
+  // Meal planning needs stronger structured output than haiku — use sonnet.
+  static const String _mealPlanModel = 'claude-sonnet-4-5';
   static const int _maxHistoryMessages = 20;
   static const int _chatMaxTokens = 2048;
   static const int _mealPlanMaxTokens = 8192;
@@ -307,88 +309,70 @@ class AIService {
   // ============================================================
   // System prompt for meal planning — diet-safe, catalog-grounded
   static const String _mealPlanSystemPrompt = '''
-You are the KJ Delivery meal planning assistant. You help Lebanese customers build meal plans from a catalog of real food items available for delivery. Your PRIMARY job is diet safety — recommending non-compliant items can harm users with medical diets (diabetic keto, celiac gluten-free, etc.).
+You are the KJ Delivery meal planning chef. You create authentic, culturally appropriate meal plans and a consolidated grocery list for Lebanese / Middle Eastern customers.
 
-═══════════════════════════════════════
-DECISION HIERARCHY — follow in exact order:
-═══════════════════════════════════════
-1. DIET COMPLIANCE IS ABSOLUTE. A suggested item MUST fully comply with the requested diet rules below. If no catalog item fits, return empty — DO NOT substitute with a non-compliant item.
-2. Cuisine preferences are STRONG preferences (prioritize, but ok to include one off-cuisine item if needed to complete the plan).
-3. Budget is a SOFT target (try to stay within ±15%, report the total).
-4. Household size and meal count affect PORTION SCALING suggestions in the notes field, not item selection.
+PRIMARY GOALS:
+1. Diet compliance is ABSOLUTE — never include items that violate the requested diet.
+2. Cuisine fidelity — when Lebanese / Middle Eastern / Arabic cuisines are requested, use authentic regional dish names (e.g. Mujadara, Shish Tawook, Kibbeh, Fattoush, Tabbouleh, Moutabal, Mahshi, Freekeh, Sayadiyeh). Do NOT output generic names like "Meal", "Lunch", "Dinner".
+3. Budget — try to stay within ±15% of the requested USD budget. Report the realistic total.
+4. Portions — scale ingredient quantities to the household size.
 
 ═══════════════════════════════════════
 DIET RULES — apply strictly:
 ═══════════════════════════════════════
-
-BALANCED — no restrictions. Include variety across food groups.
-
-LOW-CARB — target <100g carbs/day.
-  FORBIDDEN: sugar, sweetened drinks, fruit juice, white bread/rice/pasta, pastries, most desserts.
-  LIMITED: small portions of potato/rice/bread OK once per day.
-  PREFERRED: meats, fish, eggs, vegetables, legumes in moderation.
-
-KETO — target <25g net carbs/day, ~70% fat / 25% protein / 5% carbs.
-  FORBIDDEN: ALL grains (bread, pita, pasta, rice, couscous, oats, corn, tortilla), ALL sugar (including honey, maple, agave), ALL fruit juices and sweet drinks, starchy vegetables (potato, sweet potato, carrot in quantity, corn, peas), legumes (beans, lentils, chickpeas, hummus), most fruits (only berries in tiny portions), high-carb sauces (ketchup, BBQ, sweet chili, pomegranate molasses).
-  FORBIDDEN ITEMS common in Lebanese menus: tabbouleh, fattoush croutons, hummus, moutabal with pita, kibbeh, sambousek, manakish, rice dishes, stuffed grape leaves (rice filling), orange juice, lemonade, fresh juices, baklava/kunafa/any dessert.
-  ALLOWED: grilled meats (no marinade containing sugar), grilled/baked fish, eggs any style, cheese, olives, olive oil, butter, leafy salads (NO croutons, NO fruit), low-carb vegetables (zucchini, cauliflower, broccoli, cucumber, tomato in small amounts, bell pepper), avocado, nuts, plain yogurt (small serving), water, unsweetened tea/coffee.
-
-VEGETARIAN — no meat, poultry, fish, or seafood. Eggs, dairy, honey allowed.
-  FORBIDDEN: chicken, beef, lamb, fish, shrimp, squid, any meat product, fish sauce, anchovies.
-  ALLOWED: eggs, dairy, cheese, all plant foods.
-
-VEGAN — NO animal products whatsoever.
-  FORBIDDEN: all meat/poultry/fish/seafood, eggs, all dairy (milk, cheese, yogurt, butter, ghee, cream), honey, gelatin, mayonnaise, non-vegan sauces (yogurt-based, cheese-based).
-  Common Lebanese trap: many "vegetable" dishes contain yogurt or butter — only select items explicitly plant-based.
-  ALLOWED: all plant foods, vegetable oils, plant milks.
-
-PALEO — ancestral whole foods.
-  FORBIDDEN: ALL grains, ALL legumes (including peanuts, chickpeas, lentils, beans, hummus), ALL dairy, refined sugar, refined oils (canola, soybean), processed foods.
-  ALLOWED: meats, fish, seafood, eggs, vegetables, fruits, nuts (not peanuts), seeds, olive/coconut/avocado oil.
-
-MEDITERRANEAN — plant-forward with fish and olive oil emphasis.
-  EMPHASIZE: olive oil, vegetables, legumes, whole grains, fish, seafood, nuts, fruits, moderate cheese and yogurt.
-  LIMIT: red meat (at most 1 item), processed meats, sweets, butter.
-  WHOLE grains preferred over refined when possible.
-
-HIGH-PROTEIN — target ≥30g protein per meal.
-  EMPHASIZE: meats, fish, eggs, dairy, legumes, tofu at every meal.
-  No strict bans, but every suggested meal must have a clear protein anchor.
+BALANCED — no restrictions; include variety.
+LOW-CARB — target <100g carbs/day. Forbid: sugar, sweet drinks, white bread/rice/pasta, pastries, most desserts.
+KETO — <25g net carbs/day. Forbid ALL grains (bread, pita, pasta, rice, couscous, oats, corn), ALL sugar (incl. honey/maple/agave), ALL juices and sweet drinks, starchy vegetables (potato, sweet potato, corn), legumes (beans, lentils, chickpeas, hummus), most fruit (only berries in tiny portions), pomegranate molasses. Allowed: grilled meats (unsweetened marinade), fish, eggs, cheese, olives, olive oil, leafy salads (no croutons/fruit), low-carb veg, avocado, nuts, plain yogurt small.
+VEGETARIAN — no meat/poultry/fish/seafood; eggs, dairy, honey allowed.
+VEGAN — no animal products. Many "vegetable" dishes contain yogurt or butter — only select items explicitly plant-based.
+PALEO — no grains, no legumes (incl. peanuts, chickpeas, lentils, beans, hummus), no dairy, no refined sugar/oils.
+MEDITERRANEAN — plant-forward with fish and olive oil; limit red meat and sweets.
+HIGH-PROTEIN — ≥30g protein per meal; every meal has a clear protein anchor.
 
 ═══════════════════════════════════════
-CATALOG HANDLING:
-═══════════════════════════════════════
-You will receive a catalog of available items with: name, description, ingredients (if present), price, store_name.
-- ONLY suggest items from this catalog. Do not invent menu items.
-- For EACH item you suggest, verify against the diet rules above using the name + description + ingredients.
-- If an item's compliance is AMBIGUOUS (e.g. "chicken shawarma" — could be on pita or in a salad), EXCLUDE it. Err on the side of safety.
-- If the catalog has ZERO compliant items for the requested diet, return `status: "no_compliant_items"` with a message explaining which diet rules eliminated all options.
-
-═══════════════════════════════════════
-OUTPUT FORMAT — return ONLY valid JSON, no prose before or after:
+OUTPUT FORMAT — return ONLY valid JSON, no prose, no markdown, no code fences.
+Response MUST start with `{` and end with `}`.
 ═══════════════════════════════════════
 {
-  "status": "success" | "no_compliant_items" | "partial",
-  "message": "<brief user-facing message>",
-  "diet": "<requested diet name>",
-  "total_estimated_cost": <number in USD>,
-  "budget_met": <true|false>,
   "meals": [
     {
-      "meal_number": 1,
-      "meal_name": "<short descriptive name>",
-      "items": [
-        { "catalog_item_name": "<exact name from catalog>", "store_name": "<from catalog>", "price": <number>, "quantity": 1 }
+      "name": "Mujadara",
+      "cuisine": "Lebanese",
+      "ingredients": [
+        { "name": "brown lentils", "qty": "1 cup", "est_price_usd": 1.50 },
+        { "name": "long-grain rice", "qty": "1 cup", "est_price_usd": 1.20 },
+        { "name": "yellow onion", "qty": "2 large", "est_price_usd": 0.80 },
+        { "name": "olive oil", "qty": "3 tbsp", "est_price_usd": 0.60 }
       ],
-      "estimated_cost": <number>,
-      "compliance_note": "<one sentence explaining why this meal fits the diet>",
-      "portion_note": "<if household size >1, how to scale, else empty string>"
+      "est_price_usd": 4.10,
+      "portion_size": "medium",
+      "prep_time_min": 45,
+      "description": "Classic Lebanese lentils and rice with deeply caramelized onions."
     }
   ],
-  "excluded_items_note": "<if many obvious-sounding items were excluded, briefly explain>"
+  "grocery_list": [
+    { "name": "brown lentils", "qty": "2 cups", "est_price_usd": 3.00 },
+    { "name": "long-grain rice", "qty": "2 cups", "est_price_usd": 2.40 },
+    { "name": "yellow onion", "qty": "5 large", "est_price_usd": 2.00 }
+  ],
+  "total_est_price_usd": 85.40
 }
 
-If status is `no_compliant_items`, `meals` should be an empty array, and `message` must clearly explain which rules disqualified the catalog.''';
+FIELD RULES:
+- `meals[].name`: the authentic dish name. Never "Meal N", never "Lunch".
+- `meals[].portion_size`: one of "small" | "medium" | "large".
+- `meals[].prep_time_min`: positive integer, realistic.
+- `meals[].description`: one short sentence.
+- `meals[].ingredients`: always a non-empty list with real ingredient names, quantities, and per-ingredient usd estimates.
+- `grocery_list`: consolidated shopping list across all meals (merge duplicates, sum quantities). Always a non-empty list of objects.
+- `total_est_price_usd`: realistic sum of grocery_list prices, within ±15% of the user's budget when possible.
+
+FORBIDDEN:
+- Do NOT emit markdown, prose, comments, or code fences.
+- Do NOT output placeholder names like "Meal", "Lunch", "Dinner", "TBD".
+- Do NOT output prep_time_min of 0.
+- Do NOT wrap the JSON in ``` fences.
+''';
 
   Future<Map<String, dynamic>> generateMealPlan({
     required String dietType,
@@ -398,55 +382,27 @@ If status is `no_compliant_items`, `meals` should be an empty array, and `messag
     List<String>? cuisinePreferences,
   }) async {
     try {
-      List<Map<String, dynamic>> availableProducts = [];
-      String productCatalogJson = '';
-
-      try {
-        final productsResult = await _supabaseClient
-            .from('products')
-            .select('id, name, description, price, category, stores(name)')
-            .eq('is_available', true)
-            .order('name')
-            .limit(150);
-
-        availableProducts =
-            List<Map<String, dynamic>>.from(productsResult);
-
-        if (availableProducts.isNotEmpty) {
-          final catalogList = availableProducts
-              .map((p) => {
-                    'id': p['id'],
-                    'name': p['name'],
-                    'description': p['description'] ?? '',
-                    'price': p['price'],
-                    'category': p['category'] ?? 'general',
-                    'store_name': p['stores']?['name'] ?? 'KJ Store',
-                  })
-              .toList();
-          productCatalogJson = jsonEncode(catalogList);
-        }
-      } catch (e) {
-        debugPrint('[AI] Failed to fetch products for meal planning: $e');
-      }
-
-      final bool hasRealProducts = availableProducts.isNotEmpty;
-
-      final String catalogSection = hasRealProducts
-          ? '''
-ITEM CATALOG (the ONLY source you may use — do NOT invent items):
-$productCatalogJson'''
-          : '''
-NOTE: No products are currently in the catalog. Return status: "no_compliant_items" with message: "No products are currently available in the store catalog."''';
+      final cuisinesLabel = (cuisinePreferences == null ||
+              cuisinePreferences.isEmpty)
+          ? 'Lebanese, Middle Eastern, Arabic, Mediterranean'
+          : cuisinePreferences.join(', ');
 
       final prompt = '''
-Generate a meal plan with these parameters:
-- Diet: $dietType
-- Budget: \$$budget USD
-- Household size: $householdSize people
-- Number of meals: $mealCount
-- Cuisine preferences: ${cuisinePreferences?.join(', ') ?? 'Lebanese / Mediterranean'}
+Build a meal plan and consolidated grocery list for these user inputs. Return ONLY the JSON object defined in the system prompt — no prose, no fences.
 
-$catalogSection''';
+USER INPUTS:
+- diet_type: $dietType
+- budget_usd: ${budget.toStringAsFixed(2)}
+- household_size: $householdSize
+- number_of_meals: $mealCount
+- cuisine_preferences: [$cuisinesLabel]
+
+For Lebanese / Middle Eastern / Arabic cuisines, use authentic regional dish names such as mujadara, shish tawook, kibbeh, fattoush, tabbouleh, moutabal, mahshi, freekeh, sayadiyeh, kafta, mnazaleh, shakshuka. Do NOT emit "Meal 1", "Lunch", "Dinner" or any other placeholder.
+
+Ensure every meal has: non-empty ingredients[], prep_time_min > 0, est_price_usd > 0, portion_size in {small, medium, large}, one-sentence description.
+Ensure grocery_list is a non-empty list of {name, qty, est_price_usd} covering all meals combined (merge duplicate ingredients, sum quantities).
+Ensure total_est_price_usd is realistic and close to the user's budget.
+''';
 
       final messages = [
         Message(role: 'system', content: _mealPlanSystemPrompt),
@@ -455,10 +411,10 @@ $catalogSection''';
 
       final completion = await _claudeClient.createChatCompletion(
         messages: messages,
-        model: _defaultModel,
+        model: _mealPlanModel,
         options: {
           'max_output_tokens': _mealPlanMaxTokens,
-          'temperature': 0.3,
+          'temperature': 0.4,
         },
       );
 
@@ -468,19 +424,22 @@ $catalogSection''';
       if (mealPlan == null) {
         return {
           'success': false,
-          'error': 'Failed to parse meal plan. Please try again.',
+          'error':
+              'Could not generate a meal plan. Please try again.',
         };
       }
 
-      // Handle no_compliant_items status from the LLM
-      final status = mealPlan['status'] as String?;
-      if (status == 'no_compliant_items') {
+      // Validate shape — reject silent-placeholder fallback.
+      final meals = mealPlan['meals'];
+      final groceryList = mealPlan['grocery_list'];
+      if (meals is! List ||
+          meals.isEmpty ||
+          groceryList is! List ||
+          groceryList.isEmpty) {
         return {
-          'success': true,
-          'no_compliant_items': true,
-          'message': mealPlan['message'] as String? ??
-              'No items in the catalog match your diet requirements.',
-          'meal_plan': mealPlan,
+          'success': false,
+          'error':
+              'Could not generate a meal plan. Please try again.',
         };
       }
 
@@ -500,7 +459,7 @@ $catalogSection''';
             'household_size': householdSize,
             'plan_data': mealPlan['meals'],
             'grocery_list': mealPlan['grocery_list'],
-            'estimated_cost': mealPlan['total_estimated_cost'] ?? 0,
+            'estimated_cost': mealPlan['total_est_price_usd'] ?? 0,
             'is_active': true,
           });
         } catch (e) {
@@ -511,7 +470,10 @@ $catalogSection''';
       return {'success': true, 'meal_plan': mealPlan};
     } catch (e) {
       debugPrint('Meal plan generation error: $e');
-      return {'success': false, 'error': 'Failed to generate meal plan: $e'};
+      return {
+        'success': false,
+        'error': 'Could not generate a meal plan. Please try again.',
+      };
     }
   }
 
@@ -532,9 +494,8 @@ $catalogSection''';
     required Map<String, dynamic> mealPlan,
   }) async {
     try {
-      final groceryList =
-          mealPlan['grocery_list'] as Map<String, dynamic>?;
-      if (groceryList == null) {
+      final groceryList = mealPlan['grocery_list'];
+      if (groceryList is! List || groceryList.isEmpty) {
         return {
           'success': false,
           'error': 'No grocery list found',
@@ -546,59 +507,30 @@ $catalogSection''';
       final matchedIds = <String>[];
       final notFound = <String>[];
 
-      for (var category in groceryList.keys) {
-        final rawItems = groceryList[category];
-        if (rawItems is! List) continue;
+      for (final item in groceryList) {
+        if (item is! Map) continue;
+        final itemMap = Map<String, dynamic>.from(item);
+        final itemName =
+            (itemMap['name'] ?? itemMap['item'] ?? '').toString().trim();
+        if (itemName.isEmpty) continue;
 
-        for (var item in rawItems) {
-          if (item is! Map) continue;
-          final itemMap = Map<String, dynamic>.from(item);
-          final itemName =
-              (itemMap['item'] ?? itemMap['name'] ?? '').toString().trim();
-          final productId = itemMap['product_id']?.toString();
-
-          if (itemName.isEmpty) continue;
-
-          // Priority 1: Use product_id from AI response (strict prompt path)
-          if (productId != null &&
-              productId != 'null' &&
-              productId.isNotEmpty) {
-            try {
-              final check = await _supabaseClient
-                  .from('products')
-                  .select('id')
-                  .eq('id', productId)
-                  .eq('is_available', true)
-                  .maybeSingle();
-              if (check != null) {
-                matchedIds.add(productId);
-                debugPrint('[AI_CART] ID match: $itemName → $productId');
-                continue;
-              }
-            } catch (e) { debugPrint('[AI_SERVICE] Silent error: $e'); }
-          }
-
-          // Priority 2: Fuzzy name search fallback
-          // SESSION 29 FIX: Use try/catch instead of .catchError to avoid
-          // Dart type mismatch crash.
-          try {
-            final products = await ProductService.searchProducts(
-              itemName,
-              storeId: null,
-              availableOnly: true,
-            );
-            if (products.isNotEmpty) {
-              matchedIds.add(products.first.id);
-              debugPrint(
-                  '[AI_CART] Name match: $itemName → ${products.first.name}');
-            } else {
-              notFound.add(itemName);
-              debugPrint('[AI_CART] Not found: $itemName');
-            }
-          } catch (e) {
+        try {
+          final products = await ProductService.searchProducts(
+            itemName,
+            storeId: null,
+            availableOnly: true,
+          );
+          if (products.isNotEmpty) {
+            matchedIds.add(products.first.id);
+            debugPrint(
+                '[AI_CART] Name match: $itemName -> ${products.first.name}');
+          } else {
             notFound.add(itemName);
-            debugPrint('[AI_CART] Search error for $itemName: $e');
+            debugPrint('[AI_CART] Not found: $itemName');
           }
+        } catch (e) {
+          notFound.add(itemName);
+          debugPrint('[AI_CART] Search error for $itemName: $e');
         }
       }
 
