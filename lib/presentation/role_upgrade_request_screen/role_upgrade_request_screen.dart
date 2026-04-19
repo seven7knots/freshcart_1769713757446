@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 import '../../core/app_export.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/supabase_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class RoleUpgradeRequestScreen extends StatefulWidget {
   const RoleUpgradeRequestScreen({super.key});
@@ -40,7 +41,7 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
 
     if (_selectedRole == null) {
       setState(() {
-        _errorMessage = 'Please select a role to apply for';
+        _errorMessage = AppLocalizations.of(context)!.pleaseSelectARoleToApply;
       });
       return;
     }
@@ -99,10 +100,9 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Application submitted successfully! You will be notified once reviewed.',
-            ),
+              AppLocalizations.of(context)!.applicationSubmittedSuccessfullyYouWillBe, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.green,
           ),
         );
@@ -111,7 +111,7 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error submitting application. Please try again.';
+        _errorMessage = AppLocalizations.of(context)!.errorSubmittingApplicationPleaseTryAgain;
       });
       debugPrint('[ROLE_UPGRADE] Submission error: $e');
     } finally {
@@ -125,17 +125,18 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         title: Text(
-          'Role Upgrade Request',
-          style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+          AppLocalizations.of(context)!.roleUpgradeRequest,
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -169,40 +170,41 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
   }
 
   Widget _buildHeader() {
+    final theme = Theme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Apply for Role Upgrade',
-          style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
+          AppLocalizations.of(context)!.applyForRoleUpgrade,
+          style: theme.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.w700,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         Text(
-          'Select the role you want to apply for and provide the required information',
-          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-          ),
-        ),
+          AppLocalizations.of(context)!.selectTheRoleYouWantTo,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
     );
   }
 
   Widget _buildRoleSelection() {
+    final theme = Theme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Select Role',
-          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+          AppLocalizations.of(context)!.selectRole,
+          style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 2.h),
         _buildRoleCard(
           role: 'driver',
-          title: 'Driver',
+          title: AppLocalizations.of(context)!.driver,
           description:
               'Deliver orders and earn money on your schedule. Requirements: Valid license, vehicle, and clean driving record.',
           icon: Icons.delivery_dining,
@@ -210,7 +212,7 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
         SizedBox(height: 2.h),
         _buildRoleCard(
           role: 'merchant',
-          title: 'Merchant',
+          title: AppLocalizations.of(context)!.merchant,
           description:
               'Sell your products and services on our platform. Requirements: Business registration and product inventory.',
           icon: Icons.store,
@@ -226,6 +228,7 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
     required IconData icon,
   }) {
     final isSelected = _selectedRole == role;
+    final theme = Theme.of(context);
 
     return GestureDetector(
       onTap: () {
@@ -237,12 +240,12 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
       child: Container(
         padding: EdgeInsets.all(4.w),
         decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.surface,
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12.0),
           border: Border.all(
             color: isSelected
-                ? AppTheme.lightTheme.colorScheme.primary
-                : AppTheme.lightTheme.colorScheme.outline,
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -252,16 +255,16 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
               padding: EdgeInsets.all(3.w),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? AppTheme.lightTheme.colorScheme.primary
+                    ? theme.colorScheme.primary
                         .withValues(alpha: 0.1)
-                    : AppTheme.lightTheme.colorScheme.surfaceContainerHighest,
+                    : theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12.0),
               ),
               child: Icon(
                 icon,
                 color: isSelected
-                    ? AppTheme.lightTheme.colorScheme.primary
-                    : AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
                 size: 8.w,
               ),
             ),
@@ -272,27 +275,25 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
                 children: [
                   Text(
                     title,
-                    style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: isSelected
-                          ? AppTheme.lightTheme.colorScheme.primary
+                          ? theme.colorScheme.primary
                           : null,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 0.5.h),
                   Text(
                     description,
-                    style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
             if (isSelected)
               Icon(
                 Icons.check_circle,
-                color: AppTheme.lightTheme.colorScheme.primary,
+                color: theme.colorScheme.primary,
                 size: 6.w,
               ),
           ],
@@ -302,28 +303,29 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
   }
 
   Widget _buildApplicationForm() {
+    final theme = Theme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Application Details',
-          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+          AppLocalizations.of(context)!.applicationDetails,
+          style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 2.h),
         TextFormField(
           controller: _experienceController,
           maxLines: 3,
           decoration: InputDecoration(
-            labelText: 'Experience',
-            hintText: 'Describe your relevant experience',
+            labelText: AppLocalizations.of(context)!.experience,
+            hintText: AppLocalizations.of(context)!.describeYourRelevantExperience,
             filled: true,
-            fillColor: AppTheme.lightTheme.colorScheme.surface,
+            fillColor: theme.colorScheme.surface,
           ),
           validator: (value) {
             if (value == null || value.isEmpty) {
-              return 'Please describe your experience';
+              return AppLocalizations.of(context)!.pleaseDescribeYourExperience;
             }
             return null;
           },
@@ -334,14 +336,14 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
             controller: _vehicleInfoController,
             maxLines: 2,
             decoration: InputDecoration(
-              labelText: 'Vehicle Information',
-              hintText: 'Make, model, year, and license plate',
+              labelText: AppLocalizations.of(context)!.vehicleInformation,
+              hintText: AppLocalizations.of(context)!.makeModelYearAndLicensePlate,
               filled: true,
-              fillColor: AppTheme.lightTheme.colorScheme.surface,
+              fillColor: theme.colorScheme.surface,
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please provide vehicle information';
+                return AppLocalizations.of(context)!.pleaseProvideVehicleInformation;
               }
               return null;
             },
@@ -352,14 +354,14 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
           TextFormField(
             controller: _businessNameController,
             decoration: InputDecoration(
-              labelText: 'Business Name',
-              hintText: 'Enter your business name',
+              labelText: AppLocalizations.of(context)!.businessName,
+              hintText: AppLocalizations.of(context)!.enterYourBusinessName,
               filled: true,
-              fillColor: AppTheme.lightTheme.colorScheme.surface,
+              fillColor: theme.colorScheme.surface,
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please provide business name';
+                return AppLocalizations.of(context)!.pleaseProvideBusinessName;
               }
               return null;
             },
@@ -369,14 +371,14 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
             controller: _businessAddressController,
             maxLines: 2,
             decoration: InputDecoration(
-              labelText: 'Business Address',
-              hintText: 'Enter your business address',
+              labelText: AppLocalizations.of(context)!.businessAddress,
+              hintText: AppLocalizations.of(context)!.enterYourBusinessAddress,
               filled: true,
-              fillColor: AppTheme.lightTheme.colorScheme.surface,
+              fillColor: theme.colorScheme.surface,
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please provide business address';
+                return AppLocalizations.of(context)!.pleaseProvideBusinessAddress;
               }
               return null;
             },
@@ -387,10 +389,10 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
           controller: _additionalNotesController,
           maxLines: 3,
           decoration: InputDecoration(
-            labelText: 'Additional Notes (Optional)',
-            hintText: 'Any additional information you would like to provide',
+            labelText: AppLocalizations.of(context)!.additionalNotesOptional,
+            hintText: AppLocalizations.of(context)!.anyAdditionalInformationYouWouldLike,
             filled: true,
-            fillColor: AppTheme.lightTheme.colorScheme.surface,
+            fillColor: theme.colorScheme.surface,
           ),
         ),
       ],
@@ -398,6 +400,8 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
   }
 
   Widget _buildErrorMessage() {
+    final theme = Theme.of(context);
+
     return Container(
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
@@ -415,10 +419,9 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
           Expanded(
             child: Text(
               _errorMessage!,
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.red,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -426,6 +429,8 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
   }
 
   Widget _buildTermsCheckbox() {
+    final theme = Theme.of(context);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -437,17 +442,16 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
               if (_acceptTerms) _errorMessage = null;
             });
           },
-          activeColor: AppTheme.lightTheme.colorScheme.primary,
+          activeColor: theme.colorScheme.primary,
         ),
         Expanded(
           child: Padding(
             padding: EdgeInsets.only(top: 1.5.h),
             child: Text(
-              'I agree to the terms and conditions and confirm that all information provided is accurate',
-              style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+              AppLocalizations.of(context)!.iAgreeToTheTermsAnd,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ),
       ],
@@ -455,14 +459,16 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
   }
 
   Widget _buildSubmitButton() {
+    final theme = Theme.of(context);
+
     return SizedBox(
       width: double.infinity,
       height: 6.h,
       child: ElevatedButton(
         onPressed: _isLoading ? null : _submitRequest,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.lightTheme.colorScheme.primary,
-          foregroundColor: AppTheme.lightTheme.colorScheme.onPrimary,
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: theme.colorScheme.onPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.0),
           ),
@@ -474,17 +480,16 @@ class _RoleUpgradeRequestScreenState extends State<RoleUpgradeRequestScreen> {
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    AppTheme.lightTheme.colorScheme.onPrimary,
+                    theme.colorScheme.onPrimary,
                   ),
                 ),
               )
             : Text(
-                'Submit Application',
-                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                AppLocalizations.of(context)!.submitApplication,
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.lightTheme.colorScheme.onPrimary,
-                ),
-              ),
+                  color: theme.colorScheme.onPrimary,
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
     );
   }

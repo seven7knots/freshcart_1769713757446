@@ -21,13 +21,11 @@ class OnboardingSlideWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      width: 100.w,
-      height: 100.h,
+    return Padding(
       padding: EdgeInsets.symmetric(horizontal: 6.w),
       child: Column(
         children: [
-          SizedBox(height: 8.h),
+          SizedBox(height: 2.h),
           Expanded(
             flex: 3,
             child: Container(
@@ -44,40 +42,38 @@ class OnboardingSlideWidget extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: CustomImageWidget(
-                  imageUrl: imageUrl,
-                  width: 88.w,
-                  height: double.infinity,
-                  fit: BoxFit.cover,
-                  semanticLabel: semanticLabel,
-                ),
+                child: Image.asset(
+                imageUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+              ),
               ),
             ),
           ),
-          SizedBox(height: 6.h),
+          SizedBox(height: 3.h),
           Expanded(
             flex: 2,
-            child: Column(
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onSurface,
-                    height: 1.2,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 3.h),
-                Text(
-                  description,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    height: 1.5,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.onSurface,
+                      height: 1.2,
+                    ),
+                    textAlign: TextAlign.center),
+                  SizedBox(height: 2.h),
+                  Text(
+                    description,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      height: 1.5,
+                    ),
+                    textAlign: TextAlign.center),
+                ],
+              ),
             ),
           ),
         ],

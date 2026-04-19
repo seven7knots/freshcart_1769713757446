@@ -8,28 +8,29 @@ import '../../providers/messaging_provider.dart';
 import '../../widgets/custom_tab_bar.dart';
 import './widgets/product_listings_widget.dart';
 import './widgets/service_categories_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class MarketplaceHomeScreen extends ConsumerWidget {
   const MarketplaceHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final selectedTab = ref.watch(marketplaceTabProvider);
     final unreadCountAsync = ref.watch(totalUnreadCountProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Marketplace',
+          AppLocalizations.of(context)!.marketplace,
           style: TextStyle(
             fontSize: 18.sp,
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
         elevation: 0,
-        backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         actions: [
           // Messages icon with unread badge
           Stack(
@@ -60,11 +61,10 @@ class MarketplaceHomeScreen extends ConsumerWidget {
                           child: Text(
                             count > 99 ? '99+' : count.toString(),
                             style: TextStyle(
-                              color: Colors.white,
+                              color: theme.colorScheme.surface,
                               fontSize: 8.sp,
                               fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ),
                     );

@@ -16,6 +16,8 @@ import './custom_bottom_bar.dart';
 /// - Removed FloatingAIChatbox (AI is only accessible via AI Mate tab)
 /// - Replaced Cart at index 2 with AI Chat Assistant screen
 /// - Tab order: Home(0), Search(1), AI Mate(2), Stores(3), Profile(4)
+/// - Fixed 46px RenderFlex overflow: uses Column layout so child screens
+///   with their own Scaffold are properly constrained above the bottom bar.
 class MainLayoutWrapper extends StatefulWidget {
   final int initialIndex;
 
@@ -67,15 +69,31 @@ class MainLayoutWrapperState extends State<MainLayoutWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    // WHY Column INSTEAD OF Scaffold.bottomNavigationBar:
+    //
+    // Each child screen (Search, Stores, Profile, etc.) has its own Scaffold.
+    // When you use Scaffold.bottomNavigationBar, it only insets its DIRECT
+    // body — not any nested Scaffold's body. So the inner Scaffolds render
+    // their content behind the bottom bar, causing 46px overflow.
+    //
+    // By using a Column, the IndexedStack gets exactly the remaining height
+    // AFTER the CustomBottomBar is laid out. This means ALL child screens
+    // are constrained to fit above the bar — no matter what widgets they use.
     final content = Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: CustomBottomBar(
-        currentIndex: _currentIndex,
-        onTap: _onTabTapped,
-        variant: BottomBarVariant.primary,
+      body: Column(
+        children: [
+          Expanded(
+            child: IndexedStack(
+              index: _currentIndex,
+              children: _screens,
+            ),
+          ),
+          CustomBottomBar(
+            currentIndex: _currentIndex,
+            onTap: _onTabTapped,
+            variant: BottomBarVariant.primary,
+          ),
+        ],
       ),
     );
 

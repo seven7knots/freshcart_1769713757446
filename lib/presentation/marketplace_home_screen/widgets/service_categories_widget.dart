@@ -2,54 +2,57 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class ServiceCategoriesWidget extends StatelessWidget {
   const ServiceCategoriesWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     final categories = [
       {
         'icon': Icons.local_taxi,
-        'name': 'Taxi',
+        'name': AppLocalizations.of(context)!.taxi,
         'type': 'taxi',
-        'description': 'Quick rides around town'
+        'description': AppLocalizations.of(context)!.quickRidesAroundTown
       },
       {
         'icon': Icons.car_repair,
-        'name': 'Towing',
+        'name': AppLocalizations.of(context)!.towing,
         'type': 'towing',
-        'description': 'Vehicle towing service'
+        'description': AppLocalizations.of(context)!.vehicleTowingService
       },
       {
         'icon': Icons.water_drop,
-        'name': 'Water Delivery',
+        'name': AppLocalizations.of(context)!.waterDelivery,
         'type': 'water_delivery',
-        'description': 'Fresh water delivery'
+        'description': AppLocalizations.of(context)!.freshWaterDelivery
       },
       {
         'icon': Icons.local_gas_station,
-        'name': 'Diesel Delivery',
+        'name': AppLocalizations.of(context)!.dieselDelivery,
         'type': 'diesel_delivery',
-        'description': 'Fuel delivery service'
+        'description': AppLocalizations.of(context)!.fuelDeliveryService
       },
       {
         'icon': Icons.restaurant,
-        'name': 'Private Chef',
+        'name': AppLocalizations.of(context)!.privateChef,
         'type': 'private_chef',
-        'description': 'Personal cooking service'
+        'description': AppLocalizations.of(context)!.personalCookingService
       },
       {
         'icon': Icons.fitness_center,
-        'name': 'Personal Trainer',
+        'name': AppLocalizations.of(context)!.personalTrainer,
         'type': 'personal_trainer',
-        'description': 'Fitness coaching'
+        'description': AppLocalizations.of(context)!.fitnessCoaching
       },
       {
         'icon': Icons.drive_eta,
-        'name': 'Private Driver',
+        'name': AppLocalizations.of(context)!.privateDriver,
         'type': 'private_driver',
-        'description': 'Personal driver service'
+        'description': AppLocalizations.of(context)!.personalDriverService
       },
     ];
 
@@ -71,7 +74,7 @@ class ServiceCategoriesWidget extends StatelessWidget {
           },
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(12.0),
               boxShadow: [
                 BoxShadow(
@@ -85,18 +88,18 @@ class ServiceCategoriesWidget extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(category['icon'] as IconData,
-                    size: 40, color: AppTheme.lightTheme.colorScheme.primary),
+                    size: 40, color: theme.colorScheme.primary),
                 SizedBox(height: 1.h),
                 Text(category['name'] as String,
                     style:
                         TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600),
-                    textAlign: TextAlign.center),
+                    textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 0.5.h),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 2.w),
                   child: Text(category['description'] as String,
                       style:
-                          TextStyle(fontSize: 11.sp, color: Colors.grey[600]),
+                          TextStyle(fontSize: 11.sp, color: theme.colorScheme.onSurfaceVariant),
                       textAlign: TextAlign.center,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis),

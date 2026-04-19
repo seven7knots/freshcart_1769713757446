@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../theme/app_theme.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class EarningsChartWidget extends StatelessWidget {
   final String title;
@@ -31,7 +32,7 @@ class EarningsChartWidget extends StatelessWidget {
         boxShadow: [BoxShadow(color: cs.shadow.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: TextStyle(color: cs.onSurface, fontSize: 14.sp, fontWeight: FontWeight.bold)),
+        Text(title, style: TextStyle(color: cs.onSurface, fontSize: 14.sp, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 3.h),
         SizedBox(height: 30.h, child: LineChart(_buildLineChartData(cs))),
       ]),
@@ -75,7 +76,7 @@ class EarningsChartWidget extends StatelessWidget {
               }
               return SideTitleWidget(
                 axisSide: meta.axisSide,
-                child: Text(label, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 10.sp)),
+                child: Text(label, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 10.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
               );
             },
           ),
@@ -85,7 +86,7 @@ class EarningsChartWidget extends StatelessWidget {
             showTitles: true, reservedSize: 40,
             interval: maxY > 0 ? maxY / 5 : 20,
             getTitlesWidget: (value, meta) =>
-                Text('\$${value.toInt()}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 10.sp)),
+                Text('\$${value.toInt()}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 10.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ),
       ),
@@ -141,11 +142,11 @@ class EarningsChartWidget extends StatelessWidget {
         boxShadow: [BoxShadow(color: cs.shadow.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(children: [
-        Text(title, style: TextStyle(color: cs.onSurface, fontSize: 14.sp, fontWeight: FontWeight.bold)),
+        Text(title, style: TextStyle(color: cs.onSurface, fontSize: 14.sp, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 3.h),
         Icon(Icons.show_chart, size: 15.w, color: cs.onSurfaceVariant),
         SizedBox(height: 2.h),
-        Text('No earnings data available', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12.sp)),
+        Text(AppLocalizations.of(context)!.noEarningsDataAvailable, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
       ]),
     );
   }

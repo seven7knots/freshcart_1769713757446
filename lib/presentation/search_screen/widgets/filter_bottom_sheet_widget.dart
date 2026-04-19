@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class FilterBottomSheetWidget extends StatefulWidget {
   final Map<String, dynamic> currentFilters;
@@ -40,7 +41,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
     return Container(
       height: 80.h,
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
@@ -75,7 +76,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
         border: Border(
           bottom: BorderSide(
             color:
-                AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
+                Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -83,12 +84,11 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            'Filters',
-            style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+          Flexible(child: Text(
+            AppLocalizations.of(context)!.filters,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w600,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Row(
             children: [
               TextButton(
@@ -100,7 +100,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                   });
                   widget.onClearAll?.call();
                 },
-                child: Text('Clear All'),
+                child: Text(AppLocalizations.of(context)!.clearAll, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               IconButton(
                 onPressed: () {
@@ -109,7 +109,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                 },
                 icon: CustomIconWidget(
                   iconName: 'close',
-                  color: AppTheme.lightTheme.colorScheme.onSurface,
+                  color: Theme.of(context).colorScheme.onSurface,
                   size: 24,
                 ),
               ),
@@ -140,7 +140,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
               (_filters['categories'] as List<String>?)?.contains(category) ??
                   false;
           return CheckboxListTile(
-            title: Text(category),
+            title: Text(category, maxLines: 1, overflow: TextOverflow.ellipsis),
             value: isSelected,
             onChanged: (value) {
               HapticFeedback.lightImpact();
@@ -172,18 +172,16 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              Flexible(child: Text(
                 '\$${_priceRange.start.round()}',
-                style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              Flexible(child: Text(
                 '\$${_priceRange.end.round()}',
-                style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
             ],
           ),
           SizedBox(height: 1.h),
@@ -223,7 +221,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
           final isSelected =
               (_filters['brands'] as List<String>?)?.contains(brand) ?? false;
           return CheckboxListTile(
-            title: Text(brand),
+            title: Text(brand, maxLines: 1, overflow: TextOverflow.ellipsis),
             value: isSelected,
             onChanged: (value) {
               HapticFeedback.lightImpact();
@@ -264,7 +262,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
           final isSelected =
               (_filters['dietary'] as List<String>?)?.contains(diet) ?? false;
           return CheckboxListTile(
-            title: Text(diet),
+            title: Text(diet, maxLines: 1, overflow: TextOverflow.ellipsis),
             value: isSelected,
             onChanged: (value) {
               HapticFeedback.lightImpact();
@@ -301,7 +299,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                     rating,
                     (i) => CustomIconWidget(
                           iconName: 'star',
-                          color: AppTheme.lightTheme.colorScheme.tertiary,
+                          color: Theme.of(context).colorScheme.tertiary,
                           size: 16,
                         )),
                 ...List.generate(
@@ -309,11 +307,11 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                     (i) => CustomIconWidget(
                           iconName: 'star_border',
                           color:
-                              AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                              Theme.of(context).colorScheme.onSurfaceVariant,
                           size: 16,
                         )),
                 SizedBox(width: 2.w),
-                Text('& up'),
+                Text(AppLocalizations.of(context)!.up, maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
             value: rating,
@@ -336,10 +334,9 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
     return ExpansionTile(
       title: Text(
         title,
-        style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
-        ),
-      ),
+        ), maxLines: 1, overflow: TextOverflow.ellipsis),
       initiallyExpanded: true,
       children: [
         Padding(
@@ -356,11 +353,11 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
     return Container(
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         border: Border(
           top: BorderSide(
             color:
-                AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
+                Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
             width: 1,
           ),
         ),
@@ -374,7 +371,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                   HapticFeedback.lightImpact();
                   Navigator.pop(context);
                 },
-                child: Text('Cancel'),
+                child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ),
             SizedBox(width: 4.w),
@@ -388,8 +385,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                 child: Text(
                   activeFiltersCount > 0
                       ? 'Apply ($activeFiltersCount)'
-                      : 'Apply Filters',
-                ),
+                      : AppLocalizations.of(context)!.applyFilters, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ),
           ],

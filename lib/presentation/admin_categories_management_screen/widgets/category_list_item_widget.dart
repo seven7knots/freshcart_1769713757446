@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class CategoryListItemWidget extends StatelessWidget {
   final Map<String, dynamic> category;
@@ -20,7 +21,7 @@ class CategoryListItemWidget extends StatelessWidget {
     final theme = Theme.of(context);
 
     final bool isActive = category['is_active'] == true;
-    final String name = category['name'] ?? 'Unnamed';
+    final String name = category['name'] ?? AppLocalizations.of(context)!.unnamed;
     final String? description = category['description'];
     final String type = category['type'] ?? 'product';
     final int sortOrder = category['sort_order'] ?? 0;
@@ -30,7 +31,7 @@ class CategoryListItemWidget extends StatelessWidget {
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isActive
               ? theme.colorScheme.primary.withValues(alpha: 0.3)
@@ -46,7 +47,7 @@ class CategoryListItemWidget extends StatelessWidget {
             height: 14.w,
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
               Icons.category,
@@ -113,7 +114,7 @@ class CategoryListItemWidget extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: onEdit,
                         icon: const Icon(Icons.edit, size: 16),
-                        label: const Text('Edit'),
+                        label: Text(AppLocalizations.of(context)!.edit, maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                     SizedBox(width: 2.w),
@@ -126,7 +127,7 @@ class CategoryListItemWidget extends StatelessWidget {
                               : Icons.visibility,
                           size: 16,
                         ),
-                        label: Text(isActive ? 'Deactivate' : 'Activate'),
+                        label: Text(isActive ? AppLocalizations.of(context)!.deactivate : AppLocalizations.of(context)!.activate, maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                     SizedBox(width: 2.w),
@@ -152,15 +153,14 @@ class CategoryListItemWidget extends StatelessWidget {
         color: active
             ? Colors.green.withValues(alpha: 0.15)
             : Colors.grey.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Text(
         active ? 'ACTIVE' : 'INACTIVE',
         style: theme.textTheme.labelSmall?.copyWith(
           fontWeight: FontWeight.bold,
-          color: active ? Colors.green : Colors.grey,
-        ),
-      ),
+          color: active ? Colors.green : theme.colorScheme.onSurfaceVariant,
+        ), maxLines: 1, overflow: TextOverflow.ellipsis),
     );
   }
 
@@ -169,18 +169,17 @@ class CategoryListItemWidget extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
           Icon(icon, size: 12, color: theme.colorScheme.onSurfaceVariant),
           SizedBox(width: 1.w),
-          Text(
+          Flexible(child: Text(
             label,
             style: theme.textTheme.labelSmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis)),
         ],
       ),
     );

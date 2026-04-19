@@ -5,6 +5,7 @@ import 'package:sizer/sizer.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import './widgets/admin_overlay_fab_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class GlobalAdminControlsOverlayScreen extends StatefulWidget {
   final Widget child;
@@ -25,26 +26,18 @@ class GlobalAdminControlsOverlayScreen extends StatefulWidget {
 
 class _GlobalAdminControlsOverlayScreenState
     extends State<GlobalAdminControlsOverlayScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Ensure admin status is checked when this widget mounts
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ensureAdminStatusChecked();
-    });
-  }
-
-  Future<void> _ensureAdminStatusChecked() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final adminProvider = Provider.of<AdminProvider>(context, listen: false);
-
-    // Only check if authenticated and admin status hasn't been determined yet
-    if (authProvider.isAuthenticated && !adminProvider.isAdmin) {
-      await adminProvider.checkAdminStatus();
-      debugPrint(
-          '[GlobalAdminControls] Admin status checked: ${adminProvider.isAdmin}');
-    }
-  }
+  // ============================================================
+  // ISSUE 2 FIX: Removed _ensureAdminStatusChecked from initState.
+  //
+  // Previously this called adminProvider.checkAdminStatus() every
+  // time this widget mounted, which triggered refreshRoles() and
+  // caused redundant Supabase API calls. The admin status is already
+  // resolved during app initialization (main.dart postFrameCallback)
+  // and kept current by the Supabase auth stream listener.
+  //
+  // The Consumer2 below already reads adminProvider.isAdmin reactively,
+  // so when the role IS resolved, this widget rebuilds automatically.
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +65,7 @@ class _GlobalAdminControlsOverlayScreenState
                         EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
                     decoration: BoxDecoration(
                       color: Colors.black.withAlpha(179),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withAlpha(51),
@@ -96,7 +89,7 @@ class _GlobalAdminControlsOverlayScreenState
                         SizedBox(width: 2.w),
                         Flexible(
                           child: Text(
-                            'Admin Edit Mode ON — Tap edit icons on sections',
+                            AppLocalizations.of(context)!.adminEditModeOnTapEdit,
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 11.sp,
@@ -123,12 +116,11 @@ class _GlobalAdminControlsOverlayScreenState
                   SnackBar(
                     content: Text(
                       adminProvider.isEditMode
-                          ? '✏️ Edit mode enabled - tap edit icons to modify content'
-                          : '👁️ Edit mode disabled - viewing as customer',
-                    ),
+                          ? AppLocalizations.of(context)!.editModeEnabledTapEditIcons
+                          : AppLocalizations.of(context)!.editModeDisabledViewingAsCustomer, maxLines: 1, overflow: TextOverflow.ellipsis),
                     backgroundColor: adminProvider.isEditMode
                         ? Colors.orange
-                        : Colors.grey[700],
+                        : Colors.grey.shade700,
                     duration: const Duration(seconds: 2),
                     behavior: SnackBarBehavior.floating,
                     margin: EdgeInsets.only(

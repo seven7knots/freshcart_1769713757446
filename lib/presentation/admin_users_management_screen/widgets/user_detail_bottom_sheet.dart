@@ -1,9 +1,26 @@
+// ============================================================
+// FILE: lib/presentation/admin_users_management_screen/widgets/user_detail_bottom_sheet.dart
+// ============================================================
+// SESSION 27 FIXES:
+// - Removed "Adjust Wallet Balance" action (no wallet system)
+// - Removed "View Transactions" action (no wallet system)
+// - Removed "Wallet Balance" from info section
+// - Fixed "View Order History" to navigate to order management
+// - Fixed "Remove Merchant Role" with direct DB fallback
+// - Fixed "Suspend Account" state refresh
+// SESSION 28 FIXES:
+// - Fixed "Remove Merchant Role" FK violation (orders_store_id_fkey):
+//   Now nullifies store_id on all orders before deleting stores
+// ============================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../providers/admin_provider.dart';
+import '../../../services/supabase_service.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class UserDetailBottomSheet extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -20,8 +37,11 @@ class UserDetailBottomSheet extends StatefulWidget {
 }
 
 class _UserDetailBottomSheetState extends State<UserDetailBottomSheet> {
+  bool _isProcessing = false;
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final isActive = widget.user['is_active'] as bool? ?? true;
 
     return DraggableScrollableSheet(
@@ -30,7 +50,7 @@ class _UserDetailBottomSheetState extends State<UserDetailBottomSheet> {
       maxChildSize: 0.95,
       builder: (context, scrollController) => Container(
         decoration: BoxDecoration(
-          color: AppTheme.lightTheme.scaffoldBackgroundColor,
+          color: theme.scaffoldBackgroundColor,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20.0)),
         ),
         child: Column(
@@ -40,25 +60,27 @@ class _UserDetailBottomSheetState extends State<UserDetailBottomSheet> {
               height: 4,
               margin: EdgeInsets.symmetric(vertical: 2.h),
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.outline,
+                color: theme.colorScheme.outline,
                 borderRadius: BorderRadius.circular(2.0),
               ),
             ),
             Expanded(
-              child: SingleChildScrollView(
-                controller: scrollController,
-                padding: EdgeInsets.all(4.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildHeader(),
-                    SizedBox(height: 3.h),
-                    _buildInfoSection(),
-                    SizedBox(height: 3.h),
-                    _buildActionsSection(isActive),
-                  ],
-                ),
-              ),
+              child: _isProcessing
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                      controller: scrollController,
+                      padding: EdgeInsets.all(4.w),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildHeader(),
+                          SizedBox(height: 3.h),
+                          _buildInfoSection(),
+                          SizedBox(height: 3.h),
+                          _buildActionsSection(isActive),
+                        ],
+                      ),
+                    ),
             ),
           ],
         ),
@@ -67,19 +89,20 @@ class _UserDetailBottomSheetState extends State<UserDetailBottomSheet> {
   }
 
   Widget _buildHeader() {
+    final theme = Theme.of(context);
+
     return Row(
       children: [
         CircleAvatar(
           radius: 32,
           backgroundColor:
-              AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
+              theme.colorScheme.primary.withValues(alpha: 0.1),
           child: Text(
             (widget.user['full_name'] as String? ?? 'U')[0].toUpperCase(),
-            style: AppTheme.lightTheme.textTheme.headlineMedium?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.primary,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: theme.colorScheme.primary,
               fontWeight: FontWeight.w600,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
         SizedBox(width: 4.w),
         Expanded(
@@ -87,16 +110,14 @@ class _UserDetailBottomSheetState extends State<UserDetailBottomSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                widget.user['full_name'] ?? 'Unknown User',
-                style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                widget.user['full_name'] ?? AppLocalizations.of(context)!.unknownUser,
+                style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w600,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 0.5.h),
               Text(
-                widget.user['email'] ?? 'No email',
-                style: AppTheme.lightTheme.textTheme.bodyMedium,
-              ),
+                widget.user['email'] ?? AppLocalizations.of(context)!.noEmail,
+                style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
@@ -105,105 +126,102 @@ class _UserDetailBottomSheetState extends State<UserDetailBottomSheet> {
   }
 
   Widget _buildInfoSection() {
+    final theme = Theme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'User Information',
-          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+          AppLocalizations.of(context)!.userInformation,
+          style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 2.h),
-        _buildInfoRow('Phone', widget.user['phone'] ?? 'Not provided'),
-        _buildInfoRow('Role',
+        _buildInfoRow(AppLocalizations.of(context)!.phone, widget.user['phone'] ?? AppLocalizations.of(context)!.notProvided),
+        _buildInfoRow(AppLocalizations.of(context)!.role,
             (widget.user['role'] as String? ?? 'customer').toUpperCase()),
-        _buildInfoRow(
-          'Wallet Balance',
-          '\$${(widget.user['wallet_balance'] ?? 0).toStringAsFixed(2)}',
-        ),
         _buildInfoRow(
           'Total Orders',
           widget.user['order_count']?.toString() ?? '0',
         ),
         _buildInfoRow(
           'Status',
-          (widget.user['is_active'] as bool? ?? true) ? 'Active' : 'Inactive',
+          (widget.user['is_active'] as bool? ?? true) ? AppLocalizations.of(context)!.active2 : AppLocalizations.of(context)!.inactive2,
         ),
         _buildInfoRow(
           'Verified',
-          (widget.user['is_verified'] as bool? ?? false) ? 'Yes' : 'No',
+          (widget.user['is_verified'] as bool? ?? false) ? AppLocalizations.of(context)!.yes2 : AppLocalizations.of(context)!.no2,
         ),
       ],
     );
   }
 
   Widget _buildInfoRow(String label, String value) {
+    final theme = Theme.of(context);
+
     return Padding(
       padding: EdgeInsets.only(bottom: 1.5.h),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
+          Flexible(child: Text(
             label,
-            style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          Text(
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Flexible(child: Text(
             value,
-            style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+            style: theme.textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis)),
         ],
       ),
     );
   }
 
   Widget _buildActionsSection(bool isActive) {
+    final theme = Theme.of(context);
+    final role = (widget.user['role'] as String? ?? '').toLowerCase();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Actions',
-          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+          AppLocalizations.of(context)!.actions,
+          style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 2.h),
         _buildActionButton(
-          icon: Icons.account_balance_wallet,
-          label: 'Adjust Wallet Balance',
-          onTap: _showWalletAdjustmentDialog,
-        ),
-        SizedBox(height: 1.h),
-        _buildActionButton(
           icon: isActive ? Icons.block : Icons.check_circle,
-          label: isActive ? 'Suspend Account' : 'Activate Account',
+          label: isActive ? AppLocalizations.of(context)!.suspendAccount : AppLocalizations.of(context)!.activateAccount,
           color: isActive ? Colors.red : Colors.green,
           onTap: () => _toggleUserStatus(isActive),
         ),
         SizedBox(height: 1.h),
         _buildActionButton(
           icon: Icons.receipt_long,
-          label: 'View Order History',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Order history coming soon')),
-            );
-          },
+          label: AppLocalizations.of(context)!.viewOrderHistory,
+          onTap: () => _viewOrderHistory(),
         ),
-        SizedBox(height: 1.h),
-        _buildActionButton(
-          icon: Icons.history,
-          label: 'View Transactions',
-          onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Transactions view coming soon')),
-            );
-          },
-        ),
+        if (role == 'driver') ...[
+          SizedBox(height: 1.h),
+          _buildActionButton(
+            icon: Icons.person_remove,
+            label: AppLocalizations.of(context)!.removeDriverRole,
+            color: Colors.deepOrange,
+            onTap: _removeDriverRole,
+          ),
+        ],
+        if (role == 'merchant') ...[
+          SizedBox(height: 1.h),
+          _buildActionButton(
+            icon: Icons.store_mall_directory,
+            label: AppLocalizations.of(context)!.removeMerchantRole,
+            color: Colors.deepOrange,
+            onTap: _removeMerchantRole,
+          ),
+        ],
       ],
     );
   }
@@ -214,6 +232,8 @@ class _UserDetailBottomSheetState extends State<UserDetailBottomSheet> {
     required VoidCallback onTap,
     Color? color,
   }) {
+    final theme = Theme.of(context);
+
     return InkWell(
       onTap: () {
         HapticFeedback.lightImpact();
@@ -223,33 +243,31 @@ class _UserDetailBottomSheetState extends State<UserDetailBottomSheet> {
       child: Container(
         padding: EdgeInsets.all(4.w),
         decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.surface,
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12.0),
           border: Border.all(
-            color:
-                AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
+            color: theme.colorScheme.outline.withValues(alpha: 0.2),
           ),
         ),
         child: Row(
           children: [
             Icon(
               icon,
-              color: color ?? AppTheme.lightTheme.colorScheme.primary,
+              color: color ?? theme.colorScheme.primary,
               size: 24,
             ),
             SizedBox(width: 3.w),
             Expanded(
               child: Text(
                 label,
-                style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+                style: theme.textTheme.bodyLarge?.copyWith(
                   fontWeight: FontWeight.w500,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
             Icon(
               Icons.arrow_forward_ios,
               size: 16,
-              color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+              color: theme.colorScheme.onSurfaceVariant,
             ),
           ],
         ),
@@ -257,92 +275,189 @@ class _UserDetailBottomSheetState extends State<UserDetailBottomSheet> {
     );
   }
 
-  void _showWalletAdjustmentDialog() {
-    final amountController = TextEditingController();
-    final reasonController = TextEditingController();
+  void _viewOrderHistory() {
+    Navigator.pop(context);
+    Navigator.pushNamed(
+      context,
+      AppRoutes.enhancedOrderManagement,
+      arguments: {'filterUserId': widget.user['id']},
+    );
+  }
 
-    showDialog(
+  Future<void> _removeDriverRole() async {
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Adjust Wallet Balance'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: amountController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(
-                labelText: 'Amount',
-                hintText: 'Enter amount (positive to add, negative to deduct)',
-                prefixText: '\$ ',
-              ),
-            ),
-            SizedBox(height: 2.h),
-            TextField(
-              controller: reasonController,
-              decoration: const InputDecoration(
-                labelText: 'Reason',
-                hintText: 'Enter reason for adjustment',
-              ),
-              maxLines: 3,
-            ),
-          ],
-        ),
+        title: Text(AppLocalizations.of(context)!.removeDriverRole, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Text(
+          AppLocalizations.of(context)!.thisWillDeleteTheDriverRecord, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           ElevatedButton(
-            onPressed: () async {
-              final amount = double.tryParse(amountController.text);
-              final reason = reasonController.text.trim();
-
-              if (amount == null || reason.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Please enter valid amount and reason'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-                return;
-              }
-
-              Navigator.pop(context);
-              await _adjustWalletBalance(amount, reason);
-            },
-            child: const Text('Adjust'),
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
+            child: Text(AppLocalizations.of(context)!.removeDriver, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
     );
-  }
 
-  Future<void> _adjustWalletBalance(double amount, String reason) async {
-    final adminProvider = Provider.of<AdminProvider>(context, listen: false);
+    if (confirm != true) return;
 
-    final success = await adminProvider.adjustWalletBalance(
-      userId: widget.user['id'] as String,
-      amount: amount,
-      reason: reason,
-    );
+    setState(() => _isProcessing = true);
 
-    if (mounted) {
-      if (success) {
+    try {
+      final userId = widget.user['id'] as String;
+
+      try {
+        await SupabaseService.client.rpc('admin_remove_driver_role', params: {
+          'p_user_id': userId,
+        });
+      } catch (rpcError) {
+        debugPrint('[ADMIN] RPC admin_remove_driver_role not available, using direct update: $rpcError');
+
+        await SupabaseService.client
+            .from('drivers')
+            .delete()
+            .eq('user_id', userId);
+
+        await SupabaseService.client
+            .from('users')
+            .update({'role': 'customer'})
+            .eq('id', userId);
+      }
+
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Wallet balance adjusted successfully'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.driverRoleRemovedUserIsNow, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.green,
           ),
         );
         Navigator.pop(context);
         widget.onRefresh();
-      } else {
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                Text(adminProvider.error ?? 'Failed to adjust wallet balance'),
+            content: Text('Error removing driver role: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // SESSION 28 FIX: Null out store_id on orders before deleting stores
+  // to avoid FK violation (orders_store_id_fkey)
+  Future<void> _removeMerchantRole() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(AppLocalizations.of(context)!.removeMerchantRole, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: const Text(
+          'This will delete the merchant record and their stores, and reset this user to a customer. Their historical orders will be preserved but unlinked from the store.\n\nThis action cannot be undone.', maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
+            child: Text(AppLocalizations.of(context)!.removeMerchant, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isProcessing = true);
+
+    try {
+      final userId = widget.user['id'] as String;
+
+      // Try RPC first
+      try {
+        await SupabaseService.client.rpc('admin_remove_merchant_role', params: {
+          'p_user_id': userId,
+        });
+      } catch (rpcError) {
+        debugPrint('[ADMIN] RPC admin_remove_merchant_role not available, using direct fallback: $rpcError');
+
+        // 1. Get merchant record
+        final merchant = await SupabaseService.client
+            .from('merchants')
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+        if (merchant != null) {
+          final merchantId = merchant['id'] as String;
+
+          // 2. Get all store IDs for this merchant
+          final storeRows = await SupabaseService.client
+              .from('stores')
+              .select('id')
+              .eq('merchant_id', merchantId);
+
+          final storeIds = (storeRows as List)
+              .map((s) => s['id'] as String)
+              .toList();
+
+          if (storeIds.isNotEmpty) {
+            // 3. SESSION 28 FIX: Null out store_id on orders referencing these
+            //    stores BEFORE deleting them — prevents orders_store_id_fkey
+            //    FK violation (PostgrestException code 23503)
+            await SupabaseService.client
+                .from('orders')
+                .update({'store_id': null}).inFilter('store_id', storeIds);
+
+            debugPrint('[ADMIN] Nullified store_id on orders for stores: $storeIds');
+
+            // 4. Delete stores (FK is now clear)
+            await SupabaseService.client
+                .from('stores')
+                .delete()
+                .eq('merchant_id', merchantId);
+          }
+
+          // 5. Delete merchant record
+          await SupabaseService.client
+              .from('merchants')
+              .delete()
+              .eq('id', merchantId);
+        }
+
+        // 6. Reset user role to customer
+        await SupabaseService.client
+            .from('users')
+            .update({'role': 'customer'})
+            .eq('id', userId);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.merchantRoleRemovedUserIsNow, maxLines: 1, overflow: TextOverflow.ellipsis),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+        widget.onRefresh();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isProcessing = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error removing merchant role: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.red,
           ),
         );
@@ -354,29 +469,30 @@ class _UserDetailBottomSheetState extends State<UserDetailBottomSheet> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(currentStatus ? 'Suspend Account' : 'Activate Account'),
+        title: Text(currentStatus ? AppLocalizations.of(context)!.suspendAccount : AppLocalizations.of(context)!.activateAccount, maxLines: 1, overflow: TextOverflow.ellipsis),
         content: Text(
           currentStatus
-              ? 'Are you sure you want to suspend this user account? They will not be able to access the app.'
-              : 'Are you sure you want to activate this user account?',
-        ),
+              ? AppLocalizations.of(context)!.areYouSureYouWantTo8
+              : AppLocalizations.of(context)!.areYouSureYouWantTo7, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: currentStatus ? Colors.red : Colors.green,
             ),
-            child: Text(currentStatus ? 'Suspend' : 'Activate'),
+            child: Text(currentStatus ? AppLocalizations.of(context)!.suspend : AppLocalizations.of(context)!.activate, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
     );
 
     if (confirm != true) return;
+
+    setState(() => _isProcessing = true);
 
     final adminProvider = Provider.of<AdminProvider>(context, listen: false);
 
@@ -391,19 +507,19 @@ class _UserDetailBottomSheetState extends State<UserDetailBottomSheet> {
           SnackBar(
             content: Text(
               currentStatus
-                  ? 'User account suspended successfully'
-                  : 'User account activated successfully',
-            ),
+                  ? AppLocalizations.of(context)!.userAccountSuspendedSuccessfully
+                  : AppLocalizations.of(context)!.userAccountActivatedSuccessfully, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.green,
           ),
         );
         Navigator.pop(context);
         widget.onRefresh();
       } else {
+        setState(() => _isProcessing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content:
-                Text(adminProvider.error ?? 'Failed to update user status'),
+                Text(adminProvider.error ?? AppLocalizations.of(context)!.failedToUpdateUserStatus, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.red,
           ),
         );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class ContextualEditMenuWidget extends StatelessWidget {
   final String contentType;
@@ -39,26 +40,26 @@ class ContextualEditMenuWidget extends StatelessWidget {
         children: [
           _buildMenuItem(
             icon: Icons.edit,
-            label: 'Edit',
+            label: AppLocalizations.of(context)!.edit,
             color: Colors.blue,
             onTap: onEdit,
           ),
           _buildMenuItem(
             icon: Icons.delete,
-            label: 'Delete',
+            label: AppLocalizations.of(context)!.delete,
             color: Colors.red,
             onTap: onDelete,
           ),
           _buildMenuItem(
             icon: Icons.visibility,
-            label: 'Status',
+            label: AppLocalizations.of(context)!.status,
             color: Colors.green,
             onTap: onChangeStatus,
           ),
           if (onAssignDriver != null)
             _buildMenuItem(
               icon: Icons.local_shipping,
-              label: 'Assign Driver',
+              label: AppLocalizations.of(context)!.assignDriver,
               color: Colors.orange,
               onTap: onAssignDriver!,
             ),
@@ -81,13 +82,12 @@ class ContextualEditMenuWidget extends StatelessWidget {
           children: [
             Icon(icon, color: color, size: 20),
             SizedBox(width: 2.w),
-            Text(
+            Flexible(child: Text(
               label,
               style: TextStyle(
                 fontSize: 14.sp,
-                color: Colors.grey[800],
-              ),
-            ),
+                color: Colors.grey.shade800,
+              ), maxLines: 1, overflow: TextOverflow.ellipsis)),
           ],
         ),
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class ListingContextCardWidget extends StatelessWidget {
   final Map<String, dynamic> listing;
@@ -12,7 +13,7 @@ class ListingContextCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = listing['title'] as String? ?? 'Listing';
+    final title = listing['title'] as String? ?? AppLocalizations.of(context)!.listing;
     final price = listing['price'] as num? ?? 0;
     final images = listing['images'] as List? ?? [];
     final imageUrl = images.isNotEmpty ? images[0] as String? : null;
@@ -24,7 +25,7 @@ class ListingContextCardWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(3.w),
-        border: Border.all(color: Colors.grey[300]!),
+        border: Border.all(color: Colors.grey.shade300!),
       ),
       child: Row(
         children: [
@@ -38,20 +39,20 @@ class ListingContextCardWidget extends StatelessWidget {
                     height: 15.w,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
-                      color: Colors.grey[200],
+                      color: Colors.grey.shade200,
                       child: const Center(
                         child: CircularProgressIndicator(strokeWidth: 2),
                       ),
                     ),
                     errorWidget: (context, url, error) => Container(
-                      color: Colors.grey[200],
+                      color: Colors.grey.shade200,
                       child: Icon(Icons.image, size: 6.w, color: Colors.grey),
                     ),
                   )
                 : Container(
                     width: 15.w,
                     height: 15.w,
-                    color: Colors.grey[200],
+                    color: Colors.grey.shade200,
                     child: Icon(Icons.image, size: 6.w, color: Colors.grey),
                   ),
           ),
@@ -77,8 +78,7 @@ class ListingContextCardWidget extends StatelessWidget {
                     fontSize: 14.sp,
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFFE50914),
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 0.5.h),
                 Container(
                   padding: EdgeInsets.symmetric(
@@ -88,19 +88,18 @@ class ListingContextCardWidget extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: status == 'active'
                         ? Colors.green[50]
-                        : Colors.grey[200],
+                        : Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(1.w),
                   ),
                   child: Text(
-                    status == 'active' ? 'Available' : status.toUpperCase(),
+                    status == 'active' ? AppLocalizations.of(context)!.available : status.toUpperCase(),
                     style: TextStyle(
                       fontSize: 10.sp,
                       color: status == 'active'
                           ? Colors.green[700]
-                          : Colors.grey[700],
+                          : Colors.grey.shade700,
                       fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ],
             ),

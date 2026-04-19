@@ -12,7 +12,6 @@ extension ImageTypeExtension on String {
     } else if (v.toLowerCase().endsWith('.svg')) {
       return ImageType.svg;
     } else if (v.startsWith('file://') || v.startsWith('/')) {
-      // Handle file URIs and absolute file paths
       return ImageType.file;
     } else {
       return ImageType.png;
@@ -38,6 +37,10 @@ class CustomImageWidget extends StatelessWidget {
     this.placeHolder = 'assets/images/no-image.jpg',
     this.errorWidget,
     this.semanticLabel,
+    // Optional explicit cache dimensions.
+    // If not set, we derive a sensible default from width/height.
+    this.memCacheWidth,
+    this.memCacheHeight,
   });
 
   final String? imageUrl;
@@ -53,6 +56,8 @@ class CustomImageWidget extends StatelessWidget {
   final BoxBorder? border;
   final Widget? errorWidget;
   final String? semanticLabel;
+  final int? memCacheWidth;
+  final int? memCacheHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -104,13 +109,12 @@ class CustomImageWidget extends StatelessWidget {
 
   Widget _buildImageView(BuildContext context) {
     final theme = Theme.of(context);
+    final dpr = MediaQuery.of(context).devicePixelRatio;
 
-    // Theme-aware placeholder colors (fixes dark mode “mixed” look)
     final placeholderColor = theme.colorScheme.surfaceContainerHighest;
     final placeholderTrackColor =
         theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5);
 
-    // If no imageUrl, show placeholder consistently (avoid empty gaps)
     if (imageUrl == null || imageUrl!.trim().isEmpty) {
       return Image.asset(
         placeHolder,
@@ -141,10 +145,8 @@ class CustomImageWidget extends StatelessWidget {
         );
 
       case ImageType.file:
-        // Support both file:// URIs and raw paths
         final filePath =
             url.startsWith('file://') ? Uri.parse(url).toFilePath() : url;
-
         return Image.file(
           File(filePath),
           height: height,
@@ -155,12 +157,32 @@ class CustomImageWidget extends StatelessWidget {
         );
 
       case ImageType.network:
+        // Derive cache dimensions from widget size * device pixel ratio.
+        // This ensures images are decoded at display resolution, not full
+        // resolution. For a 160px wide card on a 3x screen, we cache at
+        // 480px — sharp but ~9x less memory than a 1440px source image.
+        // Cap at 1200px to avoid decoding giant images on large screens.
+        // Guard against infinite/NaN layout dimensions (e.g. when widget is
+        // inside an unbounded Column or ListView without explicit size).
+        // Multiplying double.infinity by dpr produces infinity, causing
+        // "Unsupported operation: Infinity or NaN toInt" on .ceil().
+        final safeWidth = (width != null && width!.isFinite) ? width! : null;
+        final safeHeight = (height != null && height!.isFinite) ? height! : null;
+        final cacheW = memCacheWidth ??
+            (safeWidth != null ? (safeWidth * dpr).ceil().clamp(1, 1200) : 800);
+        final cacheH = memCacheHeight ??
+            (safeHeight != null ? (safeHeight * dpr).ceil().clamp(1, 1200) : null);
+
         return CachedNetworkImage(
           height: height,
           width: width,
           fit: fit ?? BoxFit.cover,
           imageUrl: url,
           color: color,
+          memCacheWidth: cacheW,
+          memCacheHeight: cacheH,
+          maxWidthDiskCache: 1200,
+          maxHeightDiskCache: 1200,
           placeholder: (context, _) => SizedBox(
             height: height,
             width: width,

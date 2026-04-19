@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../models/subscription_plan_model.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class PlanComparisonWidget extends StatelessWidget {
   final List<SubscriptionPlanModel> plans;
@@ -36,12 +37,11 @@ class PlanComparisonWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Feature Comparison',
+            AppLocalizations.of(context)!.featureComparison,
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.onSurface,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 2.h),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -52,11 +52,10 @@ class PlanComparisonWidget extends StatelessWidget {
               columns: [
                 DataColumn(
                   label: Text(
-                    'Feature',
+                    AppLocalizations.of(context)!.feature,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
                 ...plans.map(
                   (plan) => DataColumn(
@@ -64,15 +63,14 @@ class PlanComparisonWidget extends StatelessWidget {
                       plan.toString(), // Changed from plan.name to plan.toString()
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ),
               ],
               rows: allFeatures.map((feature) {
                 return DataRow(
                   cells: [
-                    DataCell(Text(feature, style: theme.textTheme.bodySmall)),
+                    DataCell(Text(feature, style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
                     ...plans.map((plan) {
                       // Remove reference to undefined 'features' getter
                       final hasFeature =

@@ -7,6 +7,8 @@ import '../../../providers/admin_provider.dart';
 import '../../../services/store_service.dart';
 import '../../../widgets/admin_editable_item_wrapper.dart';
 import '../../../widgets/animated_press_button.dart';
+import '../../../widgets/shimmer_placeholder.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 /// Top Stores section on home screen.
 ///
@@ -15,6 +17,7 @@ import '../../../widgets/animated_press_button.dart';
 /// - Featured stores appear first, then the rest sorted by rating
 /// - Horizontal scrollable ListView carousel
 /// - Admin edit mode (three dots) on all store cards
+/// - FIX: Header row overflow resolved with Expanded wrapper
 class TopStoresWidget extends StatefulWidget {
   const TopStoresWidget({super.key});
 
@@ -40,13 +43,11 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
     });
 
     try {
-      // Fetch ALL active stores (not just featured)
       final stores = await StoreService.getAllStores(
         activeOnly: true,
         excludeDemo: true,
       );
 
-      // Sort: featured first, then by rating descending
       stores.sort((a, b) {
         if (a.isFeatured && !b.isFeatured) return -1;
         if (!a.isFeatured && b.isFeatured) return 1;
@@ -89,33 +90,37 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Header — FIX: Expanded on title to prevent overflow
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
-                    'Top Stores',
+                    AppLocalizations.of(context)!.topStores,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: theme.colorScheme.onSurface,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (isEditMode)
                   InkWell(
                     onTap: () {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Use the Create button in Admin bar to add stores'),
+                        SnackBar(
+                          content: Text(
+                              AppLocalizations.of(context)!.useTheCreateButtonInAdmin, maxLines: 1, overflow: TextOverflow.ellipsis),
                           backgroundColor: Colors.orange,
                         ),
                       );
                     },
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 3.w, vertical: 0.5.h),
                       decoration: BoxDecoration(
                         color: Colors.orange,
                         borderRadius: BorderRadius.circular(20),
@@ -123,16 +128,16 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.add, color: Colors.white, size: 16),
+                          Icon(Icons.add,
+                              color: theme.colorScheme.surface, size: 16),
                           SizedBox(width: 1.w),
                           Text(
-                            'Add',
+                            AppLocalizations.of(context)!.add2,
                             style: TextStyle(
-                              color: Colors.white,
+                              color: theme.colorScheme.surface,
                               fontSize: 10.sp,
                               fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ],
                       ),
                     ),
@@ -140,16 +145,15 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
                 TextButton(
                   onPressed: () => AppRoutes.switchToTab(context, 3),
                   child: Text(
-                    'See All',
+                    AppLocalizations.of(context)!.seeAll,
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: theme.colorScheme.primary,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
                 IconButton(
                   onPressed: _loadStores,
                   icon: const Icon(Icons.refresh, size: 20),
-                  tooltip: 'Refresh stores',
+                  tooltip: AppLocalizations.of(context)!.refreshStores,
                 ),
               ],
             ),
@@ -170,9 +174,9 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
   }
 
   Widget _buildLoadingState() {
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 3.h),
-      child: const Center(child: CircularProgressIndicator()),
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 8.0),
+      child: ShimmerProductRow(),
     );
   }
 
@@ -183,7 +187,7 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
         padding: EdgeInsets.all(3.w),
         decoration: BoxDecoration(
           color: theme.colorScheme.errorContainer.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
@@ -194,12 +198,11 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Failed to load stores',
+                    AppLocalizations.of(context)!.failedToLoadStores,
                     style: theme.textTheme.titleSmall?.copyWith(
                       color: theme.colorScheme.error,
                       fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 0.5.h),
                   Text(
                     _error!,
@@ -228,37 +231,36 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
       child: Container(
         padding: EdgeInsets.all(4.w),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-          borderRadius: BorderRadius.circular(12),
+          color:
+              theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           children: [
-            Icon(Icons.store_outlined, size: 10.w, color: theme.colorScheme.outline),
+            Icon(Icons.store_outlined,
+                size: 10.w, color: theme.colorScheme.outline),
             SizedBox(height: 1.h),
             Text(
-              'No stores yet',
+              AppLocalizations.of(context)!.noStoresYet2,
               style: theme.textTheme.titleSmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 0.5.h),
             Text(
-              'Stores will appear here once created',
+              AppLocalizations.of(context)!.storesWillAppearHereOnceCreated,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.outline,
               ),
-              textAlign: TextAlign.center,
-            ),
+              textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
       ),
     );
   }
 
-  /// Horizontal scrollable ListView carousel
   Widget _buildStoresCarousel(ThemeData theme, bool isEditMode) {
     return SizedBox(
-      height: 22.h,
+      height: 24.h,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: 4.w),
@@ -303,11 +305,11 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Store Image
             Expanded(
               flex: 3,
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16)),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -317,72 +319,72 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
                       fit: BoxFit.cover,
                       semanticLabel: 'Store front of ${store.name}',
                     ),
-                    // Closed overlay
                     if (!store.isActive || !store.isAcceptingOrders)
                       Container(
-                        color: theme.colorScheme.surface.withOpacity(0.8),
+                        color:
+                            theme.colorScheme.surface.withOpacity(0.8),
                         child: Center(
                           child: Container(
-                            padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 3.w, vertical: 1.h),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.error,
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Text(
-                              'Closed',
-                              style: theme.textTheme.labelSmall?.copyWith(
+                              AppLocalizations.of(context)!.closedStatus,
+                              style:
+                                  theme.textTheme.labelSmall?.copyWith(
                                 color: theme.colorScheme.onError,
                                 fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           ),
                         ),
                       ),
-                    // Featured badge
                     if (store.isFeatured)
                       Positioned(
                         top: 1.h,
                         left: 2.w,
                         child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.3.h),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 2.w, vertical: 0.3.h),
                           decoration: BoxDecoration(
                             color: AppTheme.kjRed,
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Text(
-                            '★ Featured',
+                            '\u2605 Featured',
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 8.sp,
                               fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ),
-                    // Rating badge
                     if (store.rating > 0)
                       Positioned(
                         top: 1.h,
                         right: 2.w,
                         child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 2.w, vertical: 0.5.h),
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.7),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.star, color: Colors.amber, size: 3.w),
+                              Icon(Icons.star,
+                                  color: Colors.amber, size: 3.w),
                               SizedBox(width: 1.w),
-                              Text(
+                              Flexible(child: Text(
                                 store.ratingDisplay,
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 9.sp,
                                   fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                             ],
                           ),
                         ),
@@ -391,13 +393,13 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
                 ),
               ),
             ),
-            // Store Info
             Expanded(
               flex: 2,
               child: Padding(
-                padding: EdgeInsets.all(2.5.w),
+                padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 1.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       store.name,
@@ -407,28 +409,33 @@ class _TopStoresWidgetState extends State<TopStoresWidget> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    SizedBox(height: 0.3.h),
                     if (store.category != null)
                       Text(
                         store.category!,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                          color: Colors.grey,
                           fontSize: 9.sp,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                    const Spacer(),
+                    SizedBox(height: 0.2.h),
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 3.w, color: theme.colorScheme.primary),
+                        Icon(Icons.access_time,
+                            size: 3.w,
+                            color: theme.colorScheme.primary),
                         SizedBox(width: 1.w),
-                        Text(
-                          store.prepTimeDisplay,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 9.sp,
+                        Flexible(
+                          child: Text(
+                            store.prepTimeDisplay,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 9.sp,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],

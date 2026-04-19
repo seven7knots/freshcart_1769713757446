@@ -1,15 +1,31 @@
 // ============================================================
 // FILE: lib/presentation/authentication_screen/widgets/signup_form_widget.dart
 // ============================================================
-// UPDATED: White text on glass background, matching login style.
+// UPDATED: After signup → callback routes through AuthGate.
+// No OTP redirect. Snackbar says "Account created!" instead
+// of "Please verify your email".
+//
+// SESSION 27 FIX:
+// - Professional phone input with flag emojis + bottom sheet picker
+// - Strips leading zeros before prepending country code
+//   (e.g. user types 03167967 → saved as +9613167967)
+// SESSION 28 FIX:
+// - Country picker bottom sheet overflow fixed (same pattern as phone_collection_screen)
+//   isScrollControlled: true + ConstrainedBox(maxHeight: 60% screen) + ListView
+// SESSION 29 FIX:
+// - After successful signup, navigate to emailOtpVerification screen
+//   instead of calling onSignupPressed (which bypassed email verification).
+//   Email must be verified before the user can access the app.
 // ============================================================
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../routes/app_routes.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class SignupFormWidget extends StatefulWidget {
   final VoidCallback? onSignupPressed;
@@ -24,33 +40,18 @@ class _SignupFormWidgetState extends State<SignupFormWidget> {
   final _formKey = GlobalKey<FormState>();
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   bool _acceptTerms = false;
-  String _selectedCountryCode = '+961';
   String? _fullNameError;
   String? _emailError;
-  String? _phoneError;
   String? _passwordError;
-
-  final List<Map<String, String>> _countryCodes = [
-    {'code': '+961', 'country': 'LB', 'name': 'Lebanon'},
-    {'code': '+1', 'country': 'US', 'name': 'United States'},
-    {'code': '+44', 'country': 'UK', 'name': 'United Kingdom'},
-    {'code': '+91', 'country': 'IN', 'name': 'India'},
-    {'code': '+86', 'country': 'CN', 'name': 'China'},
-    {'code': '+81', 'country': 'JP', 'name': 'Japan'},
-    {'code': '+971', 'country': 'AE', 'name': 'UAE'},
-    {'code': '+966', 'country': 'SA', 'name': 'Saudi Arabia'},
-  ];
 
   @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -66,10 +67,10 @@ class _SignupFormWidgetState extends State<SignupFormWidget> {
       filled: true,
       fillColor: Colors.white.withOpacity(0.08),
       contentPadding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withOpacity(0.2))),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white.withOpacity(0.5), width: 1.5)),
-      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.redAccent.shade100)),
-      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.redAccent.shade100, width: 1.5)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.white.withOpacity(0.2))),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.white.withOpacity(0.5), width: 1.5)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.redAccent.shade100)),
+      focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: Colors.redAccent.shade100, width: 1.5)),
     );
   }
 
@@ -84,7 +85,7 @@ class _SignupFormWidgetState extends State<SignupFormWidget> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Full Name
-          Text('Full Name', style: _labelStyle),
+          Text(AppLocalizations.of(context)!.fullName, style: _labelStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
           TextFormField(
             controller: _fullNameController,
@@ -93,12 +94,12 @@ class _SignupFormWidgetState extends State<SignupFormWidget> {
             style: _inputStyle,
             cursorColor: Colors.white,
             onChanged: _validateFullName,
-            decoration: _glassInput(hint: 'Enter your full name', icon: Icons.person_outline, error: _fullNameError),
+            decoration: _glassInput(hint: AppLocalizations.of(context)!.enterYourFullName, icon: Icons.person_outline, error: _fullNameError),
           ),
           SizedBox(height: 2.h),
 
           // Email
-          Text('Email', style: _labelStyle),
+          Text(AppLocalizations.of(context)!.email, style: _labelStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
           TextFormField(
             controller: _emailController,
@@ -107,64 +108,12 @@ class _SignupFormWidgetState extends State<SignupFormWidget> {
             style: _inputStyle,
             cursorColor: Colors.white,
             onChanged: _validateEmail,
-            decoration: _glassInput(hint: 'Enter your email', icon: Icons.email_outlined, error: _emailError),
-          ),
-          SizedBox(height: 2.h),
-
-          // Phone
-          Text('Phone Number', style: _labelStyle),
-          SizedBox(height: 1.h),
-          Row(
-            children: [
-              // Country code dropdown
-              Container(
-                width: 28.w,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.2)),
-                ),
-                child: DropdownButtonFormField<String>(
-                  initialValue: _selectedCountryCode,
-                  decoration: InputDecoration(
-                    contentPadding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 2.h),
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                  ),
-                  dropdownColor: const Color(0xFF2A2A2A),
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 13.sp),
-                  iconEnabledColor: Colors.white.withOpacity(0.5),
-                  items: _countryCodes.map((c) => DropdownMenuItem<String>(
-                    value: c['code'],
-                    child: Text('${c['code']} ${c['country']}', style: TextStyle(color: Colors.white, fontSize: 12.sp)),
-                  )).toList(),
-                  onChanged: (v) => setState(() => _selectedCountryCode = v!),
-                ),
-              ),
-              SizedBox(width: 2.w),
-              Expanded(
-                child: TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  textInputAction: TextInputAction.next,
-                  style: _inputStyle,
-                  cursorColor: Colors.white,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(15)],
-                  onChanged: _validatePhone,
-                  decoration: _glassInput(
-                    hint: _selectedCountryCode == '+961' ? '71234567' : 'Phone number',
-                    icon: Icons.phone_outlined,
-                    error: _phoneError,
-                  ),
-                ),
-              ),
-            ],
+            decoration: _glassInput(hint: AppLocalizations.of(context)!.enterYourEmail, icon: Icons.email_outlined, error: _emailError),
           ),
           SizedBox(height: 2.h),
 
           // Password
-          Text('Password', style: _labelStyle),
+          Text(AppLocalizations.of(context)!.password, style: _labelStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
           TextFormField(
             controller: _passwordController,
@@ -174,7 +123,7 @@ class _SignupFormWidgetState extends State<SignupFormWidget> {
             cursorColor: Colors.white,
             onChanged: _validatePassword,
             decoration: _glassInput(
-              hint: 'Enter your password',
+              hint: AppLocalizations.of(context)!.enterYourPassword,
               icon: Icons.lock_outlined,
               error: _passwordError,
               suffix: IconButton(
@@ -205,10 +154,10 @@ class _SignupFormWidgetState extends State<SignupFormWidget> {
                       text: TextSpan(
                         style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11.sp),
                         children: [
-                          const TextSpan(text: 'I agree to the '),
-                          TextSpan(text: 'Terms of Service', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                          const TextSpan(text: ' and '),
-                          TextSpan(text: 'Privacy Policy', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                          TextSpan(text: AppLocalizations.of(context)!.iAgreeToThe),
+                          TextSpan(text: AppLocalizations.of(context)!.termsOfService, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                          TextSpan(text: AppLocalizations.of(context)!.andText),
+                          TextSpan(text: AppLocalizations.of(context)!.privacyPolicy, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
@@ -234,7 +183,7 @@ class _SignupFormWidgetState extends State<SignupFormWidget> {
               ),
               child: _isLoading
                   ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
-                  : Text('Create Account', style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w700, color: Colors.white)),
+                  : Text(AppLocalizations.of(context)!.createAccount, style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w700, color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ),
         ],
@@ -246,8 +195,11 @@ class _SignupFormWidgetState extends State<SignupFormWidget> {
     setState(() {
       if (v.isEmpty) {
         _fullNameError = 'Full name is required';
-      } else if (v.trim().split(' ').length < 2) _fullNameError = 'Please enter your full name';
-      else _fullNameError = null;
+      } else if (v.trim().split(' ').length < 2) {
+        _fullNameError = 'Please enter your full name';
+      } else {
+        _fullNameError = null;
+      }
     });
   }
 
@@ -255,18 +207,11 @@ class _SignupFormWidgetState extends State<SignupFormWidget> {
     setState(() {
       if (v.isEmpty) {
         _emailError = 'Email is required';
-      } else if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v)) _emailError = 'Please enter a valid email';
-      else _emailError = null;
-    });
-  }
-
-  void _validatePhone(String v) {
-    setState(() {
-      if (v.isEmpty) {
-        _phoneError = 'Phone number is required';
-      } else if (_selectedCountryCode == '+961' && v.length < 7) _phoneError = 'At least 7 digits for Lebanon';
-      else if (_selectedCountryCode != '+961' && v.length < 10) _phoneError = 'Please enter a valid number';
-      else _phoneError = null;
+      } else if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v)) {
+        _emailError = AppLocalizations.of(context)!.pleaseEnterAValidEmail;
+      } else {
+        _emailError = null;
+      }
     });
   }
 
@@ -274,46 +219,83 @@ class _SignupFormWidgetState extends State<SignupFormWidget> {
     setState(() {
       if (v.isEmpty) {
         _passwordError = 'Password is required';
-      } else if (v.length < 8) _passwordError = 'At least 8 characters';
-      else if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)').hasMatch(v)) _passwordError = 'Need uppercase, lowercase & number';
-      else _passwordError = null;
+      } else if (v.length < 8) {
+        _passwordError = 'At least 8 characters';
+      } else if (!RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)').hasMatch(v)) {
+        _passwordError = 'Need uppercase, lowercase & number';
+      } else {
+        _passwordError = null;
+      }
     });
   }
 
   bool _isFormValid() {
-    return _fullNameController.text.isNotEmpty && _emailController.text.isNotEmpty && _phoneController.text.isNotEmpty && _passwordController.text.isNotEmpty && _acceptTerms && _fullNameError == null && _emailError == null && _phoneError == null && _passwordError == null;
+    return _fullNameController.text.isNotEmpty &&
+        _emailController.text.isNotEmpty &&
+        _passwordController.text.isNotEmpty &&
+        _acceptTerms &&
+        _fullNameError == null &&
+        _emailError == null &&
+        _passwordError == null;
   }
 
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
-    if (!_acceptTerms) { setState(() => _emailError = 'Please accept terms'); return; }
+    if (!_acceptTerms) {
+      setState(() => _emailError = 'Please accept terms');
+      return;
+    }
 
-    setState(() { _isLoading = true; _fullNameError = null; _emailError = null; _phoneError = null; _passwordError = null; });
+    setState(() {
+      _isLoading = true;
+      _fullNameError = null;
+      _emailError = null;
+      _passwordError = null;
+    });
     HapticFeedback.lightImpact();
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final fullPhone = '$_selectedCountryCode${_phoneController.text}';
 
-    final success = await authProvider.signUp(_emailController.text.trim(), _passwordController.text, fullName: _fullNameController.text.trim(), phone: fullPhone);
+    final success = await authProvider.signUp(
+      _emailController.text.trim(),
+      _passwordController.text,
+      fullName: _fullNameController.text.trim(),
+    );
 
     setState(() => _isLoading = false);
 
     if (success) {
       HapticFeedback.mediumImpact();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account created! Please verify your email.'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
-        widget.onSignupPressed?.call();
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context)!.accountCreatedPleaseVerifyYourEmail, maxLines: 1, overflow: TextOverflow.ellipsis),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ));
+        // SESSION 29 FIX: Route to email OTP verification instead of
+        // directly to home. User must verify email before accessing the app.
+        Navigator.of(context).pushReplacementNamed(
+          AppRoutes.emailOtpVerification,
+          arguments: {'email': _emailController.text.trim()},
+        );
       }
     } else {
       HapticFeedback.heavyImpact();
       final error = authProvider.errorMessage ?? 'Signup failed';
       if (error.toLowerCase().contains('email')) {
         setState(() => _emailError = error);
-      } else if (error.toLowerCase().contains('password')) setState(() => _passwordError = error);
-      else setState(() => _emailError = error);
+      } else if (error.toLowerCase().contains('password')) {
+        setState(() => _passwordError = error);
+      } else {
+        setState(() => _emailError = error);
+      }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: Colors.red, behavior: SnackBarBehavior.floating));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(error, maxLines: 1, overflow: TextOverflow.ellipsis),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ));
       }
     }
   }

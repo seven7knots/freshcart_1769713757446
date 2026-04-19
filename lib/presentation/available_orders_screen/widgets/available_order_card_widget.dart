@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../theme/app_theme.dart';
 import '../../../widgets/custom_image_widget.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class AvailableOrderCardWidget extends StatefulWidget {
   final Map<String, dynamic> order;
@@ -51,8 +52,8 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Order expired'),
-              backgroundColor: AppTheme.lightTheme.colorScheme.error,
+              content: Text(AppLocalizations.of(context)!.orderExpired, maxLines: 1, overflow: TextOverflow.ellipsis),
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         }
@@ -71,8 +72,9 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final store = widget.order['stores'] as Map<String, dynamic>?;
-    final storeName = store?['name'] as String? ?? 'Unknown Store';
+    final storeName = store?['name'] as String? ?? AppLocalizations.of(context)!.unknownStore;
     final storeImage = store?['image_url'] as String?;
     final storeAddress = store?['address'] as String? ?? '';
 
@@ -91,10 +93,10 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
     return Container(
       margin: EdgeInsets.only(bottom: 2.h),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12.0),
         border: Border.all(
-          color: AppTheme.lightTheme.colorScheme.outline,
+          color: theme.colorScheme.outline,
           width: 1,
         ),
       ),
@@ -122,7 +124,7 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
                         height: 15.w,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8.0),
-                          color: AppTheme.lightTheme.scaffoldBackgroundColor,
+                          color: theme.scaffoldBackgroundColor,
                         ),
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8.0),
@@ -191,11 +193,11 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
                               value: progress,
                               strokeWidth: 3.0,
                               backgroundColor:
-                                  AppTheme.lightTheme.scaffoldBackgroundColor,
+                                  Color(0xFFF5F5F5),
                               valueColor: AlwaysStoppedAnimation<Color>(
                                 isExpired
-                                    ? AppTheme.lightTheme.colorScheme.error
-                                    : AppTheme.lightTheme.colorScheme.primary,
+                                    ? theme.colorScheme.error
+                                    : theme.colorScheme.primary,
                               ),
                             ),
                           ),
@@ -205,10 +207,9 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
                               fontSize: 14.sp,
                               fontWeight: FontWeight.w700,
                               color: isExpired
-                                  ? AppTheme.lightTheme.colorScheme.error
+                                  ? theme.colorScheme.error
                                   : AppTheme.textPrimaryOf(context),
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ],
                       ),
                     ],
@@ -220,7 +221,7 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
                       Icon(
                         Icons.navigation_outlined,
                         size: 5.w,
-                        color: AppTheme.lightTheme.colorScheme.primary,
+                        color: theme.colorScheme.primary,
                       ),
                       SizedBox(width: 2.w),
                       Expanded(
@@ -248,7 +249,7 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
                             vertical: 1.h,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.lightTheme.scaffoldBackgroundColor,
+                            color: Color(0xFFF5F5F5),
                             borderRadius: BorderRadius.circular(8.0),
                           ),
                           child: Row(
@@ -266,8 +267,7 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
                                   fontSize: 14.sp,
                                   fontWeight: FontWeight.w600,
                                   color: AppTheme.textPrimaryOf(context),
-                                ),
-                              ),
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis),
                             ],
                           ),
                         ),
@@ -281,7 +281,7 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
                             vertical: 1.h,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.lightTheme.colorScheme.primary
+                            color: theme.colorScheme.primary
                                 .withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8.0),
                           ),
@@ -291,7 +291,7 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
                               Icon(
                                 Icons.attach_money,
                                 size: 5.w,
-                                color: AppTheme.lightTheme.colorScheme.primary,
+                                color: theme.colorScheme.primary,
                               ),
                               SizedBox(width: 1.w),
                               Text(
@@ -300,9 +300,8 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
                                   fontSize: 16.sp,
                                   fontWeight: FontWeight.w700,
                                   color:
-                                      AppTheme.lightTheme.colorScheme.primary,
-                                ),
-                              ),
+                                      theme.colorScheme.primary,
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis),
                             ],
                           ),
                         ),
@@ -313,18 +312,18 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
                   if (_isExpanded) ...[
                     SizedBox(height: 2.h),
                     Divider(
-                      color: AppTheme.lightTheme.colorScheme.outline,
+                      color: Colors.grey.shade400,
                       height: 1,
                     ),
                     SizedBox(height: 2.h),
                     // Order details
-                    _buildDetailRow('Items', '$itemCount items'),
+                    _buildDetailRow(AppLocalizations.of(context)!.items, '$itemCount items'),
                     SizedBox(height: 1.h),
                     _buildDetailRow(
                         'Order Value', '\$${orderValue.toStringAsFixed(2)}'),
                     if (tip > 0) ...[
                       SizedBox(height: 1.h),
-                      _buildDetailRow('Tip', '\$${tip.toStringAsFixed(2)}'),
+                      _buildDetailRow(AppLocalizations.of(context)!.tip, '\$${tip.toStringAsFixed(2)}'),
                     ],
                   ],
                 ],
@@ -338,7 +337,7 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
               decoration: BoxDecoration(
                 border: Border(
                   top: BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.outline,
+                    color: Colors.grey.shade400,
                     width: 1,
                   ),
                 ),
@@ -375,13 +374,12 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
                               ),
                             )
                           : Text(
-                              'Accept Order',
+                              AppLocalizations.of(context)!.acceptOrder,
                               style: GoogleFonts.inter(
                                 fontSize: 16.sp,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
-                              ),
-                            ),
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                 ),
@@ -396,21 +394,19 @@ class _AvailableOrderCardWidgetState extends State<AvailableOrderCardWidget> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
+        Flexible(child: Text(
           label,
           style: GoogleFonts.inter(
             fontSize: 14.sp,
             color: AppTheme.textSecondaryOf(context),
-          ),
-        ),
-        Text(
+          ), maxLines: 1, overflow: TextOverflow.ellipsis)),
+        Flexible(child: Text(
           value,
           style: GoogleFonts.inter(
             fontSize: 14.sp,
             fontWeight: FontWeight.w600,
             color: AppTheme.textPrimaryOf(context),
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis)),
       ],
     );
   }

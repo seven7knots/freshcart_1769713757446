@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../widgets/custom_icon_widget.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class OrderSummaryWidget extends StatefulWidget {
   final double subtotal;
@@ -103,7 +104,7 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
     } else {
       setState(() {
         _isApplyingPromo = false;
-        _promoError = 'Invalid promo code. Please try again.';
+        _promoError = AppLocalizations.of(context)!.invalidPromoCodePleaseTryAgain;
       });
     }
   }
@@ -132,7 +133,7 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: theme.colorScheme.outline.withValues(alpha: 0.1),
         ),
@@ -162,20 +163,18 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
                   SizedBox(width: 3.w),
                   Expanded(
                     child: Text(
-                      'Order Summary',
+                      AppLocalizations.of(context)!.orderSummary,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: theme.colorScheme.onSurface,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
-                  Text(
+                  Flexible(child: Text(
                     '\$${_total.toStringAsFixed(2)}',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: theme.colorScheme.primary,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   SizedBox(width: 2.w),
                   AnimatedRotation(
                     turns: _isExpanded ? 0.5 : 0,
@@ -253,7 +252,7 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
                         decoration: BoxDecoration(
                           border: Border(
                             top: BorderSide(
-                              color: theme.colorScheme.outline
+                              color: Colors.grey.shade400
                                   .withValues(alpha: 0.2),
                               width: 1,
                             ),
@@ -262,20 +261,18 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Total',
+                            Flexible(child: Text(
+                              AppLocalizations.of(context)!.total,
                               style: theme.textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w700,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                            Text(
+                                color: Colors.black87,
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                            Flexible(child: Text(
                               '\$${_total.toStringAsFixed(2)}',
                               style: theme.textTheme.titleLarge?.copyWith(
                                 fontWeight: FontWeight.w700,
                                 color: theme.colorScheme.primary,
-                              ),
-                            ),
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                           ],
                         ),
                       ),
@@ -302,12 +299,11 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
+        Flexible(child: Text(
           label,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis)),
         Row(
           children: [
             if (isDeliveryFree)
@@ -316,15 +312,14 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
                 margin: EdgeInsets.only(right: 2.w),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.secondary,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   'FREE',
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSecondary,
                     fontWeight: FontWeight.w600,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             Text(
               value,
@@ -333,8 +328,7 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
                 color: isDiscount
                     ? theme.colorScheme.secondary
                     : theme.colorScheme.onSurface,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
       ],
@@ -348,12 +342,11 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Promo Code',
+          AppLocalizations.of(context)!.promoCode2,
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.w600,
             color: theme.colorScheme.onSurface,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         Row(
           children: [
@@ -362,30 +355,30 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
                 controller: _promoController,
                 enabled: widget.promoCode == null,
                 decoration: InputDecoration(
-                  hintText: 'Enter promo code',
+                  hintText: AppLocalizations.of(context)!.enterPromoCode,
                   contentPadding:
                       EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.5.h),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(
                       color: theme.colorScheme.outline.withValues(alpha: 0.3),
                     ),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(
                       color: theme.colorScheme.outline.withValues(alpha: 0.3),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(
                       color: theme.colorScheme.primary,
                       width: 2,
                     ),
                   ),
                   errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(
                       color: theme.colorScheme.error,
                     ),
@@ -419,7 +412,7 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
                     color: _isApplyingPromo
                         ? theme.colorScheme.outline.withValues(alpha: 0.3)
                         : theme.colorScheme.primary,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: _isApplyingPromo
                       ? SizedBox(
@@ -433,12 +426,11 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
                           ),
                         )
                       : Text(
-                          'Apply',
+                          AppLocalizations.of(context)!.apply2,
                           style: theme.textTheme.labelMedium?.copyWith(
                             color: theme.colorScheme.onPrimary,
                             fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ),
             ],
@@ -450,8 +442,7 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
             _promoError!,
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.error,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
         ],
         if (widget.promoCode != null) ...[
           SizedBox(height: 1.h),
@@ -459,7 +450,7 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
             padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
             decoration: BoxDecoration(
               color: theme.colorScheme.secondary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
               children: [
@@ -469,13 +460,12 @@ class _OrderSummaryWidgetState extends State<OrderSummaryWidget>
                   color: theme.colorScheme.secondary,
                 ),
                 SizedBox(width: 2.w),
-                Text(
+                Flexible(child: Text(
                   'Promo code "${widget.promoCode}" applied successfully!',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.secondary,
                     fontWeight: FontWeight.w500,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis)),
               ],
             ),
           ),

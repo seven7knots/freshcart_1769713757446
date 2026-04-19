@@ -9,6 +9,7 @@ import '../../services/analytics_service.dart';
 import '../../services/supabase_service.dart';
 import './widgets/available_order_card_widget.dart';
 import './widgets/filter_options_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class AvailableOrdersScreen extends ConsumerStatefulWidget {
   const AvailableOrdersScreen({super.key});
@@ -241,8 +242,8 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Order accepted successfully!'),
-            backgroundColor: AppTheme.lightTheme.colorScheme.primary,
+            content: Text(AppLocalizations.of(context)!.orderAcceptedSuccessfully, maxLines: 1, overflow: TextOverflow.ellipsis),
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
         );
 
@@ -257,8 +258,8 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to accept order: $e'),
-            backgroundColor: AppTheme.lightTheme.colorScheme.error,
+            content: Text('Failed to accept order: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -267,17 +268,18 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.lightTheme.colorScheme.surface,
+        backgroundColor: theme.colorScheme.surface,
         elevation: 0,
         title: Text(
-          'Available Orders',
-          style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+          AppLocalizations.of(context)!.availableOrders,
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
             icon: const Icon(Icons.tune),
@@ -293,9 +295,8 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
                   const CircularProgressIndicator(),
                   SizedBox(height: 2.h),
                   Text(
-                    'Loading available orders...',
-                    style: AppTheme.lightTheme.textTheme.bodyMedium,
-                  ),
+                    AppLocalizations.of(context)!.loadingAvailableOrders,
+                    style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             )
@@ -307,33 +308,31 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
                       Icon(Icons.error_outline, size: 15.w, color: Colors.red),
                       SizedBox(height: 2.h),
                       Text(
-                        'Error',
+                        AppLocalizations.of(context)!.error,
                         style:
-                            AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                            theme.textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(height: 1.h),
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 10.w),
                         child: Text(
                           _error!,
                           textAlign: TextAlign.center,
-                          style: AppTheme.lightTheme.textTheme.bodyMedium
+                          style: theme.textTheme.bodyMedium
                               ?.copyWith(
-                            color: AppTheme
-                                .lightTheme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+                            color: theme
+                                .colorScheme.onSurfaceVariant,
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                       SizedBox(height: 3.h),
                       ElevatedButton.icon(
                         onPressed: _loadAvailableOrders,
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
+                        label: Text(AppLocalizations.of(context)!.retry, maxLines: 1, overflow: TextOverflow.ellipsis),
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
-                              AppTheme.lightTheme.colorScheme.primary,
+                              theme.colorScheme.primary,
                           foregroundColor: Colors.white,
                           padding: EdgeInsets.symmetric(
                             horizontal: 8.w,
@@ -352,34 +351,32 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
                           Icon(
                             Icons.local_shipping_outlined,
                             size: 15.w,
-                            color: AppTheme
-                                .lightTheme.colorScheme.onSurfaceVariant,
+                            color: theme
+                                .colorScheme.onSurfaceVariant,
                           ),
                           SizedBox(height: 2.h),
                           Text(
-                            'No Available Orders',
-                            style: AppTheme.lightTheme.textTheme.titleLarge
+                            AppLocalizations.of(context)!.noAvailableOrders,
+                            style: theme.textTheme.titleLarge
                                 ?.copyWith(
                               fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           SizedBox(height: 1.h),
                           Text(
-                            'Check back later for new delivery opportunities',
-                            style: AppTheme.lightTheme.textTheme.bodyMedium
+                            AppLocalizations.of(context)!.checkBackLaterForNewDelivery,
+                            style: theme.textTheme.bodyMedium
                                 ?.copyWith(
-                              color: AppTheme
-                                  .lightTheme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
+                              color: theme
+                                  .colorScheme.onSurfaceVariant,
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           SizedBox(height: 3.h),
                           ElevatedButton.icon(
                             onPressed: _loadAvailableOrders,
                             icon: const Icon(Icons.refresh),
-                            label: const Text('Refresh'),
+                            label: Text(AppLocalizations.of(context)!.refresh, maxLines: 1, overflow: TextOverflow.ellipsis),
                             style: ElevatedButton.styleFrom(
                               backgroundColor:
-                                  AppTheme.lightTheme.colorScheme.primary,
+                                  theme.colorScheme.primary,
                               foregroundColor: Colors.white,
                               padding: EdgeInsets.symmetric(
                                 horizontal: 8.w,
@@ -393,7 +390,7 @@ class _AvailableOrdersScreenState extends ConsumerState<AvailableOrdersScreen> {
                   : RefreshIndicator(
                       key: _refreshIndicatorKey,
                       onRefresh: _loadAvailableOrders,
-                      color: AppTheme.lightTheme.colorScheme.primary,
+                      color: theme.colorScheme.primary,
                       child: ListView.builder(
                         padding: EdgeInsets.symmetric(
                             horizontal: 4.w, vertical: 2.h),

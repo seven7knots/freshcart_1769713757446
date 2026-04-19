@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../providers/marketplace_provider.dart';
 import '../../services/marketplace_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class MyBookingsScreen extends ConsumerStatefulWidget {
   const MyBookingsScreen({super.key});
@@ -24,9 +25,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'My Bookings',
-          style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600),
-        ),
+          AppLocalizations.of(context)!.myBookings,
+          style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
         elevation: 0,
         backgroundColor: theme.scaffoldBackgroundColor,
@@ -39,11 +39,11 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
               scrollDirection: Axis.horizontal,
               padding: EdgeInsets.symmetric(horizontal: 4.w),
               children: [
-                _buildFilterChip('All', null),
-                _buildFilterChip('Requested', 'requested'),
+                _buildFilterChip(AppLocalizations.of(context)!.all2, null),
+                _buildFilterChip(AppLocalizations.of(context)!.requested, 'requested'),
                 _buildFilterChip('Confirmed', 'confirmed'),
-                _buildFilterChip('In Progress', 'in_progress'),
-                _buildFilterChip('Completed', 'completed'),
+                _buildFilterChip(AppLocalizations.of(context)!.inProgress, 'in_progress'),
+                _buildFilterChip(AppLocalizations.of(context)!.completed, 'completed'),
                 _buildFilterChip('Cancelled', 'cancelled'),
               ],
             ),
@@ -59,16 +59,15 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                         Icon(
                           Icons.event_busy,
                           size: 60,
-                          color: Colors.grey[400],
+                          color: theme.colorScheme.outline,
                         ),
                         SizedBox(height: 2.h),
                         Text(
-                          'No bookings found',
+                          AppLocalizations.of(context)!.noBookingsFound,
                           style: TextStyle(
                             fontSize: 16.sp,
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   );
@@ -82,7 +81,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                       margin: EdgeInsets.only(bottom: 2.h),
                       padding: EdgeInsets.all(3.w),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: theme.colorScheme.surface,
                         borderRadius: BorderRadius.circular(12.0),
                         boxShadow: [
                           BoxShadow(
@@ -98,13 +97,12 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
+                              Flexible(child: Text(
                                 'Booking #${booking.bookingNumber ?? booking.id.substring(0, 8)}',
                                 style: TextStyle(
                                   fontSize: 14.sp,
                                   fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                               _buildStatusBadge(booking.status),
                             ],
                           ),
@@ -114,9 +112,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                               'Scheduled: ${booking.scheduledTime!.toString().substring(0, 16)}',
                               style: TextStyle(
                                 fontSize: 12.sp,
-                                color: Colors.grey[600],
-                              ),
-                            ),
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           SizedBox(height: 0.5.h),
                           Text(
                             'Total: \$${booking.total.toStringAsFixed(2)}',
@@ -124,8 +121,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                               fontSize: 13.sp,
                               fontWeight: FontWeight.bold,
                               color: theme.colorScheme.primary,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           if (booking.status == 'requested' ||
                               booking.status == 'confirmed') ...[
                             SizedBox(height: 1.h),
@@ -135,7 +131,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                                 backgroundColor: Colors.red,
                                 minimumSize: Size(double.infinity, 4.h),
                               ),
-                              child: const Text('Cancel Booking'),
+                              child: Text(AppLocalizations.of(context)!.cancelBooking, maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
                           ],
                           if (booking.status == 'completed' &&
@@ -146,7 +142,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
                               style: ElevatedButton.styleFrom(
                                 minimumSize: Size(double.infinity, 4.h),
                               ),
-                              child: const Text('Rate Service'),
+                              child: Text(AppLocalizations.of(context)!.rateService, maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
                           ],
                         ],
@@ -159,8 +155,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
               error: (error, stack) => Center(
                 child: Text(
                   'Error: ${error.toString()}',
-                  style: TextStyle(color: Colors.red, fontSize: 12.sp),
-                ),
+                  style: TextStyle(color: Colors.red, fontSize: 12.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ),
           ),
@@ -179,13 +174,12 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
           label,
           style: TextStyle(
             fontSize: 12.sp,
-            color: isSelected ? Colors.white : Colors.black87,
-          ),
-        ),
+            color: isSelected ? Colors.white : theme.colorScheme.onSurface,
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         selected: isSelected,
         onSelected: (selected) =>
             setState(() => _selectedStatus = selected ? status : null),
-        backgroundColor: Colors.grey[200],
+        backgroundColor: theme.colorScheme.surfaceContainerHighest,
         selectedColor: theme.colorScheme.primary,
       ),
     );
@@ -222,8 +216,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
           fontSize: 10.sp,
           color: color,
           fontWeight: FontWeight.w600,
-        ),
-      ),
+        ), maxLines: 1, overflow: TextOverflow.ellipsis),
     );
   }
 
@@ -231,16 +224,16 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancel Booking'),
-        content: const Text('Are you sure you want to cancel this booking?'),
+        title: Text(AppLocalizations.of(context)!.cancelBooking, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Text(AppLocalizations.of(context)!.areYouSureYouWantTo, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('No'),
+            child: Text(AppLocalizations.of(context)!.no2, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Yes'),
+            child: Text(AppLocalizations.of(context)!.yes, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -256,13 +249,13 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('Booking cancelled')));
+          ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.bookingCancelled, maxLines: 1, overflow: TextOverflow.ellipsis)));
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+          ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}', maxLines: 1, overflow: TextOverflow.ellipsis)));
         }
       }
     }
@@ -276,7 +269,7 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Rate Service'),
+          title: Text(AppLocalizations.of(context)!.rateService, maxLines: 1, overflow: TextOverflow.ellipsis),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -295,8 +288,8 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
               ),
               TextField(
                 controller: reviewController,
-                decoration: const InputDecoration(
-                  labelText: 'Review (Optional)',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.reviewOptional,
                   border: OutlineInputBorder(),
                 ),
                 maxLines: 3,
@@ -306,11 +299,11 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
             TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Submit'),
+              child: Text(AppLocalizations.of(context)!.submit, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ],
         ),
@@ -328,13 +321,13 @@ class _MyBookingsScreenState extends ConsumerState<MyBookingsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('Rating submitted')));
+          ).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.ratingSubmitted, maxLines: 1, overflow: TextOverflow.ellipsis)));
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+          ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}', maxLines: 1, overflow: TextOverflow.ellipsis)));
         }
       }
     }

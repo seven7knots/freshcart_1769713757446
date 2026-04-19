@@ -1,8 +1,8 @@
 // ============================================================
 // FILE: lib/presentation/authentication_screen/widgets/login_form_widget.dart
 // ============================================================
-// UPDATED: White text on glass background, theme-aware styling,
-// semi-transparent input fields for glassmorphism effect.
+// UPDATED: After login → AuthGate (/) which checks phone & routes.
+// Fixed hardcoded '/home-screen' route to use AuthGate flow.
 // ============================================================
 
 import 'package:flutter/material.dart';
@@ -11,6 +11,8 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../routes/app_routes.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class LoginFormWidget extends StatefulWidget {
   final VoidCallback? onLoginPressed;
@@ -42,7 +44,6 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
     super.dispose();
   }
 
-  // Shared input decoration for glass effect
   InputDecoration _glassInputDecoration({
     required String hint,
     required IconData prefixIcon,
@@ -63,19 +64,19 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
       fillColor: Colors.white.withOpacity(0.08),
       contentPadding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: Colors.white.withOpacity(0.2)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: Colors.white.withOpacity(0.5), width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: Colors.redAccent.shade100),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: Colors.redAccent.shade100, width: 1.5),
       ),
     );
@@ -104,7 +105,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Email', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13.sp)),
+        Text(AppLocalizations.of(context)!.email, style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         TextFormField(
           controller: _emailController,
@@ -114,7 +115,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
           cursorColor: Colors.white,
           onChanged: (value) => _validateEmail(value),
           decoration: _glassInputDecoration(
-            hint: 'Enter your email',
+            hint: AppLocalizations.of(context)!.enterYourEmail,
             prefixIcon: Icons.email_outlined,
             errorText: _emailError,
           ),
@@ -127,7 +128,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Password', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13.sp)),
+        Text(AppLocalizations.of(context)!.password, style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         TextFormField(
           controller: _passwordController,
@@ -137,7 +138,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
           cursorColor: Colors.white,
           onChanged: (value) => _validatePassword(value),
           decoration: _glassInputDecoration(
-            hint: 'Enter your password',
+            hint: AppLocalizations.of(context)!.enterYourPassword,
             prefixIcon: Icons.lock_outlined,
             errorText: _passwordError,
             suffixIcon: IconButton(
@@ -160,13 +161,12 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
       child: TextButton(
         onPressed: widget.onForgotPasswordPressed ?? () => _showForgotPasswordBottomSheet(),
         child: Text(
-          'Forgot Password?',
+          AppLocalizations.of(context)!.forgotPassword,
           style: TextStyle(
             color: Colors.white.withOpacity(0.8),
             fontWeight: FontWeight.w500,
             fontSize: 12.sp,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
     );
   }
@@ -187,7 +187,13 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
         ),
         child: _isLoading
             ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(Colors.white)))
-            : Text('Login', style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w700, color: Colors.white)),
+            : FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  AppLocalizations.of(context)!.login,
+                  style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w700, color: Colors.white),
+                ),
+              ),
       ),
     );
   }
@@ -197,7 +203,7 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
       if (value.isEmpty) {
         _emailError = 'Email is required';
       } else if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-        _emailError = 'Please enter a valid email';
+        _emailError = AppLocalizations.of(context)!.pleaseEnterAValidEmail;
       } else {
         _emailError = null;
       }
@@ -237,20 +243,21 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
 
     setState(() => _isLoading = false);
 
-    if (mounted) {
-      if (success) {
-        HapticFeedback.mediumImpact();
-        Navigator.pushNamedAndRemoveUntil(context, '/home-screen', (route) => false);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(authProvider.error ?? 'Login failed'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        );
-      }
+    if (success) {
+      HapticFeedback.mediumImpact();
+      // UPDATED: Use the callback which routes through AuthGate
+      // instead of hardcoded '/home-screen'. AuthGate will check
+      // if user has a phone number and route accordingly.
+      widget.onLoginPressed?.call();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.error ?? AppLocalizations.of(context)!.loginFailed, maxLines: 1, overflow: TextOverflow.ellipsis),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      );
     }
   }
 
@@ -282,9 +289,9 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
                   ),
                 ),
                 SizedBox(height: 3.h),
-                Text('Reset Password', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+                Text(AppLocalizations.of(context)!.resetPassword, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 1.h),
-                Text('Enter your email and we\'ll send you a reset link', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                Text('Enter your email and we\'ll send you a verification code', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 3.h),
                 TextFormField(
                   controller: emailController,
@@ -294,13 +301,13 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
                       if (value.isEmpty) {
                         emailError = 'Email is required';
                       } else if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                        emailError = 'Please enter a valid email';
+                        emailError = AppLocalizations.of(context)!.pleaseEnterAValidEmail;
                       } else {
                         emailError = null;
                       }
                     });
                   },
-                  decoration: InputDecoration(hintText: 'Enter your email', prefixIcon: const Icon(Icons.email_outlined), errorText: emailError),
+                  decoration: InputDecoration(hintText: AppLocalizations.of(context)!.enterYourEmail, prefixIcon: Icon(Icons.email_outlined), errorText: emailError),
                 ),
                 SizedBox(height: 3.h),
                 SizedBox(
@@ -312,15 +319,23 @@ class _LoginFormWidgetState extends State<LoginFormWidget> {
                             final success = await authProvider.resetPassword(emailController.text.trim());
                             if (context.mounted) {
                               Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text(success ? 'Reset link sent!' : authProvider.errorMessage ?? 'Failed'),
-                                backgroundColor: success ? Colors.green : Colors.red,
-                              ));
+                              if (success) {
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.resetPasswordVerify,
+                                  arguments: emailController.text.trim(),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                  content: Text(authProvider.errorMessage ?? AppLocalizations.of(context)!.failed, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  backgroundColor: Colors.red,
+                                ));
+                              }
                             }
                           }
                         : null,
                     style: ElevatedButton.styleFrom(padding: EdgeInsets.symmetric(vertical: 2.h)),
-                    child: const Text('Send Reset Link', style: TextStyle(fontWeight: FontWeight.w600)),
+                    child: Text('Send verification code', style: TextStyle(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ),
               ],

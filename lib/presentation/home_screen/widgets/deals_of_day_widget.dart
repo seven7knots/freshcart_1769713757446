@@ -8,6 +8,9 @@ import '../../../providers/admin_provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/product_provider.dart';
 import '../../../widgets/admin_editable_item_wrapper.dart';
+import '../../admin_edit_overlay_system_screen/widgets/content_edit_modal_widget.dart';
+import '../../../widgets/shimmer_placeholder.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class DealsOfDayWidget extends ConsumerWidget {
   const DealsOfDayWidget({super.key});
@@ -33,75 +36,68 @@ class DealsOfDayWidget extends ConsumerWidget {
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4.w),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        CustomIconWidget(
-                          iconName: 'local_fire_department',
-                          color: Theme.of(context).colorScheme.error,
-                          size: 6.w,
-                        ),
-                        SizedBox(width: 2.w),
-                        Text(
-                          'Deals of the Day',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                      ],
+                    CustomIconWidget(
+                      iconName: 'local_fire_department',
+                      color: Theme.of(context).colorScheme.error,
+                      size: 6.w,
                     ),
-                    Row(
-                      children: [
-                        if (isEditMode)
-                          InkWell(
-                            onTap: () => _addNewProduct(context),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 3.w, vertical: 0.5.h),
-                              margin: EdgeInsets.only(right: 2.w),
-                              decoration: BoxDecoration(
-                                color: Colors.orange,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.add,
-                                      color: Colors.white, size: 16),
-                                  SizedBox(width: 1.w),
-                                  Text(
-                                    'Add',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10.sp,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                    SizedBox(width: 2.w),
+                    Expanded(
+                      child: Text(
+                        AppLocalizations.of(context)!.dealsOfTheDay,
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineSmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.w700,
                             ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isEditMode)
+                      InkWell(
+                        onTap: () => _addNewProduct(context, ref),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 3.w, vertical: 0.5.h),
+                          margin: EdgeInsets.only(right: 1.w),
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                        TextButton(
-                          onPressed: () {
-                            AppRoutes.switchToTab(context, 1);
-                          },
-                          child: Text(
-                            'View All',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.add,
+                                  color: Colors.white, size: 16),
+                              SizedBox(width: 1.w),
+                              Text(
+                                AppLocalizations.of(context)!.add2,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10.sp,
                                   fontWeight: FontWeight.w600,
-                                ),
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
+                    TextButton(
+                      onPressed: () {
+                        AppRoutes.switchToTab(context, 1);
+                      },
+                      child: Text(
+                        AppLocalizations.of(context)!.viewAll,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ],
                 ),
@@ -112,14 +108,13 @@ class DealsOfDayWidget extends ConsumerWidget {
                 child: products.isEmpty
                     ? Center(
                         child: Text(
-                          'No deals yet. Add featured products.',
+                          AppLocalizations.of(context)!.noDealsYetAddFeaturedProducts,
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     color: Theme.of(context)
                                         .colorScheme
                                         .onSurfaceVariant,
-                                  ),
-                        ),
+                                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       )
                     : ListView.builder(
                         scrollDirection: Axis.horizontal,
@@ -130,7 +125,6 @@ class DealsOfDayWidget extends ConsumerWidget {
                           final productCard =
                               _buildProductCard(context, product);
 
-                          // Wrap with admin edit controls if in edit mode
                           if (isEditMode) {
                             return AdminEditableItemWrapper(
                               contentType: 'product',
@@ -167,20 +161,46 @@ class DealsOfDayWidget extends ConsumerWidget {
     );
   }
 
-  void _addNewProduct(BuildContext context) {
-    // Navigate to product creation or show modal
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Navigate to product creation'),
-        backgroundColor: Colors.orange,
+  /// Opens the admin content editor to create a new featured product
+  /// The modal now handles its own closing via Navigator.pop before calling onSaved
+  void _addNewProduct(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => ContentEditModalWidget(
+        contentType: 'product',
+        contentId: null,
+        contentData: {'is_featured': true},
+        onSaved: () {
+          ref.invalidate(featuredProductsProvider);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.productCreatedSuccessfully, maxLines: 1, overflow: TextOverflow.ellipsis),
+              backgroundColor: Colors.green,
+            ),
+          );
+        },
       ),
     );
   }
 
   Widget _buildProductCard(BuildContext context, dynamic product) {
     final discount = product.salePrice != null
-        ? (((product.price - product.salePrice!) / product.price) * 100).round()
+        ? (((product.price - product.salePrice!) / product.price) * 100)
+            .round()
         : 0;
+
+    // FIX: Safely get image URL with null checks to prevent isNotEmpty crash
+    String imageUrl;
+    if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
+      imageUrl = product.imageUrl!;
+    } else if (product.images != null && (product.images as List).isNotEmpty) {
+      imageUrl = (product.images as List).first.toString();
+    } else {
+      imageUrl =
+          'https://images.unsplash.com/photo-1546069901-ba9599a7e63c';
+    }
 
     return Container(
       width: 40.w,
@@ -215,10 +235,7 @@ class DealsOfDayWidget extends ConsumerWidget {
                     top: Radius.circular(12.0),
                   ),
                   child: CustomImageWidget(
-                    imageUrl: product.imageUrl ??
-                        (product.images.isNotEmpty
-                            ? product.images.first
-                            : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c'),
+                    imageUrl: imageUrl,
                     width: double.infinity,
                     height: 15.h,
                     fit: BoxFit.cover,
@@ -240,11 +257,12 @@ class DealsOfDayWidget extends ConsumerWidget {
                       ),
                       child: Text(
                         '$discount% OFF',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: Theme.of(context).colorScheme.onError,
-                              fontWeight: FontWeight.w700,
-                            ),
-                      ),
+                        style:
+                            Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color:
+                                      Theme.of(context).colorScheme.onError,
+                                  fontWeight: FontWeight.w700,
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
               ],
@@ -255,7 +273,7 @@ class DealsOfDayWidget extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    product.name,
+                    product.name ?? AppLocalizations.of(context)!.unnamedProduct,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
@@ -265,14 +283,14 @@ class DealsOfDayWidget extends ConsumerWidget {
                   SizedBox(height: 0.5.h),
                   Row(
                     children: [
-                      Text(
+                      Flexible(child: Text(
                         '\$${product.salePrice ?? product.price}',
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w700,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                      ),
+                                  color:
+                                      Theme.of(context).colorScheme.primary,
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                       if (product.salePrice != null) ...[
                         SizedBox(width: 1.w),
                         Text(
@@ -283,8 +301,7 @@ class DealsOfDayWidget extends ConsumerWidget {
                                     color: Theme.of(context)
                                         .colorScheme
                                         .onSurfaceVariant,
-                                  ),
-                        ),
+                                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ],
                   ),
@@ -313,24 +330,16 @@ class DealsOfDayWidget extends ConsumerWidget {
                   size: 6.w,
                 ),
                 SizedBox(width: 2.w),
-                Text(
-                  'Deals of the Day',
+                Flexible(child: Text(
+                  AppLocalizations.of(context)!.dealsOfTheDay,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                      ),
-                ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis)),
               ],
             ),
           ),
           SizedBox(height: 1.h),
-          SizedBox(
-            height: 28.h,
-            child: Center(
-              child: CircularProgressIndicator(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ),
+          const ShimmerProductRow(),
         ],
       ),
     );

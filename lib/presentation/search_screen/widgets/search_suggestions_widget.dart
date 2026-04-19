@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class SearchSuggestionsWidget extends StatelessWidget {
   final List<String> recentSearches;
@@ -22,52 +23,70 @@ class SearchSuggestionsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: EdgeInsets.symmetric(horizontal: 4.w),
-      decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color:
-                AppTheme.lightTheme.colorScheme.shadow.withValues(alpha: 0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (recentSearches.isNotEmpty) ...[
-            _buildSectionHeader(
-              context,
-              'Recent Searches',
-              onClearRecentSearches,
-            ),
-            _buildSuggestionsList(context, recentSearches, Icons.history),
-            Divider(
-              color: AppTheme.lightTheme.colorScheme.outline
-                  .withValues(alpha: 0.2),
-              height: 1,
+    final theme = Theme.of(context);
+
+    // If nothing to show, return empty
+    final hasContent = recentSearches.isNotEmpty ||
+        trendingProducts.isNotEmpty ||
+        categories.isNotEmpty;
+
+    if (!hasContent) {
+      return const SizedBox.shrink();
+    }
+
+    return SingleChildScrollView(
+      child: Container(
+        margin: EdgeInsets.symmetric(horizontal: 4.w),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.shadow.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
-          _buildSectionHeader(context, 'Trending Products'),
-          _buildSuggestionsList(context, trendingProducts, Icons.trending_up),
-          Divider(
-            color:
-                AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
-            height: 1,
-          ),
-          _buildSectionHeader(context, 'Categories'),
-          _buildSuggestionsList(context, categories, Icons.category),
-        ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (recentSearches.isNotEmpty) ...[
+              _buildSectionHeader(
+                context,
+                theme,
+                'Recent Searches',
+                onClearRecentSearches,
+              ),
+              _buildSuggestionsList(context, theme, recentSearches, Icons.history),
+              Divider(
+                color: theme.colorScheme.outline.withOpacity(0.2),
+                height: 1,
+              ),
+            ],
+            if (trendingProducts.isNotEmpty) ...[
+              _buildSectionHeader(context, theme, AppLocalizations.of(context)!.trendingProducts),
+              _buildSuggestionsList(context, theme, trendingProducts, Icons.trending_up),
+              if (categories.isNotEmpty)
+                Divider(
+                  color: theme.colorScheme.outline.withOpacity(0.2),
+                  height: 1,
+                ),
+            ],
+            if (categories.isNotEmpty) ...[
+              _buildSectionHeader(context, theme, AppLocalizations.of(context)!.categories),
+              _buildSuggestionsList(context, theme, categories, Icons.category),
+            ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildSectionHeader(
     BuildContext context,
+    ThemeData theme,
     String title, [
     VoidCallback? onClear,
   ]) {
@@ -76,13 +95,12 @@ class SearchSuggestionsWidget extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
+          Flexible(child: Text(
             title,
-            style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+            style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
-              color: AppTheme.lightTheme.colorScheme.onSurface,
-            ),
-          ),
+              color: theme.colorScheme.onSurface,
+            ), maxLines: 1, overflow: TextOverflow.ellipsis)),
           if (onClear != null)
             TextButton(
               onPressed: () {
@@ -91,11 +109,10 @@ class SearchSuggestionsWidget extends StatelessWidget {
               },
               child: Text(
                 'Clear',
-                style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                  color: AppTheme.lightTheme.colorScheme.primary,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.primary,
                   fontWeight: FontWeight.w500,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
         ],
       ),
@@ -104,6 +121,7 @@ class SearchSuggestionsWidget extends StatelessWidget {
 
   Widget _buildSuggestionsList(
     BuildContext context,
+    ThemeData theme,
     List<String> suggestions,
     IconData iconData,
   ) {
@@ -114,22 +132,21 @@ class SearchSuggestionsWidget extends StatelessWidget {
       itemBuilder: (context, index) {
         final suggestion = suggestions[index];
         return ListTile(
-          leading: CustomIconWidget(
-            iconName: iconData.toString().split('.').last,
-            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+          leading: Icon(
+            iconData,
+            color: theme.colorScheme.onSurfaceVariant,
             size: 20,
           ),
           title: Text(
             suggestion,
-            style: AppTheme.lightTheme.textTheme.bodyMedium,
-          ),
+            style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
           onTap: () {
             HapticFeedback.lightImpact();
             onSuggestionTap?.call(suggestion);
           },
-          trailing: CustomIconWidget(
-            iconName: 'north_west',
-            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+          trailing: Icon(
+            Icons.north_west,
+            color: theme.colorScheme.onSurfaceVariant,
             size: 16,
           ),
         );

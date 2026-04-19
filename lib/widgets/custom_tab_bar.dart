@@ -101,7 +101,7 @@ class CustomTabBar extends StatelessWidget implements PreferredSizeWidget {
     switch (variant) {
       case TabBarVariant.primary:
         return BoxDecoration(
-          borderRadius: BorderRadius.circular(2),
+          borderRadius: BorderRadius.circular(14),
           color: colorScheme.primary,
         );
       case TabBarVariant.outlined:

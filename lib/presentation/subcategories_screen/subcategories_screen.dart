@@ -7,6 +7,7 @@ import '../../routes/app_routes.dart';
 import '../../services/category_service.dart';
 import '../../widgets/admin_editable_item_wrapper.dart';
 import '../../widgets/custom_image_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class SubcategoriesScreen extends StatefulWidget {
   final dynamic parentCategoryId;
@@ -56,14 +57,13 @@ class _SubcategoriesScreenState extends State<SubcategoriesScreen> {
         try {
           final children = await CategoryService.getSubcategories(cat.id);
           hasChildren = children.isNotEmpty;
-        } catch (_) {}
+        } catch (e) { debugPrint('[SUBCATEGORIES_SCREEN] Silent error: $e'); }
         enriched.add({
           'id': cat.id, 'name': cat.name, 'description': cat.description ?? '',
           'type': cat.type ?? '', 'image_url': cat.imageUrl ?? '',
           'has_children': hasChildren, 'is_active': cat.isActive,
         });
       }
-      if (!mounted) return;
       setState(() { _all = enriched; _applySearch(); _isLoading = false; });
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _isLoading = false; });
@@ -80,7 +80,7 @@ class _SubcategoriesScreenState extends State<SubcategoriesScreen> {
 
   void _onTap(Map<String, dynamic> sub) {
     final id = sub['id']?.toString() ?? '';
-    final name = (sub['name'] ?? 'Category').toString();
+    final name = (sub['name'] ?? AppLocalizations.of(context)!.category2).toString();
     if (id.isEmpty) return;
 
     if (sub['has_children'] == true) {
@@ -102,14 +102,14 @@ class _SubcategoriesScreenState extends State<SubcategoriesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.parentCategoryName),
+        title: Text(widget.parentCategoryName, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           if (isEditMode) IconButton(
             onPressed: () => Navigator.pushNamed(context, AppRoutes.adminSubcategories, arguments: {
               'parentCategoryId': widget.parentCategoryId.toString(),
               'parentCategoryName': widget.parentCategoryName,
             }),
-            icon: const Icon(Icons.settings, color: Colors.orange), tooltip: 'Manage',
+            icon: Icon(Icons.settings, color: Colors.orange), tooltip: AppLocalizations.of(context)!.manage,
           ),
           IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
         ],
@@ -122,9 +122,9 @@ class _SubcategoriesScreenState extends State<SubcategoriesScreen> {
             controller: _searchCtrl,
             onChanged: (_) => setState(() => _applySearch()),
             decoration: InputDecoration(
-              hintText: 'Search...', prefixIcon: const Icon(Icons.search),
+              hintText: AppLocalizations.of(context)!.search2, prefixIcon: Icon(Icons.search),
               suffixIcon: _searchCtrl.text.isNotEmpty ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchCtrl.clear(); setState(() => _applySearch()); }) : null,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
             ),
           ),
         ),
@@ -182,13 +182,13 @@ class _SubcategoriesScreenState extends State<SubcategoriesScreen> {
                       colors: [Colors.transparent, Colors.black.withOpacity(0.75)]),
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                    Text(name, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12.sp), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(name, style: TextStyle(color: theme.colorScheme.surface, fontWeight: FontWeight.w700, fontSize: 12.sp), maxLines: 2, overflow: TextOverflow.ellipsis),
                     if (hasChildren) ...[
                       SizedBox(height: 0.3.h),
                       Row(children: [
                         Icon(Icons.subdirectory_arrow_right, size: 3.w, color: Colors.white70),
                         SizedBox(width: 0.5.w),
-                        Text('Has subcategories', style: TextStyle(color: Colors.white70, fontSize: 8.sp)),
+                        Flexible(child: Text(AppLocalizations.of(context)!.hasSubcategories, style: TextStyle(color: Colors.white70, fontSize: 8.sp), maxLines: 1, overflow: TextOverflow.ellipsis)),
                       ]),
                     ],
                   ]),
@@ -214,7 +214,7 @@ class _SubcategoriesScreenState extends State<SubcategoriesScreen> {
                         Row(children: [
                           Icon(Icons.subdirectory_arrow_right, size: 3.5.w, color: theme.colorScheme.primary),
                           SizedBox(width: 1.w),
-                          Text('Has subcategories', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.primary)),
+                          Flexible(child: Text(AppLocalizations.of(context)!.hasSubcategories, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.primary), maxLines: 1, overflow: TextOverflow.ellipsis)),
                         ]),
                       ],
                     ]),
@@ -227,12 +227,12 @@ class _SubcategoriesScreenState extends State<SubcategoriesScreen> {
 
   Widget _buildError(ThemeData t) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
     Icon(Icons.error_outline, size: 48, color: t.colorScheme.error), SizedBox(height: 2.h),
-    Text('Something went wrong', style: t.textTheme.titleMedium), SizedBox(height: 2.h),
-    ElevatedButton.icon(onPressed: _load, icon: const Icon(Icons.refresh), label: const Text('Retry')),
+    Text('Something went wrong', style: t.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis), SizedBox(height: 2.h),
+    ElevatedButton.icon(onPressed: _load, icon: Icon(Icons.refresh), label: Text('Retry', maxLines: 1, overflow: TextOverflow.ellipsis)),
   ]));
 
   Widget _buildEmpty(ThemeData t) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
     Icon(Icons.category_outlined, size: 64, color: t.colorScheme.outline), SizedBox(height: 2.h),
-    Text('No subcategories found', style: t.textTheme.titleMedium),
+    Text('No subcategories found', style: t.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
   ]));
 }

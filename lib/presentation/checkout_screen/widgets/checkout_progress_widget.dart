@@ -66,8 +66,7 @@ class CheckoutProgressWidget extends StatelessWidget {
                                         ? colorScheme.onPrimary
                                         : colorScheme.onSurfaceVariant,
                                     fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ),
                       SizedBox(height: 1.h),

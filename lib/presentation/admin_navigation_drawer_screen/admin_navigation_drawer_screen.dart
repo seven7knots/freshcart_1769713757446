@@ -6,6 +6,7 @@ import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/analytics_service.dart';
 import '../../services/seed_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class AdminNavigationDrawerScreen extends StatefulWidget {
   const AdminNavigationDrawerScreen({super.key});
@@ -31,6 +32,8 @@ class _AdminNavigationDrawerScreenState
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Drawer(
       backgroundColor: Colors.white,
       child: SafeArea(
@@ -42,18 +45,18 @@ class _AdminNavigationDrawerScreenState
                 padding: EdgeInsets.zero,
                 children: [
                   _buildNavigationSection(
-                    title: 'Dashboard',
+                    title: AppLocalizations.of(context)!.dashboard,
                     items: [
                       _buildNavItem(
                         icon: Icons.dashboard,
-                        title: 'Analytics Overview',
+                        title: AppLocalizations.of(context)!.analyticsOverview,
                         route: AppRoutes.adminLandingDashboard,
                       ),
                     ],
                   ),
                   ListTile(
                     leading: const Icon(Icons.people_outline),
-                    title: const Text('Users'),
+                    title: Text(AppLocalizations.of(context)!.users, maxLines: 1, overflow: TextOverflow.ellipsis),
                     onTap: () {
                       Navigator.of(context).pop();
                       Navigator.of(context)
@@ -62,7 +65,7 @@ class _AdminNavigationDrawerScreenState
                   ),
                   ListTile(
                     leading: const Icon(Icons.assignment_ind_outlined),
-                    title: const Text('Role Requests'),
+                    title: Text(AppLocalizations.of(context)!.roleRequests, maxLines: 1, overflow: TextOverflow.ellipsis),
                     onTap: () {
                       Navigator.of(context).pop();
                       Navigator.of(context)
@@ -70,76 +73,76 @@ class _AdminNavigationDrawerScreenState
                     },
                   ),
                   _buildNavigationSection(
-                    title: 'Content Management',
+                    title: AppLocalizations.of(context)!.contentManagement,
                     items: [
                       _buildNavItem(
                         icon: Icons.inventory,
-                        title: 'Products',
+                        title: AppLocalizations.of(context)!.products,
                         route: AppRoutes.home,
                       ),
                       _buildNavItem(
                         icon: Icons.category,
-                        title: 'Categories',
+                        title: AppLocalizations.of(context)!.categories,
                         route: AppRoutes.allCategoriesScreen,
                       ),
                       _buildNavItem(
                         icon: Icons.admin_panel_settings,
-                        title: 'Admin Categories',
+                        title: AppLocalizations.of(context)!.adminCategories,
                         route: AppRoutes.adminCategories,
                       ),
                       _buildNavItem(
                         icon: Icons.storefront,
-                        title: 'Stores',
+                        title: AppLocalizations.of(context)!.stores,
                         route: AppRoutes.marketplaceScreen,
                       ),
                     ],
                   ),
                   _buildNavigationSection(
-                    title: 'Order Operations',
+                    title: AppLocalizations.of(context)!.orderOperations,
                     items: [
                       _buildNavItem(
                         icon: Icons.shopping_bag,
-                        title: 'Active Orders',
+                        title: AppLocalizations.of(context)!.activeOrders,
                         route: AppRoutes.enhancedOrderManagement,
                       ),
                       _buildNavItem(
                         icon: Icons.assignment,
-                        title: 'Delivery Assignments',
+                        title: AppLocalizations.of(context)!.deliveryAssignments,
                         route: AppRoutes.enhancedOrderManagement,
                       ),
                       _buildNavItem(
                         icon: Icons.map,
-                        title: 'Logistics Management',
+                        title: AppLocalizations.of(context)!.logisticsManagement,
                         route: AppRoutes.adminLogisticsManagement,
                       ),
                     ],
                   ),
                   _buildNavigationSection(
-                    title: 'Marketing Tools',
+                    title: AppLocalizations.of(context)!.marketingTools,
                     items: [
                       _buildNavItem(
                         icon: Icons.campaign,
-                        title: 'Ads & Promotions',
+                        title: AppLocalizations.of(context)!.adsPromotions,
                         route: AppRoutes.adminAdsManagement,
                       ),
                       _buildNavItem(
                         icon: Icons.local_offer,
-                        title: 'Campaigns',
+                        title: AppLocalizations.of(context)!.campaigns,
                         route: AppRoutes.adminAdsManagement,
                       ),
                     ],
                   ),
                   _buildNavigationSection(
-                    title: 'System Settings',
+                    title: AppLocalizations.of(context)!.systemSettings,
                     items: [
                       _buildNavItem(
                         icon: Icons.settings,
-                        title: 'App Configuration',
+                        title: AppLocalizations.of(context)!.appConfiguration,
                         route: AppRoutes.adminDashboard,
                       ),
                       _buildNavItem(
                         icon: Icons.security,
-                        title: 'Permissions',
+                        title: AppLocalizations.of(context)!.permissions,
                         route: AppRoutes.adminDashboard,
                       ),
                     ],
@@ -152,13 +155,12 @@ class _AdminNavigationDrawerScreenState
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Text(
-                          'Developer Tools',
+                          AppLocalizations.of(context)!.developerTools,
                           style: TextStyle(
                             fontSize: 12.sp,
                             fontWeight: FontWeight.w600,
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                            color: Colors.grey,
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         SizedBox(height: 1.h),
                         ElevatedButton.icon(
                           onPressed: _isSeeding || _isResetting
@@ -177,12 +179,11 @@ class _AdminNavigationDrawerScreenState
                                 )
                               : const Icon(Icons.cloud_upload, size: 20),
                           label: Text(
-                            _isSeeding ? 'Seeding...' : 'Seed Demo Data',
-                            style: TextStyle(fontSize: 11.sp),
-                          ),
+                            _isSeeding ? AppLocalizations.of(context)!.seeding : AppLocalizations.of(context)!.seedDemoData,
+                            style: TextStyle(fontSize: 11.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
                           style: ElevatedButton.styleFrom(
                             backgroundColor:
-                                AppTheme.lightTheme.colorScheme.primary,
+                                theme.colorScheme.primary,
                             foregroundColor: Colors.white,
                             padding: EdgeInsets.symmetric(vertical: 1.5.h),
                           ),
@@ -205,9 +206,8 @@ class _AdminNavigationDrawerScreenState
                                 )
                               : const Icon(Icons.refresh, size: 20),
                           label: Text(
-                            _isResetting ? 'Resetting...' : 'Reset Demo Data',
-                            style: TextStyle(fontSize: 11.sp),
-                          ),
+                            _isResetting ? AppLocalizations.of(context)!.resetting : AppLocalizations.of(context)!.resetDemoData2,
+                            style: TextStyle(fontSize: 11.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.orange,
                             foregroundColor: Colors.white,
@@ -222,7 +222,7 @@ class _AdminNavigationDrawerScreenState
                               color: _seedMessage!.contains('failed')
                                   ? Colors.red[50]
                                   : Colors.green[50],
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: _seedMessage!.contains('failed')
                                     ? Colors.red[300]!
@@ -236,8 +236,7 @@ class _AdminNavigationDrawerScreenState
                                 color: _seedMessage!.contains('failed')
                                     ? Colors.red[900]
                                     : Colors.green[900],
-                              ),
-                            ),
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           ),
                         ],
                       ],
@@ -294,7 +293,7 @@ class _AdminNavigationDrawerScreenState
         _isSeeding = false;
       });
       if (mounted) {
-        _showErrorDialog('Seeding Error', e.toString());
+        _showErrorDialog(AppLocalizations.of(context)!.seedingError, e.toString());
       }
     }
   }
@@ -303,19 +302,18 @@ class _AdminNavigationDrawerScreenState
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Reset Demo Data?'),
-        content: const Text(
-          'This will call reset_demo_data() RPC to delete all demo rows, then re-seed the database. Continue?',
-        ),
+        title: Text(AppLocalizations.of(context)!.resetDemoData, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Text(
+          AppLocalizations.of(context)!.thisWillCallResetDemoData, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Reset & Re-seed'),
+            child: Text(AppLocalizations.of(context)!.resetReSeed, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -332,7 +330,7 @@ class _AdminNavigationDrawerScreenState
       final resetResult = await SeedService.resetDemoData();
       final resetSuccess = resetResult['success'] as bool? ?? false;
       final resetMessage =
-          resetResult['message'] as String? ?? 'Unknown result';
+          resetResult['message'] as String? ?? AppLocalizations.of(context)!.unknownResult;
       final resetCounts = resetResult['counts'] as Map<String, dynamic>? ?? {};
 
       if (!resetSuccess) {
@@ -342,7 +340,7 @@ class _AdminNavigationDrawerScreenState
         });
         if (mounted) {
           final errorDetails = resetResult['errorDetails'] ?? '';
-          _showErrorDialog('RPC Reset Error', '$resetMessage\n\n$errorDetails');
+          _showErrorDialog(AppLocalizations.of(context)!.rpcResetError, '$resetMessage\n\n$errorDetails');
         }
         return;
       }
@@ -358,7 +356,7 @@ class _AdminNavigationDrawerScreenState
 
       setState(() {
         _seedMessage = seedSuccess
-            ? 'Reset & re-seed completed successfully'
+            ? AppLocalizations.of(context)!.resetReSeedCompletedSuccessfully
             : seedMessage;
         _isResetting = false;
       });
@@ -388,7 +386,7 @@ class _AdminNavigationDrawerScreenState
         _isResetting = false;
       });
       if (mounted) {
-        _showErrorDialog('Reset Error', e.toString());
+        _showErrorDialog(AppLocalizations.of(context)!.resetError, e.toString());
       }
     }
   }
@@ -401,7 +399,7 @@ class _AdminNavigationDrawerScreenState
           children: [
             Icon(Icons.delete_sweep, color: Colors.orange, size: 28),
             SizedBox(width: 2.w),
-            const Text('RPC Reset Complete'),
+            Flexible(child: Text(AppLocalizations.of(context)!.rpcResetComplete, maxLines: 1, overflow: TextOverflow.ellipsis)),
           ],
         ),
         content: SingleChildScrollView(
@@ -409,10 +407,9 @@ class _AdminNavigationDrawerScreenState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'reset_demo_data() RPC returned deletion counts:',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
+              Text(
+                AppLocalizations.of(context)!.resetDemoDataRpcReturnedDeletion,
+                style: TextStyle(fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 2.h),
               ...counts.entries.map((entry) {
                 return _buildCountRow(
@@ -421,20 +418,19 @@ class _AdminNavigationDrawerScreenState
                 );
               }),
               SizedBox(height: 2.h),
-              const Text(
-                'Now proceeding to re-seed demo data...',
+              Text(
+                AppLocalizations.of(context)!.nowProceedingToReSeedDemo,
                 style: TextStyle(
                   fontStyle: FontStyle.italic,
                   color: Colors.grey,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Continue'),
+            child: Text(AppLocalizations.of(context)!.continueText, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -449,7 +445,7 @@ class _AdminNavigationDrawerScreenState
           children: [
             Icon(Icons.check_circle, color: Colors.green, size: 28),
             SizedBox(width: 2.w),
-            const Text('Seeding Complete'),
+            Flexible(child: Text(AppLocalizations.of(context)!.seedingComplete, maxLines: 1, overflow: TextOverflow.ellipsis)),
           ],
         ),
         content: SingleChildScrollView(
@@ -457,26 +453,25 @@ class _AdminNavigationDrawerScreenState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Demo data has been successfully seeded. Summary:',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
+              Text(
+                AppLocalizations.of(context)!.demoDataHasBeenSuccessfullySeeded,
+                style: TextStyle(fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 2.h),
-              _buildCountRow('Users', counts['users'] ?? 0),
-              _buildCountRow('Stores', counts['stores'] ?? 0),
-              _buildCountRow('Products', counts['products'] ?? 0),
-              _buildCountRow('Categories', counts['categories'] ?? 0),
-              _buildCountRow('Marketplace Listings', counts['listings'] ?? 0),
-              _buildCountRow('Orders', counts['orders'] ?? 0),
-              _buildCountRow('Conversations', counts['conversations'] ?? 0),
-              _buildCountRow('Messages', counts['messages'] ?? 0),
+              _buildCountRow(AppLocalizations.of(context)!.users, counts['users'] ?? 0),
+              _buildCountRow(AppLocalizations.of(context)!.stores, counts['stores'] ?? 0),
+              _buildCountRow(AppLocalizations.of(context)!.products, counts['products'] ?? 0),
+              _buildCountRow(AppLocalizations.of(context)!.categories, counts['categories'] ?? 0),
+              _buildCountRow(AppLocalizations.of(context)!.marketplaceListings, counts['listings'] ?? 0),
+              _buildCountRow(AppLocalizations.of(context)!.orders, counts['orders'] ?? 0),
+              _buildCountRow(AppLocalizations.of(context)!.conversations, counts['conversations'] ?? 0),
+              _buildCountRow(AppLocalizations.of(context)!.messages, counts['messages'] ?? 0),
             ],
           ),
         ),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: Text(AppLocalizations.of(context)!.close, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -489,12 +484,12 @@ class _AdminNavigationDrawerScreenState
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 11.sp)),
+          Flexible(child: Text(label, style: TextStyle(fontSize: 11.sp), maxLines: 1, overflow: TextOverflow.ellipsis)),
           Container(
             padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
             decoration: BoxDecoration(
               color: Colors.blue[50],
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
               count.toString(),
@@ -502,8 +497,7 @@ class _AdminNavigationDrawerScreenState
                 fontSize: 11.sp,
                 fontWeight: FontWeight.bold,
                 color: Colors.blue[900],
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -518,7 +512,7 @@ class _AdminNavigationDrawerScreenState
           children: [
             Icon(Icons.error, color: Colors.red, size: 28),
             SizedBox(width: 2.w),
-            Expanded(child: Text(title)),
+            Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis)),
           ],
         ),
         content: SingleChildScrollView(
@@ -526,16 +520,15 @@ class _AdminNavigationDrawerScreenState
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Error Details:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              Text(
+                AppLocalizations.of(context)!.errorDetails,
+                style: TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 1.h),
               Container(
                 padding: EdgeInsets.all(2.w),
                 decoration: BoxDecoration(
                   color: Colors.red[50],
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: Colors.red[200]!),
                 ),
                 child: Text(
@@ -544,8 +537,7 @@ class _AdminNavigationDrawerScreenState
                     fontSize: 10.sp,
                     fontFamily: 'monospace',
                     color: Colors.red[900],
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
@@ -553,7 +545,7 @@ class _AdminNavigationDrawerScreenState
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: Text(AppLocalizations.of(context)!.close, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -561,6 +553,8 @@ class _AdminNavigationDrawerScreenState
   }
 
   Widget _buildAdminHeader() {
+    final theme = Theme.of(context);
+
     return Consumer<AuthProvider>(
       builder: (context, authProvider, child) {
         final user = authProvider.currentUser;
@@ -569,8 +563,8 @@ class _AdminNavigationDrawerScreenState
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppTheme.lightTheme.colorScheme.primary,
-                AppTheme.lightTheme.colorScheme.secondary,
+                theme.colorScheme.primary,
+                theme.colorScheme.secondary,
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -586,7 +580,7 @@ class _AdminNavigationDrawerScreenState
                     backgroundColor: Colors.white,
                     child: CustomIconWidget(
                       iconName: 'admin_panel_settings',
-                      color: AppTheme.lightTheme.colorScheme.primary,
+                      color: theme.colorScheme.primary,
                       size: 30,
                     ),
                   ),
@@ -620,14 +614,13 @@ class _AdminNavigationDrawerScreenState
                               fontSize: 12.sp,
                               fontWeight: FontWeight.w600,
                               color: Colors.white,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.settings, color: Colors.white),
+                    icon: Icon(Icons.settings, color: Colors.white),
                     onPressed: () {
                       Navigator.pushNamed(context, AppRoutes.adminDashboard);
                     },
@@ -655,10 +648,9 @@ class _AdminNavigationDrawerScreenState
             style: TextStyle(
               fontSize: 12.sp,
               fontWeight: FontWeight.w600,
-              color: Colors.grey[600],
+              color: Colors.grey,
               letterSpacing: 0.5,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
         ...items,
       ],
@@ -671,10 +663,12 @@ class _AdminNavigationDrawerScreenState
     required String route,
     int? notificationCount,
   }) {
+    final theme = Theme.of(context);
+
     return ListTile(
       leading: CustomIconWidget(
         iconName: icon.toString().split('.').last,
-        color: AppTheme.lightTheme.colorScheme.primary,
+        color: theme.colorScheme.primary,
         size: 24,
       ),
       title: Text(
@@ -683,8 +677,7 @@ class _AdminNavigationDrawerScreenState
           fontSize: 14.sp,
           fontWeight: FontWeight.w500,
           color: Colors.black87,
-        ),
-      ),
+        ), maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: notificationCount != null && notificationCount > 0
           ? Container(
               padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
@@ -698,10 +691,9 @@ class _AdminNavigationDrawerScreenState
                   fontSize: 12.sp,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             )
-          : const Icon(Icons.chevron_right, color: Colors.grey),
+          : Icon(Icons.chevron_right, color: Colors.grey),
       onTap: () async {
         Navigator.pop(context);
 
@@ -738,7 +730,7 @@ class _AdminNavigationDrawerScreenState
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: Colors.grey[300]!, width: 1),
+          top: BorderSide(color: Colors.grey.shade300!, width: 1),
         ),
       ),
       child: Consumer<AuthProvider>(
@@ -746,32 +738,29 @@ class _AdminNavigationDrawerScreenState
           return ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: Text(
-              'Admin Logout',
+              AppLocalizations.of(context)!.adminLogout,
               style: TextStyle(
                 fontSize: 14.sp,
                 fontWeight: FontWeight.w600,
                 color: Colors.red,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
             onTap: () async {
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (context) => AlertDialog(
-                  title: const Text('Confirm Logout'),
-                  content: const Text(
-                    'Are you sure you want to logout from admin panel?',
-                  ),
+                  title: Text(AppLocalizations.of(context)!.confirmLogout, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  content: Text(
+                    AppLocalizations.of(context)!.areYouSureYouWantTo11, maxLines: 1, overflow: TextOverflow.ellipsis),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
+                      child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(context, true),
-                      child: const Text(
-                        'Logout',
-                        style: TextStyle(color: Colors.red),
-                      ),
+                      child: Text(
+                        AppLocalizations.of(context)!.logout,
+                        style: TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ],
                 ),

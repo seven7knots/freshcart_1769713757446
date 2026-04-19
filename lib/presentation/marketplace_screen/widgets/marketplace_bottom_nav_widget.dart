@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class MarketplaceBottomNavWidget extends StatelessWidget {
   final int currentIndex;
@@ -36,14 +37,14 @@ class MarketplaceBottomNavWidget extends StatelessWidget {
                 theme: theme,
                 icon: Icons.home_outlined,
                 activeIcon: Icons.home,
-                label: 'Home',
+                label: AppLocalizations.of(context)!.home,
                 index: 0,
               ),
               _buildNavItem(
                 theme: theme,
                 icon: Icons.chat_bubble_outline,
                 activeIcon: Icons.chat_bubble,
-                label: 'Chats',
+                label: AppLocalizations.of(context)!.chats,
                 index: 1,
               ),
               _buildSellButton(theme),
@@ -51,14 +52,14 @@ class MarketplaceBottomNavWidget extends StatelessWidget {
                 theme: theme,
                 icon: Icons.list_alt_outlined,
                 activeIcon: Icons.list_alt,
-                label: 'My Ads',
+                label: AppLocalizations.of(context)!.myAds,
                 index: 3,
               ),
               _buildNavItem(
                 theme: theme,
                 icon: Icons.person_outline,
                 activeIcon: Icons.person,
-                label: 'Account',
+                label: AppLocalizations.of(context)!.account,
                 index: 4,
               ),
             ],
@@ -100,8 +101,7 @@ class MarketplaceBottomNavWidget extends StatelessWidget {
                 color: isActive
                     ? theme.colorScheme.primary
                     : theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
       ),
@@ -124,7 +124,7 @@ class MarketplaceBottomNavWidget extends StatelessWidget {
             ),
           ],
         ),
-        child: Icon(Icons.add, color: Colors.white, size: 7.w),
+        child: Icon(Icons.add, color: theme.colorScheme.surface, size: 7.w),
       ),
     );
   }

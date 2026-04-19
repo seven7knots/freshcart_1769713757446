@@ -6,6 +6,7 @@ import 'package:record/record.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class VoiceSearchWidget extends StatefulWidget {
   final Function(String)? onVoiceResult;
@@ -75,14 +76,12 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget>
             path: 'voice_search.wav',
           );
         } else {
-          // Add this line - provide path parameter for non-web platforms
           await _audioRecorder.start(
             const RecordConfig(),
             path: 'voice_search.m4a',
           );
         }
 
-        // Auto-stop after 10 seconds
         Future.delayed(const Duration(seconds: 10), () {
           if (_isRecording) {
             _stopRecording();
@@ -114,10 +113,8 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget>
   }
 
   Future<void> _processVoiceInput() async {
-    // Simulate voice processing
     await Future.delayed(const Duration(seconds: 2));
 
-    // Mock voice recognition results
     final mockResults = [
       'organic apples',
       'fresh milk',
@@ -137,9 +134,9 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget>
   void _showPermissionError() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Microphone permission is required for voice search'),
+        content: Text(AppLocalizations.of(context)!.microphonePermissionIsRequiredForVoice2, maxLines: 1, overflow: TextOverflow.ellipsis),
         action: SnackBarAction(
-          label: 'Settings',
+          label: AppLocalizations.of(context)!.settings,
           onPressed: () => openAppSettings(),
         ),
       ),
@@ -149,8 +146,8 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget>
 
   void _showRecordingError() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Unable to start voice recording. Please try again.'),
+      SnackBar(
+        content: Text(AppLocalizations.of(context)!.unableToStartVoiceRecordingPlease, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
     );
     widget.onClose?.call();
@@ -165,10 +162,12 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget>
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: AppTheme.lightTheme.colorScheme.surface.withValues(alpha: 0.95),
+      color: theme.colorScheme.surface.withValues(alpha: 0.95),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -188,7 +187,7 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget>
                 },
                 icon: CustomIconWidget(
                   iconName: 'close',
-                  color: AppTheme.lightTheme.colorScheme.onSurface,
+                  color: theme.colorScheme.onSurface,
                   size: 24,
                 ),
               ),
@@ -209,25 +208,24 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: _isRecording
-                        ? AppTheme.lightTheme.colorScheme.primary
+                        ? theme.colorScheme.primary
                             .withValues(alpha: _opacityAnimation.value)
-                        : AppTheme
-                            .lightTheme.colorScheme.surfaceContainerHighest,
+                        : theme.colorScheme.surfaceContainerHighest,
                     border: Border.all(
-                      color: AppTheme.lightTheme.colorScheme.primary,
+                      color: theme.colorScheme.primary,
                       width: 2,
                     ),
                   ),
                   child: Center(
                     child: _isProcessing
                         ? CircularProgressIndicator(
-                            color: AppTheme.lightTheme.colorScheme.primary,
+                            color: theme.colorScheme.primary,
                           )
                         : CustomIconWidget(
                             iconName: _isRecording ? 'mic' : 'mic_off',
                             color: _isRecording
-                                ? AppTheme.lightTheme.colorScheme.onPrimary
-                                : AppTheme.lightTheme.colorScheme.primary,
+                                ? theme.colorScheme.onPrimary
+                                : theme.colorScheme.primary,
                             size: 48,
                           ),
                   ),
@@ -241,28 +239,26 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget>
           // Status text
           Text(
             _isProcessing
-                ? 'Processing your voice...'
+                ? AppLocalizations.of(context)!.processingYourVoice
                 : _isRecording
-                    ? 'Listening...'
-                    : 'Tap to start voice search',
-            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSurface,
+                    ? AppLocalizations.of(context)!.listening
+                    : AppLocalizations.of(context)!.tapToStartVoiceSearch,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurface,
               fontWeight: FontWeight.w600,
             ),
-            textAlign: TextAlign.center,
-          ),
+            textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
 
           SizedBox(height: 2.h),
 
           Text(
             _isRecording
                 ? 'Say what you\'re looking for'
-                : 'Voice search helps you find products quickly',
-            style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                : AppLocalizations.of(context)!.voiceSearchHelpsYouFindProducts,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-            textAlign: TextAlign.center,
-          ),
+            textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
 
           const Spacer(),
 
@@ -278,7 +274,7 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget>
                         HapticFeedback.lightImpact();
                         _stopRecording();
                       },
-                      child: Text('Stop'),
+                      child: Text(AppLocalizations.of(context)!.stop, maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                 ],
@@ -295,7 +291,7 @@ class _VoiceSearchWidgetState extends State<VoiceSearchWidget>
                         HapticFeedback.lightImpact();
                         _startRecording();
                       },
-                      child: Text('Start Voice Search'),
+                      child: Text(AppLocalizations.of(context)!.startVoiceSearch, maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                 ],

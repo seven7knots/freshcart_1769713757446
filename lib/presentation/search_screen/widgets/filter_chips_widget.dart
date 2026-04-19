@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class FilterChipsWidget extends StatelessWidget {
   final List<FilterChip> activeFilters;
@@ -18,6 +19,8 @@ class FilterChipsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       height: 6.h,
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
@@ -33,13 +36,13 @@ class FilterChipsWidget extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
               decoration: BoxDecoration(
                 color: activeFilters.isNotEmpty
-                    ? AppTheme.lightTheme.colorScheme.primary
-                    : AppTheme.lightTheme.colorScheme.surface,
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: activeFilters.isNotEmpty
-                      ? AppTheme.lightTheme.colorScheme.primary
-                      : AppTheme.lightTheme.colorScheme.outline,
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outline,
                   width: 1,
                 ),
               ),
@@ -49,36 +52,34 @@ class FilterChipsWidget extends StatelessWidget {
                   CustomIconWidget(
                     iconName: 'tune',
                     color: activeFilters.isNotEmpty
-                        ? AppTheme.lightTheme.colorScheme.onPrimary
-                        : AppTheme.lightTheme.colorScheme.onSurface,
+                        ? theme.colorScheme.onPrimary
+                        : theme.colorScheme.onSurface,
                     size: 18,
                   ),
                   SizedBox(width: 2.w),
                   Text(
-                    'Filter',
-                    style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                    AppLocalizations.of(context)!.filter,
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: activeFilters.isNotEmpty
-                          ? AppTheme.lightTheme.colorScheme.onPrimary
-                          : AppTheme.lightTheme.colorScheme.onSurface,
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.onSurface,
                       fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   if (activeFilters.isNotEmpty) ...[
                     SizedBox(width: 1.w),
                     Container(
                       padding: EdgeInsets.all(1.w),
                       decoration: BoxDecoration(
-                        color: AppTheme.lightTheme.colorScheme.onPrimary,
+                        color: theme.colorScheme.onPrimary,
                         shape: BoxShape.circle,
                       ),
                       child: Text(
                         activeFilters.length.toString(),
                         style:
-                            AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-                          color: AppTheme.lightTheme.colorScheme.primary,
+                            theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.primary,
                           fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ],
                 ],
@@ -104,26 +105,27 @@ class FilterChipsWidget extends StatelessWidget {
   }
 
   Widget _buildFilterChip(BuildContext context, FilterChip filter) {
+    final theme = Theme.of(context);
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.secondaryContainer,
+        color: theme.colorScheme.secondaryContainer,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: AppTheme.lightTheme.colorScheme.secondary,
+          color: theme.colorScheme.secondary,
           width: 1,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
+          Flexible(child: Text(
             filter.label,
-            style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSecondaryContainer,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSecondaryContainer,
               fontWeight: FontWeight.w500,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis)),
           SizedBox(width: 2.w),
           GestureDetector(
             onTap: () {
@@ -132,7 +134,7 @@ class FilterChipsWidget extends StatelessWidget {
             },
             child: CustomIconWidget(
               iconName: 'close',
-              color: AppTheme.lightTheme.colorScheme.onSecondaryContainer,
+              color: theme.colorScheme.onSecondaryContainer,
               size: 16,
             ),
           ),

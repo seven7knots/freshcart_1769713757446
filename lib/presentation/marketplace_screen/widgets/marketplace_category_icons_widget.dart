@@ -70,7 +70,7 @@ class _MarketplaceCategoryIconsWidgetState
 
     if (_isLoading) {
       return SizedBox(
-        height: 12.h,
+        height: 14.h,
         child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
       );
     }
@@ -80,9 +80,10 @@ class _MarketplaceCategoryIconsWidgetState
     }
 
     return SizedBox(
-      height: 12.h,
+      height: 14.h,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
         padding: EdgeInsets.symmetric(horizontal: 4.w),
         itemCount: _categories.length,
         itemBuilder: (context, index) {
@@ -100,8 +101,8 @@ class _MarketplaceCategoryIconsWidgetState
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
-                    width: 15.w,
-                    height: 15.w,
+                    width: 13.w,
+                    height: 13.w,
                     decoration: BoxDecoration(
                       color: isSelected
                           ? primaryRed
@@ -120,7 +121,7 @@ class _MarketplaceCategoryIconsWidgetState
                     child: Icon(
                       _getIconData(cat.icon),
                       color: isSelected ? Colors.white : primaryRed,
-                      size: 7.w,
+                      size: 6.w,
                     ),
                   ),
                   SizedBox(height: 1.h),

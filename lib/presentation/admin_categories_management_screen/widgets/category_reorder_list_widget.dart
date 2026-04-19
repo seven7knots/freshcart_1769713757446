@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../services/category_service.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class CategoryReorderListWidget extends StatefulWidget {
   final List<Map<String, dynamic>> categories;
@@ -50,14 +51,14 @@ class _CategoryReorderListWidgetState extends State<CategoryReorderListWidget> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Category order updated')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.categoryOrderUpdated, maxLines: 1, overflow: TextOverflow.ellipsis)),
         );
         widget.onReorderComplete();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save order: $e')),
+          SnackBar(content: Text('Failed to save order: $e', maxLines: 1, overflow: TextOverflow.ellipsis)),
         );
       }
     } finally {
@@ -119,17 +120,15 @@ class _CategoryReorderListWidgetState extends State<CategoryReorderListWidget> {
             child: Column(
               children: [
                 Text(
-                  'Reorder Categories',
+                  AppLocalizations.of(context)!.reorderCategories,
                   style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                ),
+                      ?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 0.5.h),
                 Text(
-                  'Drag and drop to change order',
+                  AppLocalizations.of(context)!.dragAndDropToChangeOrder,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
@@ -152,7 +151,7 @@ class _CategoryReorderListWidgetState extends State<CategoryReorderListWidget> {
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Save Order'),
+              : Text(AppLocalizations.of(context)!.saveOrder, maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ),
     );
@@ -171,7 +170,7 @@ class _CategoryReorderListWidgetState extends State<CategoryReorderListWidget> {
       margin: EdgeInsets.only(bottom: 1.5.h),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: theme.colorScheme.outline.withValues(alpha: 0.2),
         ),
@@ -181,16 +180,14 @@ class _CategoryReorderListWidgetState extends State<CategoryReorderListWidget> {
         title: Text(
           name,
           style:
-              theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text('Position ${index + 1}'),
+              theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text('Position ${index + 1}', maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: Text(
           isActive ? 'ACTIVE' : 'INACTIVE',
           style: theme.textTheme.labelSmall?.copyWith(
-            color: isActive ? Colors.green : Colors.grey,
+            color: isActive ? Colors.green : theme.colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.bold,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
     );
   }

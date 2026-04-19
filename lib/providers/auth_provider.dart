@@ -4,6 +4,20 @@
 // Unified authentication provider with complete role management
 // Handles: auth state, role detection, merchant/driver status
 // NOW WITH: Partnership application system integration
+// ISSUE 1 FIX: Native Google Sign-In via google_sign_in package
+// ISSUE 2 FIX: refreshUserRole() now has a 5-second cooldown
+//              to prevent redundant DB calls on every navigation
+// SESSION 8 FIX: _merchantStatusLower now correctly extracts
+//   enum value (was returning "applicationstatus.approved"
+//   instead of "approved", causing isMerchant to be false)
+// SESSION 24 FIX (Issue B): _loadUserData() now deduplicated
+//   with Completer + cooldown. 3 concurrent calls → 1 DB hit.
+// SESSION 26 FIX (Bug #1): _loadUserData() now returns bool.
+//   _handleAuthStateChange only calls notifyListeners() when
+//   data actually loaded. Previously, initialSession/tokenRefreshed
+//   events called notifyListeners() unconditionally — even when
+//   _loadUserData was skipped by cooldown — causing parent widgets
+//   to rebuild and HomeScreen to remount (double Wave 1 + Wave 2).
 // ============================================================
 
 import 'dart:async';
@@ -29,6 +43,16 @@ class AuthProvider extends ChangeNotifier {
   String? _errorMessage;
 
   StreamSubscription<AuthState>? _authSubscription;
+
+  // ISSUE 2 FIX: Cooldown tracking for refreshUserRole
+  DateTime? _lastUserRoleRefresh;
+  bool _isRefreshingUserRole = false;
+  static const _userRoleRefreshCooldown = Duration(seconds: 5);
+
+  // SESSION 24 FIX (Issue B): Dedup _loadUserData calls.
+  // If _loadUserData() is already in progress, subsequent callers
+  // await the same Completer instead of firing parallel DB queries.
+  Completer<void>? _loadUserDataCompleter;
 
   // ============================================================
   // GETTERS - User Info
@@ -56,23 +80,16 @@ class AuthProvider extends ChangeNotifier {
   // GETTERS - Role Checks
   // ============================================================
 
-  /// Current user role (display only)
-  /// ⚠️ DO NOT USE FOR AUTHORIZATION - Admin must come from AdminProvider.isAdmin
   String get role => _userModel?['role'] as String? ?? 'customer';
   String? get roleString => _userModel?['role'] as String?;
 
-  /// Merchant is "approved" when merchants.status == 'approved'
-  /// (do not rely on users.role == 'merchant' because Model A allows admin+merchant)
   bool get isMerchant => _merchantStatusLower == 'approved';
 
-  /// Driver is approved when drivers.is_verified == true OR users.role == 'driver'
   bool get isDriver {
     if (_userModel?['role'] == 'driver') return true;
     return (_driver?['is_verified'] as bool? ?? false) == true;
   }
 
-  /// Check if user is admin (this checks role only, NOT AdminProvider)
-  /// For true admin authorization, always use AdminProvider.isAdmin
   bool get isAdmin => role == 'admin';
 
   bool get isCustomer => !isMerchant && !isDriver && !isAdmin;
@@ -94,40 +111,33 @@ class AuthProvider extends ChangeNotifier {
     return 'none';
   }
 
-  /// Merchant application statuses
   bool get hasPendingMerchantApplication => merchantStatus == 'pending';
   bool get hasApprovedMerchantApplication => merchantStatus == 'approved';
   bool get hasRejectedMerchantApplication => merchantStatus == 'rejected';
 
-  /// Driver application statuses
   bool get hasPendingDriverApplication {
     final verified = (_driver?['is_verified'] as bool?) == true;
     final active = (_driver?['is_active'] as bool?) == true;
     return !verified && active;
   }
-  
+
   bool get hasApprovedDriverApplication {
     return (_driver?['is_verified'] as bool? ?? false) == true;
   }
-  
+
   bool get hasRejectedDriverApplication {
-    // In your Supabase schema, you might track this differently
-    // This is a placeholder - adjust based on your actual schema
     final verified = (_driver?['is_verified'] as bool?) == true;
     final active = (_driver?['is_active'] as bool?) == false;
     final exists = _driver != null;
     return exists && !verified && !active;
   }
 
-  /// Can user apply for roles?
   bool get canApplyAsMerchant {
-    // Can apply if: no merchant record, or status is none/rejected
     if (_merchant == null) return true;
     return merchantStatus == 'none' || merchantStatus == 'rejected';
   }
 
   bool get canApplyAsDriver {
-    // Can apply if: no driver record, or not verified and not active
     if (_driver == null) return true;
     final verified = (_driver?['is_verified'] as bool? ?? false) == true;
     final active = (_driver?['is_active'] as bool? ?? false) == true;
@@ -147,16 +157,24 @@ class AuthProvider extends ChangeNotifier {
   // ============================================================
 
   String get _merchantStatusLower {
-    // Prefer DB status field if present
     final status = _merchant?.status;
-    if (status != null && status.toString().trim().isNotEmpty) {
-      return status.toString().toLowerCase();
+    if (status == null) return 'none';
+
+    String statusStr = status.toString().toLowerCase().trim();
+
+    if (statusStr.contains('.')) {
+      statusStr = statusStr.split('.').last;
     }
 
-    // Backward compatibility: if Merchant model only has isVerified/isActive
-    // Map to statuses:
-    // verified => approved
-    // active but not verified => pending
+    if (statusStr == 'approved') return 'approved';
+    if (statusStr == 'pending') return 'pending';
+    if (statusStr == 'rejected') return 'rejected';
+    if (statusStr == 'suspended') return 'suspended';
+
+    if (statusStr.isNotEmpty && statusStr != 'none') {
+      debugPrint('[AUTH] ⚠️ Unknown merchant status string: "$statusStr"');
+    }
+
     final isVerified = _merchant?.isVerified == true;
     final isActive = _merchant?.isActive == true;
 
@@ -183,7 +201,7 @@ class AuthProvider extends ChangeNotifier {
 
       if (_supabaseUser != null) {
         debugPrint('[AUTH] Found existing session: ${_supabaseUser!.email}');
-        await _loadUserData();
+        await _loadUserData(force: true);
       } else {
         debugPrint('[AUTH] No existing session');
         _resetState();
@@ -192,6 +210,11 @@ class AuthProvider extends ChangeNotifier {
       _isInitialized = true;
       notifyListeners();
 
+      // SESSION 26 FIX: Subscribe to auth AFTER the initial load + notify.
+      // The initialSession event will fire shortly after subscribing.
+      // Since _loadUserData was just called with force:true, the cooldown
+      // will cause the initialSession handler to skip the redundant load,
+      // AND (crucially) skip the redundant notifyListeners() too.
       _authSubscription?.cancel();
       _authSubscription = SupabaseService.client.auth.onAuthStateChange.listen(
         _handleAuthStateChange,
@@ -223,7 +246,7 @@ class AuthProvider extends ChangeNotifier {
       case AuthChangeEvent.signedIn:
         _supabaseUser = session?.user;
         if (_supabaseUser != null) {
-          await _loadUserData();
+          await _loadUserData(force: true);
         }
         notifyListeners();
         break;
@@ -237,15 +260,23 @@ class AuthProvider extends ChangeNotifier {
       case AuthChangeEvent.tokenRefreshed:
         _supabaseUser = session?.user;
         if (_supabaseUser != null) {
-          // Refresh user data (roles/merchant status can change without a new session)
-          await _loadUserData();
-          notifyListeners();
+          // SESSION 26 FIX (Bug #1): Only notify listeners if data
+          // actually loaded. Previously notifyListeners() fired even
+          // when _loadUserData was skipped by cooldown, causing parent
+          // widgets to rebuild and HomeScreen to remount (double load).
+          final didLoad = await _loadUserData();
+          if (didLoad) {
+            debugPrint('[AUTH] initialSession/tokenRefreshed: data changed, notifying');
+            notifyListeners();
+          } else {
+            debugPrint('[AUTH] initialSession/tokenRefreshed: no-op, skipping notify');
+          }
         }
         break;
 
       case AuthChangeEvent.userUpdated:
         _supabaseUser = session?.user;
-        await _loadUserData();
+        await _loadUserData(force: true);
         notifyListeners();
         break;
 
@@ -258,8 +289,40 @@ class AuthProvider extends ChangeNotifier {
   // DATA LOADING
   // ============================================================
 
-  Future<void> _loadUserData() async {
-    if (_supabaseUser == null) return;
+  /// SESSION 24 FIX (Issue B): Deduplicated _loadUserData.
+  /// SESSION 26 FIX (Bug #1): Now returns bool.
+  ///
+  /// Returns `true` if data was actually loaded from DB.
+  /// Returns `false` if skipped (dedup/cooldown) or user is null.
+  ///
+  /// Three guards prevent redundant DB calls:
+  /// 1. If already in progress → await the same Completer (no parallel calls)
+  /// 2. If loaded within cooldown window → skip (unless force=true)
+  /// 3. If _supabaseUser is null → skip
+  ///
+  /// [force] bypasses the cooldown. Used after sign-in, sign-up,
+  /// profile update, and user-updated auth events where fresh data
+  /// is mandatory.
+  Future<bool> _loadUserData({bool force = false}) async {
+    if (_supabaseUser == null) return false;
+
+    // Guard 1: If already in progress, just await the same operation
+    if (_loadUserDataCompleter != null && !_loadUserDataCompleter!.isCompleted) {
+      debugPrint('[AUTH] _loadUserData DEDUPED (already in progress)');
+      await _loadUserDataCompleter!.future;
+      return false; // Didn't load new data, just waited for existing load
+    }
+
+    // Guard 2: If loaded recently, skip (unless forced)
+    if (!force && _lastUserRoleRefresh != null) {
+      final elapsed = DateTime.now().difference(_lastUserRoleRefresh!);
+      if (elapsed < _userRoleRefreshCooldown) {
+        debugPrint('[AUTH] _loadUserData SKIPPED (cooldown ${elapsed.inMilliseconds}ms)');
+        return false;
+      }
+    }
+
+    _loadUserDataCompleter = Completer<void>();
 
     try {
       debugPrint('[AUTH] Loading user data for: ${_supabaseUser!.id}');
@@ -285,11 +348,19 @@ class AuthProvider extends ChangeNotifier {
       await _loadMerchantData();
       await _loadDriverData();
 
+      // Update the cooldown timestamp after successful load
+      _lastUserRoleRefresh = DateTime.now();
+
       debugPrint('[AUTH] User data loaded completely');
       debugPrint('[AUTH] role: $role, merchantStatus: $merchantStatus, isMerchant: $isMerchant, isDriver: $isDriver');
       debugPrint('[AUTH] ⚠️ For admin status, use AdminProvider.isAdmin');
+
+      _loadUserDataCompleter!.complete();
+      return true; // Data was actually loaded
     } catch (e) {
       debugPrint('[AUTH] Error loading user data: $e');
+      _loadUserDataCompleter!.completeError(e);
+      return false;
     }
   }
 
@@ -339,38 +410,52 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Refresh user role and application data from database
-  Future<void> refreshUserRole() async {
+  // ============================================================
+  // ISSUE 2 FIX: refreshUserRole with cooldown
+  // ============================================================
+
+  Future<void> refreshUserRole({bool force = false}) async {
+    if (_isRefreshingUserRole) {
+      debugPrint('[AUTH] refreshUserRole SKIPPED (already in progress)');
+      return;
+    }
+
+    if (!force && _lastUserRoleRefresh != null) {
+      final elapsed = DateTime.now().difference(_lastUserRoleRefresh!);
+      if (elapsed < _userRoleRefreshCooldown) {
+        debugPrint('[AUTH] refreshUserRole SKIPPED (cooldown ${elapsed.inMilliseconds}ms)');
+        return;
+      }
+    }
+
+    _isRefreshingUserRole = true;
     debugPrint('[AUTH] Refreshing user role...');
-    await _loadUserData();
-    notifyListeners();
+
+    try {
+      final didLoad = await _loadUserData(force: force);
+      if (didLoad) {
+        notifyListeners();
+      }
+    } finally {
+      _isRefreshingUserRole = false;
+    }
   }
 
   Future<void> refreshRoleData() => refreshUserRole();
 
   // ============================================================
-  // ROUTE DETERMINATION (NEW)
+  // ROUTE DETERMINATION
   // ============================================================
 
-  /// Get the appropriate home route based on user role
-  /// Used by AuthGateScreen to route users to their correct interface
   String getHomeRouteForUser() {
-    // Import AppRoutes in your actual file
-    // For this example, using string literals
-    
     if (role == 'admin') {
-      // Admin sees the regular customer interface by default
-      // but has access to admin panel, merchant dashboard, and driver mode
-      return '/main-layout'; // AppRoutes.mainLayout
+      return '/main-layout';
     } else if (role == 'driver' || isDriver) {
-      // Driver goes directly to driver home
-      return '/driver-home-screen'; // AppRoutes.driverHome
+      return '/driver-home-screen';
     } else if (role == 'merchant' || isMerchant) {
-      // Merchant goes to merchant dashboard
-      return '/merchant-dashboard-screen'; // AppRoutes.merchantDashboard
+      return '/merchant-dashboard-screen';
     } else {
-      // Regular customer
-      return '/main-layout'; // AppRoutes.mainLayout
+      return '/main-layout';
     }
   }
 
@@ -393,7 +478,7 @@ class AuthProvider extends ChangeNotifier {
       _supabaseUser = response.user;
 
       if (_supabaseUser != null) {
-        await _loadUserData();
+        await _loadUserData(force: true);
         debugPrint('[AUTH] Sign in successful');
         await AnalyticsService.logLogin(method: 'email', success: true);
         return true;
@@ -433,15 +518,14 @@ class AuthProvider extends ChangeNotifier {
         password: password,
         data: {
           'full_name': fullName,
-          'phone': phone,
         },
       );
 
       _supabaseUser = response.user;
 
       if (_supabaseUser != null) {
-        await _createUserRecord(fullName: fullName, phone: phone);
-        await _loadUserData();
+        await _createUserRecord(fullName: fullName);
+        await _loadUserData(force: true);
 
         debugPrint('[AUTH] Sign up successful');
         await AnalyticsService.logSignUp(method: 'email', success: true);
@@ -465,7 +549,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _createUserRecord({String? fullName, String? phone}) async {
+  Future<void> _createUserRecord({String? fullName}) async {
     if (_supabaseUser == null) return;
 
     try {
@@ -473,7 +557,6 @@ class AuthProvider extends ChangeNotifier {
         'id': _supabaseUser!.id,
         'email': _supabaseUser!.email,
         'full_name': fullName,
-        'phone': phone,
         'role': 'customer',
         'is_active': true,
         'email_verified': false,
@@ -485,24 +568,64 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // ============================================================
+  // ISSUE 1 FIX: NATIVE GOOGLE SIGN-IN
+  // ============================================================
+
   Future<bool> signInWithGoogle() async {
     try {
       _setLoading(true);
       _clearError();
 
-      await SupabaseService.client.auth.signInWithOAuth(
-        OAuthProvider.google,
-        redirectTo: kIsWeb ? null : 'com.kjdelivery.app://login-callback/',
-      );
+      debugPrint('[AUTH] Starting native Google Sign-In...');
 
-      await AnalyticsService.logLogin(method: 'google', success: true);
-      return true;
+      if (kIsWeb) {
+        debugPrint('[AUTH] Web platform detected, using OAuth flow');
+        await SupabaseService.client.auth.signInWithOAuth(
+          OAuthProvider.google,
+        );
+        await AnalyticsService.logLogin(method: 'google', success: true);
+        return true;
+      }
+
+      final response = await SupabaseService.signInWithGoogle();
+
+      _supabaseUser = response.user;
+
+      if (_supabaseUser != null) {
+        await _ensureUserRecordForOAuth();
+        await _loadUserData(force: true);
+
+        debugPrint('[AUTH] Google sign-in successful: ${_supabaseUser!.email}');
+        await AnalyticsService.logLogin(method: 'google', success: true);
+        return true;
+      }
+
+      _setError('Google sign-in failed');
+      return false;
     } on AuthException catch (e) {
+      debugPrint('[AUTH] Google auth error: ${e.message}');
+
+      if (e.message.contains('cancelled') || e.message.contains('canceled')) {
+        debugPrint('[AUTH] User cancelled Google sign-in');
+        return false;
+      }
+
       _setError(e.message);
       await AnalyticsService.logLogin(method: 'google', success: false);
       return false;
     } catch (e) {
-      _setError('An unexpected error occurred');
+      debugPrint('[AUTH] Google sign-in unexpected error: $e');
+
+      final errorString = e.toString().toLowerCase();
+      if (errorString.contains('cancel') ||
+          errorString.contains('sign_in_cancelled') ||
+          errorString.contains('sign_in_canceled')) {
+        debugPrint('[AUTH] User cancelled Google sign-in');
+        return false;
+      }
+
+      _setError('Google sign-in failed. Please try again.');
       await AnalyticsService.logLogin(method: 'google', success: false);
       return false;
     } finally {
@@ -510,10 +633,41 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _ensureUserRecordForOAuth() async {
+    if (_supabaseUser == null) return;
+
+    try {
+      final existing = await SupabaseService.client
+          .from('users')
+          .select('id')
+          .eq('id', _supabaseUser!.id)
+          .maybeSingle();
+
+      if (existing == null) {
+        final metadata = _supabaseUser!.userMetadata;
+        await SupabaseService.client.from('users').upsert({
+          'id': _supabaseUser!.id,
+          'email': _supabaseUser!.email,
+          'full_name': metadata?['full_name'] ?? metadata?['name'] ?? '',
+          'avatar_url': metadata?['avatar_url'] ?? metadata?['picture'] ?? '',
+          'role': 'customer',
+          'is_active': true,
+          'email_verified': true,
+          'phone_verified': false,
+        });
+        debugPrint('[AUTH] Created user record for OAuth user');
+      }
+    } catch (e) {
+      debugPrint('[AUTH] Error ensuring OAuth user record: $e');
+    }
+  }
+
   Future<void> signOut() async {
     try {
       _setLoading(true);
-      await SupabaseService.client.auth.signOut();
+
+      await SupabaseService.signOut();
+
       _resetState();
       debugPrint('[AUTH] Signed out successfully');
     } catch (e) {
@@ -529,10 +683,7 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(true);
       _clearError();
 
-      await SupabaseService.client.auth.resetPasswordForEmail(
-        email,
-        redirectTo: kIsWeb ? null : 'com.kjdelivery.app://reset-password/',
-      );
+      await SupabaseService.client.auth.resetPasswordForEmail(email);
 
       return true;
     } on AuthException catch (e) {
@@ -547,10 +698,9 @@ class AuthProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // APPLICATION METHODS (ENHANCED WITH SUPABASE RPC)
+  // APPLICATION METHODS
   // ============================================================
 
-  /// Submit merchant application using existing Supabase RPC
   Future<bool> applyAsMerchant({
     required String businessName,
     String? businessType,
@@ -587,10 +737,9 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      // Reload merchant data to get new status
       await _loadMerchantData();
       notifyListeners();
-      
+
       debugPrint('[AUTH] Merchant application submitted successfully');
       return true;
     } catch (e) {
@@ -602,7 +751,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Submit driver application using existing Supabase RPC
   Future<bool> applyAsDriver({
     required String fullName,
     required String phone,
@@ -641,10 +789,9 @@ class AuthProvider extends ChangeNotifier {
         return false;
       }
 
-      // Reload driver data to get new status
       await _loadDriverData();
       notifyListeners();
-      
+
       debugPrint('[AUTH] Driver application submitted successfully');
       return true;
     } catch (e) {
@@ -656,12 +803,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // ============================================================
-  // ALTERNATIVE: Submit driver application (NEW - ENHANCED)
-  // If you want more control or don't have the RPC function
-  // ============================================================
-
-  /// Enhanced driver application submission with image support
   Future<bool> submitDriverApplication({
     required String licenseNumber,
     required String vehicleType,
@@ -680,7 +821,6 @@ class AuthProvider extends ChangeNotifier {
 
       debugPrint('[AUTH] Submitting driver application (enhanced)...');
 
-      // Create or update driver record with pending status
       await SupabaseService.client.from('drivers').upsert({
         'user_id': _supabaseUser!.id,
         'full_name': fullName ?? 'Driver',
@@ -690,15 +830,14 @@ class AuthProvider extends ChangeNotifier {
         'license_number': licenseNumber,
         'license_image_url': licenseImageUrl,
         'vehicle_image_url': vehicleImageUrl,
-        'is_active': true, // Pending status
-        'is_verified': false, // Not approved yet
+        'is_active': true,
+        'is_verified': false,
         'created_at': DateTime.now().toIso8601String(),
       });
 
-      // Reload driver data
       await _loadDriverData();
       notifyListeners();
-      
+
       debugPrint('[AUTH] Driver application submitted successfully');
       return true;
     } catch (e) {
@@ -710,7 +849,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Enhanced merchant application submission
   Future<bool> submitMerchantApplication({
     required String businessName,
     required String businessType,
@@ -730,7 +868,6 @@ class AuthProvider extends ChangeNotifier {
 
       debugPrint('[AUTH] Submitting merchant application (enhanced)...');
 
-      // Use the existing RPC or create merchant record
       final result = await SupabaseService.client.rpc(
         'apply_as_merchant',
         params: {
@@ -749,7 +886,7 @@ class AuthProvider extends ChangeNotifier {
 
       await _loadMerchantData();
       notifyListeners();
-      
+
       debugPrint('[AUTH] Merchant application submitted successfully');
       return true;
     } catch (e) {
@@ -791,7 +928,8 @@ class AuthProvider extends ChangeNotifier {
           .update(updates)
           .eq('id', _supabaseUser!.id);
 
-      await _loadUserData();
+      // Force reload after profile update
+      await _loadUserData(force: true);
       notifyListeners();
       return true;
     } catch (e) {
@@ -813,6 +951,9 @@ class AuthProvider extends ChangeNotifier {
     _merchant = null;
     _driver = null;
     _errorMessage = null;
+    _lastUserRoleRefresh = null;
+    _isRefreshingUserRole = false;
+    _loadUserDataCompleter = null;
     debugPrint('[AUTH] State reset');
   }
 

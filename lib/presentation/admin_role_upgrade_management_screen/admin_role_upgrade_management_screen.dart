@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 import '../../core/app_export.dart';
 import '../../services/supabase_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class AdminRoleUpgradeManagementScreen extends StatefulWidget {
   const AdminRoleUpgradeManagementScreen({super.key});
@@ -45,7 +46,7 @@ class _AdminRoleUpgradeManagementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error loading requests: $e'),
+            content: Text('Error loading requests: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.red,
           ),
         );
@@ -67,8 +68,8 @@ class _AdminRoleUpgradeManagementScreenState
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Request approved successfully'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.requestApprovedSuccessfully, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.green,
           ),
         );
@@ -79,7 +80,7 @@ class _AdminRoleUpgradeManagementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error approving request: $e'),
+            content: Text('Error approving request: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.red,
           ),
         );
@@ -97,8 +98,8 @@ class _AdminRoleUpgradeManagementScreenState
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Request rejected'),
+          SnackBar(
+            content: Text('Request rejected', maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.orange,
           ),
         );
@@ -109,7 +110,7 @@ class _AdminRoleUpgradeManagementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error rejecting request: $e'),
+            content: Text('Error rejecting request: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.red,
           ),
         );
@@ -123,19 +124,19 @@ class _AdminRoleUpgradeManagementScreenState
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Reject Request'),
+        title: Text(AppLocalizations.of(context)!.rejectRequest, maxLines: 1, overflow: TextOverflow.ellipsis),
         content: TextField(
           controller: reasonController,
           maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Rejection Reason',
-            hintText: 'Provide a reason for rejection',
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.rejectionReason,
+            hintText: AppLocalizations.of(context)!.provideAReasonForRejection,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           ElevatedButton(
             onPressed: () {
@@ -145,26 +146,29 @@ class _AdminRoleUpgradeManagementScreenState
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
             ),
-            child: const Text('Reject'),
+            child: Text(AppLocalizations.of(context)!.reject, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
     );
   }
 
+  
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         title: Text(
-          'Role Upgrade Requests',
-          style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+          AppLocalizations.of(context)!.roleUpgradeRequests,
+          style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -194,7 +198,7 @@ class _AdminRoleUpgradeManagementScreenState
         children: [
           _buildFilterChip('Pending', 'pending'),
           SizedBox(width: 2.w),
-          _buildFilterChip('Approved', 'approved'),
+          _buildFilterChip(AppLocalizations.of(context)!.approved, 'approved'),
           SizedBox(width: 2.w),
           _buildFilterChip('Rejected', 'rejected'),
         ],
@@ -204,6 +208,7 @@ class _AdminRoleUpgradeManagementScreenState
 
   Widget _buildFilterChip(String label, String status) {
     final isSelected = _filterStatus == status;
+    final theme = Theme.of(context);
 
     return GestureDetector(
       onTap: () {
@@ -216,29 +221,30 @@ class _AdminRoleUpgradeManagementScreenState
         padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.lightTheme.colorScheme.primary
-              : AppTheme.lightTheme.colorScheme.surface,
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(20.0),
           border: Border.all(
             color: isSelected
-                ? AppTheme.lightTheme.colorScheme.primary
-                : AppTheme.lightTheme.colorScheme.outline,
+                ? theme.colorScheme.primary
+                : theme.colorScheme.outline,
           ),
         ),
         child: Text(
           label,
-          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+          style: theme.textTheme.bodyMedium?.copyWith(
             color: isSelected
-                ? AppTheme.lightTheme.colorScheme.onPrimary
-                : AppTheme.lightTheme.colorScheme.onSurface,
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.onSurface,
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
     );
   }
 
   Widget _buildEmptyState() {
+    final theme = Theme.of(context);
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -246,15 +252,14 @@ class _AdminRoleUpgradeManagementScreenState
           Icon(
             Icons.inbox_outlined,
             size: 20.w,
-            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+            color: theme.colorScheme.onSurfaceVariant,
           ),
           SizedBox(height: 2.h),
           Text(
             'No $_filterStatus requests',
-            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-            ),
-          ),
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
         ],
       ),
     );
@@ -272,6 +277,7 @@ class _AdminRoleUpgradeManagementScreenState
   }
 
   Widget _buildRequestCard(Map<String, dynamic> request) {
+    final theme = Theme.of(context);
     final requestedRole = request['requested_role'] ?? '';
     final status = request['status'] ?? '';
     final applicationData =
@@ -293,7 +299,7 @@ class _AdminRoleUpgradeManagementScreenState
                 Container(
                   padding: EdgeInsets.all(2.w),
                   decoration: BoxDecoration(
-                    color: AppTheme.lightTheme.colorScheme.primary
+                    color: theme.colorScheme.primary
                         .withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8.0),
                   ),
@@ -301,7 +307,7 @@ class _AdminRoleUpgradeManagementScreenState
                     requestedRole == 'driver'
                         ? Icons.delivery_dining
                         : Icons.store,
-                    color: AppTheme.lightTheme.colorScheme.primary,
+                    color: theme.colorScheme.primary,
                   ),
                 ),
                 SizedBox(width: 3.w),
@@ -310,20 +316,18 @@ class _AdminRoleUpgradeManagementScreenState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        request['full_name'] ?? 'Unknown',
+                        request['full_name'] ?? AppLocalizations.of(context)!.unknown,
                         style:
-                            AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                            theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       Text(
                         request['email'] ?? '',
                         style:
-                            AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                            theme.textTheme.bodySmall?.copyWith(
                           color:
-                              AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                              theme.colorScheme.onSurfaceVariant,
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
@@ -336,25 +340,24 @@ class _AdminRoleUpgradeManagementScreenState
                   ),
                   child: Text(
                     requestedRole.toUpperCase(),
-                    style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                    style: theme.textTheme.bodySmall?.copyWith(
                       color: _getStatusColor(status),
                       fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ],
             ),
             SizedBox(height: 2.h),
-            _buildInfoRow('Phone', request['phone'] ?? 'N/A'),
-            _buildInfoRow('Experience', applicationData['experience'] ?? 'N/A'),
+            _buildInfoRow(AppLocalizations.of(context)!.phone, request['phone'] ?? AppLocalizations.of(context)!.nA),
+            _buildInfoRow(AppLocalizations.of(context)!.experience, applicationData['experience'] ?? AppLocalizations.of(context)!.nA),
             if (requestedRole == 'driver')
               _buildInfoRow(
-                  'Vehicle', applicationData['vehicle_info'] ?? 'N/A'),
+                  'Vehicle', applicationData['vehicle_info'] ?? AppLocalizations.of(context)!.nA),
             if (requestedRole == 'merchant') ...[
               _buildInfoRow(
-                  'Business', applicationData['business_name'] ?? 'N/A'),
+                  'Business', applicationData['business_name'] ?? AppLocalizations.of(context)!.nA),
               _buildInfoRow(
-                  'Address', applicationData['business_address'] ?? 'N/A'),
+                  'Address', applicationData['business_address'] ?? AppLocalizations.of(context)!.nA),
             ],
             if (status == 'pending') ...[
               SizedBox(height: 2.h),
@@ -364,7 +367,7 @@ class _AdminRoleUpgradeManagementScreenState
                     child: ElevatedButton.icon(
                       onPressed: () => _approveRequest(request),
                       icon: const Icon(Icons.check),
-                      label: const Text('Approve'),
+                      label: Text(AppLocalizations.of(context)!.approve, maxLines: 1, overflow: TextOverflow.ellipsis),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
@@ -376,7 +379,7 @@ class _AdminRoleUpgradeManagementScreenState
                     child: ElevatedButton.icon(
                       onPressed: () => _showRejectDialog(request),
                       icon: const Icon(Icons.close),
-                      label: const Text('Reject'),
+                      label: Text(AppLocalizations.of(context)!.reject, maxLines: 1, overflow: TextOverflow.ellipsis),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
@@ -397,10 +400,9 @@ class _AdminRoleUpgradeManagementScreenState
                 ),
                 child: Text(
                   'Rejection Reason: ${request['rejection_reason']}',
-                  style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: Colors.red,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ],
@@ -410,6 +412,8 @@ class _AdminRoleUpgradeManagementScreenState
   }
 
   Widget _buildInfoRow(String label, String value) {
+    final theme = Theme.of(context);
+
     return Padding(
       padding: EdgeInsets.only(bottom: 1.h),
       child: Row(
@@ -419,18 +423,16 @@ class _AdminRoleUpgradeManagementScreenState
             width: 25.w,
             child: Text(
               '$label:',
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+              style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           Expanded(
             child: Text(
               value,
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),

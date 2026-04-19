@@ -3,6 +3,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../theme/app_theme.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class DeliveryStatsWidget extends StatelessWidget {
   final int completedToday;
@@ -33,27 +34,26 @@ class DeliveryStatsWidget extends StatelessWidget {
               color: AppTheme.textOnLight,
               fontSize: 14.sp,
               fontWeight: FontWeight.bold,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 2.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildStatItem(
                 icon: Icons.check_circle,
-                label: 'Completed',
+                label: AppLocalizations.of(context)!.completed,
                 value: completedToday.toString(),
                 color: Colors.green,
               ),
               _buildStatItem(
                 icon: Icons.access_time,
-                label: 'Active Hours',
+                label: AppLocalizations.of(context)!.activeHours,
                 value: activeHours.toString(),
                 color: Colors.blue,
               ),
               _buildStatItem(
                 icon: Icons.attach_money,
-                label: 'Avg/Order',
+                label: AppLocalizations.of(context)!.avgOrder,
                 value: '\$${averagePerDelivery.toStringAsFixed(2)}',
                 color: AppTheme.primaryLight,
               ),
@@ -91,16 +91,14 @@ class DeliveryStatsWidget extends StatelessWidget {
             color: AppTheme.textOnLight,
             fontSize: 14.sp,
             fontWeight: FontWeight.bold,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 0.5.h),
         Text(
           label,
           style: TextStyle(
             color: const Color(0xFF616161),
             fontSize: 10.sp,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
     );
   }

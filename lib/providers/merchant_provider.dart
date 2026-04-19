@@ -5,18 +5,15 @@
 // Handles: merchant data, store management, products, orders
 //
 // FIXED: stores ownership + category linkage consistency
-// - Uses stores.owner_user_id = auth.uid()
-// - Uses stores.merchant_id = merchants.id
-// - Uses stores.category_id (UUID FK) and joins categories(name)
-// - Removes old owner_id usage (was wrong / inconsistent)
-//
-// FIXED (PostgREST PGRST200):
-// - stores -> categories now has TWO FKs (category_id + subcategory_id)
-// - Must use explicit relationship embeds:
-//   categories!stores_category_id_fkey(...)
-///  categories!stores_subcategory_id_fkey(...)
-library;
-
+// FIXED (PostgREST PGRST200): explicit relationship embeds
+// SESSION 8 FIX: createStore nullable categoryId
+// SESSION 8 BUG 4 FIX: updateMerchant maybeSingle fallback
+// SESSION 18 FIX: loadStats uses correct column 'total' instead
+//   of non-existent 'total_amount'. Falls back to 'subtotal'.
+// SESSION 20 FIXES:
+//   - Revenue = subtotal only (excludes delivery fees — Talabat model)
+//   - Real order count per store (not total_reviews)
+//   - createProduct uses is_available (not is_active)
 // ============================================================
 
 import 'package:flutter/foundation.dart';
@@ -43,6 +40,9 @@ class MerchantProvider extends ChangeNotifier {
 
   String? _selectedStoreId;
 
+  // SESSION 20: Real order counts per store
+  Map<String, int> _storeOrderCounts = {};
+
   // ============================================================
   // GETTERS
   // ============================================================
@@ -62,6 +62,9 @@ class MerchantProvider extends ChangeNotifier {
   Map<String, dynamic>? get stats => _stats;
 
   String? get selectedStoreId => _selectedStoreId;
+
+  // SESSION 20: Expose order counts
+  Map<String, int> get storeOrderCounts => _storeOrderCounts;
 
   Map<String, dynamic>? get selectedStore {
     if (_selectedStoreId == null) return null;
@@ -191,6 +194,8 @@ class MerchantProvider extends ChangeNotifier {
     String merchantId,
     Map<String, dynamic> updates,
   ) async {
+    final uid = _client.auth.currentUser?.id;
+
     try {
       _setLoading(true);
       _setError(null);
@@ -200,18 +205,45 @@ class MerchantProvider extends ChangeNotifier {
         'updated_at': DateTime.now().toIso8601String(),
       };
 
-      final result = await _client
-          .from('merchants')
-          .update(data)
-          .eq('id', merchantId)
-          .select()
-          .single();
+      debugPrint(
+          '[MERCHANT] Updating merchant: $merchantId (user: $uid)');
 
-      _merchant = Merchant.fromMap(result);
+      Map<String, dynamic>? result;
+      try {
+        result = await _client
+            .from('merchants')
+            .update(data)
+            .eq('id', merchantId)
+            .select()
+            .maybeSingle();
+      } catch (e) {
+        debugPrint(
+            '[MERCHANT] id-based update failed: $e — trying user_id fallback');
+        result = null;
+      }
 
-      _setLoading(false);
-      notifyListeners();
-      return true;
+      if (result == null && uid != null) {
+        debugPrint('[MERCHANT] Fallback: updating by user_id=$uid');
+        result = await _client
+            .from('merchants')
+            .update(data)
+            .eq('user_id', uid)
+            .select()
+            .maybeSingle();
+      }
+
+      if (result != null) {
+        _merchant = Merchant.fromMap(result);
+        debugPrint('[MERCHANT] Merchant updated successfully');
+        _setLoading(false);
+        notifyListeners();
+        return true;
+      } else {
+        debugPrint('[MERCHANT] Error: update returned 0 rows');
+        _setLoading(false);
+        _setError('Could not update merchant profile — no matching record');
+        return false;
+      }
     } catch (e) {
       debugPrint('[MERCHANT] Error updating merchant: $e');
       _setLoading(false);
@@ -237,10 +269,6 @@ class MerchantProvider extends ChangeNotifier {
       debugPrint(
           '[MERCHANT] Loading stores for merchant_id=${_merchant!.id}, owner_user_id=$uid');
 
-      // Prefer merchant_id match; also ensure owner_user_id for safety.
-      //
-      // FIX: Explicit relationships to categories to avoid PGRST200
-      // when both category_id and subcategory_id point to categories.
       final result = await _client
           .from('stores')
           .select(
@@ -259,6 +287,10 @@ class MerchantProvider extends ChangeNotifier {
       }
 
       debugPrint('[MERCHANT] Loaded ${_stores.length} stores');
+
+      // SESSION 20: Load real order counts per store
+      await _loadStoreOrderCounts();
+
       notifyListeners();
     } catch (e) {
       debugPrint('[MERCHANT] Error loading stores: $e');
@@ -267,11 +299,46 @@ class MerchantProvider extends ChangeNotifier {
     }
   }
 
+  // ============================================================
+  // SESSION 20: Load real order counts for each store
+  // ============================================================
+
+  Future<void> _loadStoreOrderCounts() async {
+    if (_stores.isEmpty) {
+      _storeOrderCounts = {};
+      return;
+    }
+
+    try {
+      final storeIds = _stores.map((s) => s['id'] as String).toList();
+
+      final ordersResult = await _client
+          .from('orders')
+          .select('id, store_id')
+          .inFilter('store_id', storeIds);
+
+      final ordersList = _normalizeList(ordersResult);
+      final counts = <String, int>{};
+
+      for (final storeId in storeIds) {
+        counts[storeId] =
+            ordersList.where((o) => o['store_id'] == storeId).length;
+      }
+
+      _storeOrderCounts = counts;
+      debugPrint('[MERCHANT] Order counts per store: $_storeOrderCounts');
+    } catch (e) {
+      debugPrint('[MERCHANT] Error loading store order counts: $e');
+      _storeOrderCounts = {};
+    }
+  }
+
   Future<Map<String, dynamic>?> createStore({
     required String name,
-    required String categoryId,
+    String? categoryId,
     String? description,
     String? imageUrl,
+    String? category,
   }) async {
     final uid = _client.auth.currentUser?.id;
 
@@ -289,13 +356,8 @@ class MerchantProvider extends ChangeNotifier {
       _setError(null);
       debugPrint('[MERCHANT] Creating store: $name');
 
-      // Standardized ownership + linking:
-      // - owner_user_id = auth.uid
-      // - merchant_id = merchants.id
-      // - category_id = categories.id (UUID FK)
       final payload = <String, dynamic>{
         'name': name,
-        'category_id': categoryId,
         'description': description,
         'image_url': imageUrl,
         'owner_user_id': uid,
@@ -303,9 +365,20 @@ class MerchantProvider extends ChangeNotifier {
         'is_active': true,
         'is_demo': false,
         'is_accepting_orders': true,
-      }..removeWhere((k, v) => v == null);
+      };
 
-      // FIX: Explicit embeds to avoid PGRST200 ambiguity
+      if (categoryId != null &&
+          categoryId.isNotEmpty &&
+          categoryId != 'default') {
+        payload['category_id'] = categoryId;
+      }
+
+      if (category != null && category.isNotEmpty) {
+        payload['category'] = category;
+      }
+
+      payload.removeWhere((k, v) => v == null);
+
       final result = await _client
           .from('stores')
           .insert(payload)
@@ -359,7 +432,6 @@ class MerchantProvider extends ChangeNotifier {
 
       safeUpdates['updated_at'] = DateTime.now().toIso8601String();
 
-      // FIX: Explicit embeds to avoid PGRST200 ambiguity
       final result = await _client
           .from('stores')
           .update(safeUpdates)
@@ -473,13 +545,14 @@ class MerchantProvider extends ChangeNotifier {
       _setError(null);
       debugPrint('[MERCHANT] Creating product: $name');
 
+      // SESSION 20 FIX: Use is_available (actual DB column, not is_active)
       final payload = <String, dynamic>{
         'name': name,
         'store_id': storeId,
         'price': price,
         'description': description,
         'image_url': imageUrl,
-        'is_active': true,
+        'is_available': true,
       }..removeWhere((k, v) => v == null);
 
       final result =
@@ -582,7 +655,8 @@ class MerchantProvider extends ChangeNotifier {
         query = query.eq('status', status);
       }
 
-      final result = await query.order('created_at', ascending: false).limit(50);
+      final result =
+          await query.order('created_at', ascending: false).limit(50);
 
       _orders = _normalizeList(result);
 
@@ -620,7 +694,10 @@ class MerchantProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // STATS
+  // STATS — SESSION 20 FIX:
+  //   Merchant revenue = subtotal ONLY (product sales, excludes delivery fees)
+  //   Delivery fees go to the platform (admin), not the merchant.
+  //   This matches the Talabat/Toters marketplace model.
   // ============================================================
 
   Future<void> loadStats() async {
@@ -641,9 +718,10 @@ class MerchantProvider extends ChangeNotifier {
       final today = DateTime.now();
       final startOfDay = DateTime(today.year, today.month, today.day);
 
+      // SESSION 20 FIX: Select subtotal, total, delivery_fee for proper revenue split
       final ordersResult = await _client
           .from('orders')
-          .select('id, total_amount, status')
+          .select('id, subtotal, total, delivery_fee, status')
           .inFilter('store_id', storeIds)
           .gte('created_at', startOfDay.toIso8601String());
 
@@ -651,10 +729,23 @@ class MerchantProvider extends ChangeNotifier {
       final completedOrders =
           ordersList.where((o) => o['status'] == 'delivered').toList();
 
+      // SESSION 20 FIX: Merchant revenue = subtotal only (no delivery fees)
+      // If subtotal is null, calculate as total - delivery_fee
       double todayRevenue = 0;
       for (final order in completedOrders) {
-        final amount = order['total_amount'];
-        if (amount != null) todayRevenue += (amount as num).toDouble();
+        final subtotal = order['subtotal'];
+        final total = order['total'];
+        final deliveryFee = order['delivery_fee'];
+
+        if (subtotal != null) {
+          todayRevenue += (subtotal as num).toDouble();
+        } else if (total != null) {
+          // Fallback: total - delivery_fee = merchant's share
+          final totalAmount = (total as num).toDouble();
+          final fee =
+              deliveryFee != null ? (deliveryFee as num).toDouble() : 0.0;
+          todayRevenue += (totalAmount - fee);
+        }
       }
 
       _stats = {
@@ -664,6 +755,7 @@ class MerchantProvider extends ChangeNotifier {
         'today_revenue': todayRevenue,
         'pending_orders':
             ordersList.where((o) => o['status'] == 'pending').length,
+        'completed_orders': completedOrders.length,
       };
 
       notifyListeners();
@@ -696,6 +788,7 @@ class MerchantProvider extends ChangeNotifier {
     _orders = [];
     _stats = null;
     _selectedStoreId = null;
+    _storeOrderCounts = {};
     _error = null;
     notifyListeners();
   }

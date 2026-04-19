@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class CategoryTabsWidget extends StatelessWidget {
   final List<String> categories;
@@ -44,8 +45,7 @@ class CategoryTabsWidget extends StatelessWidget {
                     color: Colors.white,
                     fontSize: 12.sp,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ),
           );

@@ -3,6 +3,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../widgets/custom_icon_widget.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class DeliveryAddressWidget extends StatelessWidget {
   final Map<String, dynamic> selectedAddress;
@@ -24,7 +25,7 @@ class DeliveryAddressWidget extends StatelessWidget {
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: colorScheme.shadow.withValues(alpha: 0.1),
@@ -46,22 +47,20 @@ class DeliveryAddressWidget extends StatelessWidget {
               SizedBox(width: 3.w),
               Expanded(
                 child: Text(
-                  'Delivery Address',
+                  AppLocalizations.of(context)!.deliveryAddress,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: colorScheme.onSurface,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               TextButton(
                 onPressed: onChangeAddress,
                 child: Text(
-                  'Change',
+                  AppLocalizations.of(context)!.change,
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: colorScheme.primary,
                     fontWeight: FontWeight.w500,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
@@ -70,7 +69,7 @@ class DeliveryAddressWidget extends StatelessWidget {
             padding: EdgeInsets.all(3.w),
             decoration: BoxDecoration(
               color: colorScheme.primaryContainer.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
                 color: colorScheme.primary.withValues(alpha: 0.2),
                 width: 1,
@@ -86,24 +85,22 @@ class DeliveryAddressWidget extends StatelessWidget {
                           horizontal: 2.w, vertical: 0.5.h),
                       decoration: BoxDecoration(
                         color: colorScheme.primary,
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         selectedAddress['type'] as String,
                         style: theme.textTheme.labelSmall?.copyWith(
                           color: colorScheme.onPrimary,
                           fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                     SizedBox(width: 2.w),
-                    Text(
+                    Flexible(child: Text(
                       selectedAddress['name'] as String,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: colorScheme.onSurface,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ],
                 ),
                 SizedBox(height: 1.h),
@@ -112,8 +109,7 @@ class DeliveryAddressWidget extends StatelessWidget {
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                     height: 1.4,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 if (selectedAddress['landmark'] != null &&
                     (selectedAddress['landmark'] as String).isNotEmpty) ...[
                   SizedBox(height: 0.5.h),
@@ -121,8 +117,7 @@ class DeliveryAddressWidget extends StatelessWidget {
                     'Near ${selectedAddress['landmark']}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
                 SizedBox(height: 1.h),
                 Row(
@@ -133,12 +128,11 @@ class DeliveryAddressWidget extends StatelessWidget {
                       size: 16,
                     ),
                     SizedBox(width: 1.w),
-                    Text(
+                    Flexible(child: Text(
                       selectedAddress['phone'] as String,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ],
                 ),
               ],

@@ -4,6 +4,8 @@ import '../../../models/ai_message_model.dart';
 import '../../../theme/app_theme.dart';
 import '../../../providers/cart_provider.dart';
 import '../../../routes/app_routes.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class MessageBubbleWidget extends ConsumerWidget {
   final AIMessageModel message;
@@ -19,7 +21,7 @@ class MessageBubbleWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final bool isLight = theme.brightness == Brightness.light;
-    final Color aiBubbleBg = isLight ? Colors.grey.shade100 : const Color(0xFF1A1A1A);
+    final Color aiBubbleBg = isLight ? Colors.grey.shade100 : Colors.black87;
     final Color aiTextColor = isLight ? Colors.black87 : Colors.white.withOpacity(0.9);
     final Color userTextColor = Colors.white;
     final Color timestampColor = isLight ? Colors.grey.shade500 : Colors.white.withOpacity(0.3);
@@ -89,8 +91,7 @@ class MessageBubbleWidget extends ConsumerWidget {
                     style: TextStyle(
                       color: timestampColor,
                       fontSize: 11,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ],
             ),
@@ -153,19 +154,19 @@ class MessageBubbleWidget extends ConsumerWidget {
 
     final theme = Theme.of(context);
     final bool isLight = theme.brightness == Brightness.light;
-    final Color cardBg = isLight ? Colors.grey.shade100 : const Color(0xFF1A1A1A);
+    final Color cardBg = isLight ? Colors.grey.shade100 : Colors.black87;
     final Color cardBorder = isLight ? Colors.grey.shade300 : Colors.white.withOpacity(0.06);
     final Color imageBg = isLight ? Colors.grey.shade200 : const Color(0xFF2A2A2A);
     final Color nameColor = isLight ? Colors.black87 : Colors.white;
-    final Color subtitleColor = isLight ? Colors.grey.shade600 : Colors.white.withOpacity(0.4);
+    final Color subtitleColor = isLight ? Colors.grey : Colors.white.withOpacity(0.4);
     final Color viewBg = isLight ? Colors.grey.shade200 : Colors.white.withOpacity(0.08);
-    final Color viewText = isLight ? Colors.grey.shade700 : Colors.white70;
+    final Color viewText = isLight ? Colors.grey : Colors.white70;
 
     return Container(
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: cardBorder),
       ),
       child: Padding(
@@ -174,16 +175,16 @@ class MessageBubbleWidget extends ConsumerWidget {
           children: [
             // Product image
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(14),
               child: Container(
                 width: 60,
                 height: 60,
                 color: imageBg,
                 child: imageUrl != null && imageUrl.isNotEmpty
-                    ? Image.network(
+                    ? CachedNetworkImage(imageUrl: 
                         imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(
+                        errorWidget: (_, __, ___) => const Icon(
                           Icons.shopping_bag_outlined,
                           color: Colors.white24,
                           size: 24,
@@ -220,8 +221,7 @@ class MessageBubbleWidget extends ConsumerWidget {
                         style: TextStyle(
                           color: subtitleColor,
                           fontSize: 12,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   const SizedBox(height: 4),
                   Text(
@@ -230,8 +230,7 @@ class MessageBubbleWidget extends ConsumerWidget {
                       color: AppTheme.kjRed,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
@@ -256,7 +255,7 @@ class MessageBubbleWidget extends ConsumerWidget {
                     ),
                     decoration: BoxDecoration(
                       color: viewBg,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Text(
                       'View',
@@ -264,8 +263,7 @@ class MessageBubbleWidget extends ConsumerWidget {
                         color: viewText,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -280,7 +278,7 @@ class MessageBubbleWidget extends ConsumerWidget {
                             );
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('$name added to cart'),
+                            content: Text('$name added to cart', maxLines: 1, overflow: TextOverflow.ellipsis),
                             backgroundColor: AppTheme.kjRed,
                             duration: const Duration(seconds: 2),
                           ),
@@ -294,11 +292,11 @@ class MessageBubbleWidget extends ConsumerWidget {
                       ),
                       decoration: BoxDecoration(
                         color: AppTheme.kjRed,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
+                        children: [
                           Icon(
                             Icons.add_shopping_cart_rounded,
                             color: Colors.white,
@@ -311,8 +309,7 @@ class MessageBubbleWidget extends ConsumerWidget {
                               color: Colors.white,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ],
                       ),
                     ),
@@ -337,14 +334,14 @@ class MessageBubbleWidget extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(top: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.black87,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           onTap: () {
             if (storeId.toString().isNotEmpty) {
               Navigator.pushNamed(
@@ -382,16 +379,14 @@ class MessageBubbleWidget extends ConsumerWidget {
                           color: Colors.white,
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       if (category.isNotEmpty)
                         Text(
                           category,
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.4),
                             fontSize: 12,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
@@ -407,8 +402,7 @@ class MessageBubbleWidget extends ConsumerWidget {
                           color: Colors.white70,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 const SizedBox(width: 4),
@@ -454,8 +448,7 @@ class MessageBubbleWidget extends ConsumerWidget {
             color: actionType == 'primary' ? Colors.white : Colors.white70,
             fontSize: 13,
             fontWeight: FontWeight.w500,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
     );
   }
@@ -471,7 +464,8 @@ class MessageBubbleWidget extends ConsumerWidget {
     } else if (difference.inDays < 1) {
       return '${difference.inHours}h ago';
     } else {
-      return '${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}';
+      final local = timestamp.toLocal();
+    return '${local.hour}:${local.minute.toString().padLeft(2, '0')}';
     }
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../models/conversation_model.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class ConversationCardWidget extends StatelessWidget {
   final ConversationModel conversation;
@@ -22,12 +23,12 @@ class ConversationCardWidget extends StatelessWidget {
     final otherParticipant =
         conversation.getOtherParticipantProfile(currentUserId);
     final otherParticipantName =
-        otherParticipant?['full_name'] as String? ?? 'User';
+        otherParticipant?['full_name'] as String? ?? AppLocalizations.of(context)!.user;
     final otherParticipantImage =
         otherParticipant?['profile_image_url'] as String?;
     final unreadCount = conversation.getUnreadCount(currentUserId);
     final listing = conversation.listing;
-    final listingTitle = listing?['title'] as String? ?? 'Listing';
+    final listingTitle = listing?['title'] as String? ?? AppLocalizations.of(context)!.listing;
     final listingImages = listing?['images'] as List? ?? [];
     final listingImageUrl =
         listingImages.isNotEmpty ? listingImages[0] as String? : null;
@@ -45,17 +46,17 @@ class ConversationCardWidget extends StatelessWidget {
         return await showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Archive Conversation'),
-            content: const Text(
-                'Are you sure you want to archive this conversation?'),
+            title: Text(AppLocalizations.of(context)!.archiveConversation, maxLines: 1, overflow: TextOverflow.ellipsis),
+            content: Text(
+                AppLocalizations.of(context)!.areYouSureYouWantTo9, maxLines: 1, overflow: TextOverflow.ellipsis),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Archive'),
+                child: Text(AppLocalizations.of(context)!.archive, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
@@ -68,7 +69,7 @@ class ConversationCardWidget extends StatelessWidget {
           padding: EdgeInsets.symmetric(vertical: 2.h),
           decoration: BoxDecoration(
             border: Border(
-              bottom: BorderSide(color: Colors.grey[200]!, width: 1),
+              bottom: BorderSide(color: Colors.grey.shade200!, width: 1),
             ),
           ),
           child: Row(
@@ -107,8 +108,7 @@ class ConversationCardWidget extends StatelessWidget {
                               color: Colors.white,
                               fontSize: 8.sp,
                               fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ),
                     ),
@@ -140,24 +140,23 @@ class ConversationCardWidget extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 10.sp,
                             color: Colors.grey,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                     SizedBox(height: 0.5.h),
-                    Text(
+                    Flexible(child: Text(
                       'About: $listingTitle',
                       style: TextStyle(
                         fontSize: 11.sp,
-                        color: Colors.grey[600],
+                        color: Colors.grey.shade600,
                         fontStyle: FontStyle.italic,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
+                    )),
                     SizedBox(height: 0.5.h),
-                    Text(
-                      conversation.lastMessageContent ?? 'No messages yet',
+                    Flexible(child: Text(
+                      conversation.lastMessageContent ?? AppLocalizations.of(context)!.noMessagesYet,
                       style: TextStyle(
                         fontSize: 12.sp,
                         color: unreadCount > 0 ? Colors.black : Colors.grey,
@@ -167,7 +166,7 @@ class ConversationCardWidget extends StatelessWidget {
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                    ),
+                    )),
                   ],
                 ),
               ),
@@ -182,10 +181,10 @@ class ConversationCardWidget extends StatelessWidget {
                     height: 12.w,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
-                      color: Colors.grey[200],
+                      color: Colors.grey.shade200,
                     ),
                     errorWidget: (context, url, error) => Container(
-                      color: Colors.grey[200],
+                      color: Colors.grey.shade200,
                       child: Icon(Icons.image, size: 4.w, color: Colors.grey),
                     ),
                   ),

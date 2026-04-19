@@ -6,13 +6,30 @@
 // - uploadImageBytes now uses subfolder path: {folder}/{userId}/{timestamp}.{ext}
 //   This matches the RLS policies that check storage.foldername(name)
 // - Added explicit contentType for proper MIME handling
+// - ISSUE 1 FIX: Native Google Sign-In with google_sign_in v7.x
+//   Uses GoogleSignIn.instance singleton + authenticate() + signInWithIdToken
+// - SCOPES FIX: Pass ['email'] instead of [] to prevent
+//   "requestedScopes cannot be null or empty" warning
+// - DB WAKE QUERY: Pre-warms Postgres on cold start to eliminate
+//   2-5s delay caused by free-tier DB auto-pause after inactivity.
 // ============================================================
-
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseService {
   static SupabaseClient get client => Supabase.instance.client;
+
+  // ============================================================
+  // WEB CLIENT ID — used by google_sign_in to request an ID token
+  // that Supabase can verify. This is the SAME Web Client ID you
+  // already have configured in Supabase > Auth > Google provider.
+  // ============================================================
+  static const String _webClientId =
+      '324062214369-fni7dg1cjtvagtchanne6pj9kkkpg2ks.apps.googleusercontent.com';
+
+  // Track whether GoogleSignIn has been initialized
+  static bool _googleSignInInitialized = false;
 
   static Future<void> initialize() async {
     const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
@@ -23,26 +40,118 @@ class SupabaseService {
     }
 
     await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+
+    // DB wake query -- pre-warms Postgres connection on cold start.
+    // Free-tier DBs pause after 7 days of inactivity; the first query
+    // after a pause takes 2-5s to wake the instance. Running this cheap
+    // ping immediately after init means it absorbs the wake delay during
+    // the splash screen rather than stalling the home screen queries.
+    // On Pro tier (no pausing) this completes in <50ms -- negligible cost.
+    try {
+      await Supabase.instance.client
+          .from('categories')
+          .select('id')
+          .limit(1)
+          .timeout(const Duration(seconds: 10));
+      debugPrint('[SUPABASE] DB wake query OK');
+    } catch (e) {
+      debugPrint('[SUPABASE] DB wake query skipped: $e');
+    }
   }
 
   static User? get currentUser => client.auth.currentUser;
   static bool get isLoggedIn => currentUser != null;
 
-  static Future<void> signInWithGoogle() async {
-    await client.auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: 'com.kjdelivery.app://callback/',
+  // ============================================================
+  // INITIALIZE GOOGLE SIGN-IN (v7.x API)
+  // Must be called once before any sign-in attempt.
+  // Safe to call multiple times — only initializes once.
+  // ============================================================
+  static Future<void> _ensureGoogleSignInInitialized() async {
+    if (_googleSignInInitialized) return;
+
+    final signIn = GoogleSignIn.instance;
+    await signIn.initialize(
+      serverClientId: _webClientId,
     );
+    _googleSignInInitialized = true;
+    debugPrint('[SUPABASE] GoogleSignIn initialized with serverClientId');
   }
 
+  // ============================================================
+  // NATIVE GOOGLE SIGN-IN (ISSUE 1 FIX — v7.x API)
+  // ============================================================
+  // Uses GoogleSignIn.instance singleton (v7.x)
+  // 1. initialize() — once at startup
+  // 2. authenticate() — shows native account picker
+  // 3. Get ID token and pass to Supabase signInWithIdToken
+  // ============================================================
+  static Future<AuthResponse> signInWithGoogle() async {
+    // Ensure initialized
+    await _ensureGoogleSignInInitialized();
+
+    final signIn = GoogleSignIn.instance;
+
+    // Show the native Google account picker
+    // authenticate() shows the picker and returns a GoogleSignInAccount
+    final googleAccount = await signIn.authenticate();
+
+    // Get the authentication tokens
+    final googleAuth = googleAccount.authentication;
+    final idToken = googleAuth.idToken;
+
+    if (idToken == null) {
+      throw AuthException('Failed to get ID token from Google.');
+    }
+
+    // Get access token via authorization client
+    // SCOPES FIX: Pass ['email'] instead of [] to prevent
+    // "requestedScopes cannot be null or empty" warning
+    String? accessToken;
+    try {
+      final authorization =
+          await googleAccount.authorizationClient.authorizationForScopes(['email']);
+      accessToken = authorization?.accessToken;
+    } catch (e) {
+      debugPrint('[SUPABASE] Could not get access token (non-fatal): $e');
+    }
+
+    debugPrint('[SUPABASE] Google ID token obtained, signing in with Supabase...');
+
+    // Pass the ID token to Supabase — this creates/signs in the user
+    final response = await client.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+      accessToken: accessToken,
+    );
+
+    debugPrint('[SUPABASE] Google sign-in successful: ${response.user?.email}');
+
+    return response;
+  }
+
+  // ============================================================
+  // GOOGLE SIGN OUT — clears Google session too
+  // ============================================================
   static Future<void> signOut() async {
+    // Sign out from Google first (clears cached account)
+    try {
+      if (_googleSignInInitialized) {
+        final signIn = GoogleSignIn.instance;
+        await signIn.signOut();
+        debugPrint('[SUPABASE] Google session cleared');
+      }
+    } catch (e) {
+      debugPrint('[SUPABASE] Google sign-out cleanup error (non-fatal): $e');
+    }
+
+    // Sign out from Supabase
     await client.auth.signOut();
   }
 
   // ============================================================
   // STORES
   // ============================================================
-
   static Future<List<Map<String, dynamic>>> getStores({String? categoryId}) async {
     var query = client.from('stores').select(
       '*, '
@@ -87,7 +196,6 @@ class SupabaseService {
           'subcategory:categories!stores_subcategory_id_fkey(name)',
         )
         .single();
-
     return Map<String, dynamic>.from(res);
   }
 
@@ -107,7 +215,6 @@ class SupabaseService {
     if (categoryId != null) updates['category_id'] = categoryId;
     if (description != null) updates['description'] = description;
     if (imageUrl != null) updates['image_url'] = imageUrl;
-
     if (updates.isEmpty) return null;
 
     updates['updated_at'] = DateTime.now().toIso8601String();
@@ -122,7 +229,6 @@ class SupabaseService {
           'subcategory:categories!stores_subcategory_id_fkey(name)',
         )
         .single();
-
     return Map<String, dynamic>.from(res);
   }
 
@@ -136,14 +242,12 @@ class SupabaseService {
         )
         .eq('category_id', categoryId)
         .order('name');
-
     return _asListOfMaps(res);
   }
 
   // ============================================================
   // PRODUCTS
   // ============================================================
-
   static Future<List<Map<String, dynamic>>> getProducts({String? storeId}) async {
     var query = client.from('products').select('*, stores(name)');
     if (storeId != null && storeId.isNotEmpty) {
@@ -189,7 +293,6 @@ class SupabaseService {
     if (price != null) updates['price'] = price;
     if (imageUrl != null) updates['image_url'] = imageUrl;
     if (description != null) updates['description'] = description;
-
     if (updates.isEmpty) return null;
 
     updates['updated_at'] = DateTime.now().toIso8601String();
@@ -200,14 +303,12 @@ class SupabaseService {
         .eq('id', productId)
         .select('*, stores(name)')
         .single();
-
     return Map<String, dynamic>.from(res);
   }
 
   // ============================================================
   // CATEGORIES
   // ============================================================
-
   static Future<List<Map<String, dynamic>>> getCategories() async {
     final res = await client.from('categories').select().order('name');
     return _asListOfMaps(res);
@@ -216,13 +317,11 @@ class SupabaseService {
   // ============================================================
   // CAROUSEL ADS
   // ============================================================
-
   static Future<List<Map<String, dynamic>>> getCarouselAds() async {
     final res = await client
         .from('carousel_ads')
         .select('*, stores(name)')
         .order('position');
-
     return _asListOfMaps(res);
   }
 
@@ -246,7 +345,6 @@ class SupabaseService {
         .insert(payload)
         .select('*, stores(name)')
         .single();
-
     return Map<String, dynamic>.from(res);
   }
 
@@ -257,27 +355,17 @@ class SupabaseService {
   // ============================================================
   // MERCHANTS (ADMIN/INFO)
   // ============================================================
-
   static Future<List<Map<String, dynamic>>> getMerchants() async {
     final res = await client
         .from('merchants')
         .select('*, users(email, full_name)')
         .order('created_at', ascending: false);
-
     return _asListOfMaps(res);
   }
 
   // ============================================================
   // STORAGE UPLOADS
   // ============================================================
-
-  /// Upload bytes to Supabase Storage.
-  ///
-  /// FIXED:
-  /// - Default bucket changed from 'images' to 'uploads'
-  /// - Now uses subfolder path: {folder}/{userId}/{timestamp}.{ext}
-  ///   This matches the RLS policies that check storage.foldername(name)
-  /// - Added explicit contentType for proper MIME handling
   static Future<String> uploadImageBytes(
     Uint8List bytes, {
     String bucket = 'uploads',
@@ -289,21 +377,26 @@ class SupabaseService {
     final uid = currentUser?.id ?? 'anon';
     final ts = DateTime.now().millisecondsSinceEpoch;
 
-    // Map extension to proper MIME type
     String mimeType;
     switch (ext) {
-      case 'jpg': case 'jpeg': mimeType = 'image/jpeg';
-      case 'png': mimeType = 'image/png';
-      case 'gif': mimeType = 'image/gif';
-      case 'webp': mimeType = 'image/webp';
-      default: mimeType = 'image/jpeg';
+      case 'jpg':
+      case 'jpeg':
+        mimeType = 'image/jpeg';
+      case 'png':
+        mimeType = 'image/png';
+      case 'gif':
+        mimeType = 'image/gif';
+      case 'webp':
+        mimeType = 'image/webp';
+      default:
+        mimeType = 'image/jpeg';
     }
 
-    // Use subfolder path: folder/userId/timestamp.ext
     final effectiveFolder = folder ?? 'general';
     final fileName = '$effectiveFolder/$uid/$ts.$ext';
 
-    debugPrint('[SUPABASE_UPLOAD] Bucket: $bucket, Path: $fileName, Size: ${bytes.length}, MIME: $mimeType');
+    debugPrint(
+        '[SUPABASE_UPLOAD] Bucket: $bucket, Path: $fileName, Size: ${bytes.length}, MIME: $mimeType');
 
     await client.storage.from(bucket).uploadBinary(
           fileName,
@@ -319,7 +412,6 @@ class SupabaseService {
     return publicUrl;
   }
 
-  /// Delete a stored object by path
   static Future<void> deleteImage(String bucket, String fileName) async {
     await client.storage.from(bucket).remove([fileName]);
   }
@@ -327,13 +419,11 @@ class SupabaseService {
   // ============================================================
   // HEALTH CHECK
   // ============================================================
-
   static Future<String> runtimeHealthCheck() async {
     try {
       final sb = Supabase.instance.client;
       const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
       debugPrint('[SB-RT] Client ready. URL=$supabaseUrl');
-
       final data = await sb.from('merchants').select('id,user_id').limit(1);
       final list = data as List;
       debugPrint('[SB-RT] ✅ Query OK. merchants rows fetched=${list.length}');
@@ -354,7 +444,6 @@ class SupabaseService {
   // ============================================================
   // INTERNAL HELPERS
   // ============================================================
-
   static List<Map<String, dynamic>> _asListOfMaps(dynamic res) {
     if (res is List) {
       return res

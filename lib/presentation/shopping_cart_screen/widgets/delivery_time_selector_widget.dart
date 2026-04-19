@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../widgets/custom_icon_widget.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class DeliveryTimeSelectorWidget extends StatefulWidget {
   final String? selectedSlot;
@@ -90,7 +91,7 @@ class _DeliveryTimeSelectorWidgetState
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: theme.colorScheme.outline.withValues(alpha: 0.1),
         ),
@@ -116,13 +117,12 @@ class _DeliveryTimeSelectorWidgetState
                   color: theme.colorScheme.primary,
                 ),
                 SizedBox(width: 3.w),
-                Text(
-                  'Delivery Time',
+                Flexible(child: Text(
+                  AppLocalizations.of(context)!.deliveryTime,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: theme.colorScheme.onSurface,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis)),
               ],
             ),
           ),
@@ -150,7 +150,7 @@ class _DeliveryTimeSelectorWidgetState
                       color: isSelected
                           ? theme.colorScheme.primary.withValues(alpha: 0.1)
                           : theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(
                         color: isSelected
                             ? theme.colorScheme.primary
@@ -201,7 +201,7 @@ class _DeliveryTimeSelectorWidgetState
                                     .withValues(alpha: 0.1)
                                 : theme.colorScheme.primary
                                     .withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           child: CustomIconWidget(
                             iconName: slot['icon'],
@@ -225,9 +225,8 @@ class _DeliveryTimeSelectorWidgetState
                                     slot['title'],
                                     style: theme.textTheme.titleSmall?.copyWith(
                                       fontWeight: FontWeight.w600,
-                                      color: theme.colorScheme.onSurface,
-                                    ),
-                                  ),
+                                      color: Colors.black87,
+                                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                                   if (isExpress) ...[
                                     SizedBox(width: 2.w),
                                     Container(
@@ -237,7 +236,7 @@ class _DeliveryTimeSelectorWidgetState
                                       ),
                                       decoration: BoxDecoration(
                                         color: theme.colorScheme.tertiary,
-                                        borderRadius: BorderRadius.circular(4),
+                                        borderRadius: BorderRadius.circular(10),
                                       ),
                                       child: Text(
                                         'FAST',
@@ -246,8 +245,7 @@ class _DeliveryTimeSelectorWidgetState
                                           color: theme.colorScheme.onTertiary,
                                           fontWeight: FontWeight.w700,
                                           fontSize: 8.sp,
-                                        ),
-                                      ),
+                                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                                     ),
                                   ],
                                 ],
@@ -256,9 +254,8 @@ class _DeliveryTimeSelectorWidgetState
                               Text(
                                 slot['subtitle'],
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
+                                  color: Colors.grey,
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis),
                             ],
                           ),
                         ),
@@ -273,8 +270,7 @@ class _DeliveryTimeSelectorWidgetState
                                 style: theme.textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.w700,
                                   color: theme.colorScheme.primary,
-                                ),
-                              )
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis)
                             else
                               Container(
                                 padding: EdgeInsets.symmetric(
@@ -283,25 +279,23 @@ class _DeliveryTimeSelectorWidgetState
                                 ),
                                 decoration: BoxDecoration(
                                   color: theme.colorScheme.secondary,
-                                  borderRadius: BorderRadius.circular(4),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
                                   'FREE',
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: theme.colorScheme.onSecondary,
                                     fontWeight: FontWeight.w700,
-                                  ),
-                                ),
+                                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                               ),
                             if (isExpress) ...[
                               SizedBox(height: 0.5.h),
                               Text(
-                                'Fastest',
+                                AppLocalizations.of(context)!.fastest,
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: theme.colorScheme.tertiary,
                                   fontWeight: FontWeight.w500,
-                                ),
-                              ),
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis),
                             ],
                           ],
                         ),

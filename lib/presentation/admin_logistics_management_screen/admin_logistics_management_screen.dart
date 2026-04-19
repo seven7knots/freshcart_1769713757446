@@ -13,6 +13,7 @@ import './widgets/filter_controls_widget.dart';
 import './widgets/order_queue_panel_widget.dart';
 import './widgets/performance_metrics_sidebar_widget.dart';
 import './widgets/quick_action_toolbar_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class AdminLogisticsManagementScreen extends StatefulWidget {
   const AdminLogisticsManagementScreen({super.key});
@@ -40,17 +41,15 @@ class _AdminLogisticsManagementScreenState
   bool _showOrderQueue = true;
   bool _showMetrics = false;
 
-  // Filter states
   String _driverStatusFilter = 'all';
   String _orderPriorityFilter = 'all';
 
-  // Real-time subscription
   RealtimeChannel? _driverLocationChannel;
   RealtimeChannel? _orderChannel;
 
   static const CameraPosition _initialPosition = CameraPosition(
-    target: LatLng(37.7749, -122.4194), // Default: San Francisco
-    zoom: 12.0,
+    target: LatLng(33.89, 35.50),
+    zoom: 10.0,
   );
 
   @override
@@ -82,9 +81,7 @@ class _AdminLogisticsManagementScreenState
       _setupMarkers();
       _subscribeToRealtimeUpdates();
 
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     } catch (e) {
       setState(() {
         _error = 'Failed to load logistics data: $e';
@@ -98,10 +95,21 @@ class _AdminLogisticsManagementScreenState
       final response = await _supabaseClient.from('drivers').select('''
             *,
             users!drivers_user_id_fkey (id, full_name, phone, avatar_url)
-          ''').eq('is_active', true).order('is_online', ascending: false);
+          ''')
+          .eq('is_active', true)
+          .eq('is_online', true)
+          .order('is_online', ascending: false);
 
-      _drivers =
+      // DART-SIDE FILTER: safety net in case RLS bypasses the DB-level eq() filters.
+      // Only keep drivers that are genuinely online AND active. canTakeOrders
+      // (isApproved && isActive && isOnline && isAvailable) is enforced at the
+      // assignment layer via _assignableDrivers getter below.
+      final allDrivers =
           (response as List).map((json) => Driver.fromJson(json)).toList();
+
+      _drivers = allDrivers
+          .where((d) => d.isOnline && d.isActive)
+          .toList();
     } catch (e) {
       throw Exception('Failed to load drivers: $e');
     }
@@ -126,40 +134,78 @@ class _AdminLogisticsManagementScreenState
     }
   }
 
+  // Only drivers that pass ALL four canTakeOrders checks are eligible:
+  // isApproved && isActive && isOnline && isAvailable
+  List<Driver> get _assignableDrivers =>
+      _drivers.where((d) => d.canTakeOrders).toList();
+
+  List<Driver> get _filteredDrivers {
+    switch (_driverStatusFilter) {
+      case 'online':
+        return _drivers.where((d) => d.isOnline).toList();
+      case 'offline':
+        return _drivers.where((d) => !d.isOnline).toList();
+      case 'busy':
+        return _drivers
+            .where((d) =>
+                d.isOnline && _pendingOrders.any((o) => o.driverId == d.id))
+            .toList();
+      case 'available':
+        return _drivers
+            .where((d) =>
+                d.isOnline &&
+                !_pendingOrders.any((o) => o.driverId == d.id))
+            .toList();
+      case 'all':
+      default:
+        return _drivers;
+    }
+  }
+
+  List<OrderModel> get _filteredOrders {
+    switch (_orderPriorityFilter) {
+      case 'priority':
+        return _pendingOrders.where((o) => o.isPriority).toList();
+      case 'standard':
+        return _pendingOrders.where((o) => !o.isPriority).toList();
+      case 'unassigned':
+        return _pendingOrders.where((o) => o.driverId == null).toList();
+      case 'assigned':
+        return _pendingOrders.where((o) => o.driverId != null).toList();
+      case 'all':
+      default:
+        return _pendingOrders;
+    }
+  }
+
   void _setupMarkers() {
     final markers = <Marker>{};
 
-    // Add driver markers
-    for (final driver in _drivers) {
+    for (final driver in _filteredDrivers) {
       if (driver.currentLocationLat != null &&
           driver.currentLocationLng != null) {
-        final position =
-            LatLng(driver.currentLocationLat!, driver.currentLocationLng!);
-
         markers.add(
           Marker(
             markerId: MarkerId('driver_${driver.id}'),
-            position: position,
+            position:
+                LatLng(driver.currentLocationLat!, driver.currentLocationLng!),
             icon: _getDriverMarkerIcon(driver),
             onTap: () => _onDriverMarkerTapped(driver),
             infoWindow: InfoWindow(
               title: 'Driver ${driver.id.substring(0, 8)}',
-              snippet: driver.isOnline ? 'Online' : 'Offline',
+              snippet: driver.isOnline ? AppLocalizations.of(context)!.online2 : AppLocalizations.of(context)!.offline2,
             ),
           ),
         );
       }
     }
 
-    // Add order markers
-    for (final order in _pendingOrders) {
+    for (final order in _filteredOrders) {
       if (order.deliveryLat != null && order.deliveryLng != null) {
-        final position = LatLng(order.deliveryLat!, order.deliveryLng!);
-
         markers.add(
           Marker(
             markerId: MarkerId('order_${order.id}'),
-            position: position,
+            position: LatLng(order.deliveryLat!, order.deliveryLng!),
             icon: BitmapDescriptor.defaultMarkerWithHue(
               order.isPriority
                   ? BitmapDescriptor.hueRed
@@ -168,54 +214,46 @@ class _AdminLogisticsManagementScreenState
             onTap: () => _onOrderMarkerTapped(order),
             infoWindow: InfoWindow(
               title: 'Order #${order.orderNumber}',
-              snippet: order.isPriority ? 'Priority' : 'Standard',
+              snippet: order.isPriority ? AppLocalizations.of(context)!.priority2 : AppLocalizations.of(context)!.standard2,
             ),
           ),
         );
       }
     }
 
-    setState(() {
-      _markers = markers;
-    });
+    setState(() => _markers = markers);
   }
 
   BitmapDescriptor _getDriverMarkerIcon(Driver driver) {
     if (!driver.isOnline) {
       return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed);
     }
-    // Check if driver has active orders
-    final hasActiveOrders = _pendingOrders.any((o) => o.driverId == driver.id);
-    if (hasActiveOrders) {
-      return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange);
-    }
-    return BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
+    final hasActiveOrders =
+        _pendingOrders.any((o) => o.driverId == driver.id);
+    return hasActiveOrders
+        ? BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange)
+        : BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen);
   }
 
   void _subscribeToRealtimeUpdates() {
-    // Subscribe to driver location updates
     _driverLocationChannel = _supabaseClient
         .channel('driver_locations')
         .onPostgresChanges(
           event: PostgresChangeEvent.update,
           schema: 'public',
           table: 'drivers',
-          callback: (payload) {
-            _handleDriverLocationUpdate(payload.newRecord);
-          },
+          callback: (payload) =>
+              _handleDriverLocationUpdate(payload.newRecord),
         )
         .subscribe();
 
-    // Subscribe to order updates
     _orderChannel = _supabaseClient
         .channel('pending_orders')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'orders',
-          callback: (payload) {
-            _handleOrderUpdate(payload);
-          },
+          callback: (payload) => _handleOrderUpdate(payload),
         )
         .subscribe();
   }
@@ -225,27 +263,31 @@ class _AdminLogisticsManagementScreenState
     final index = _drivers.indexWhere((d) => d.id == updatedDriver.id);
 
     if (index != -1) {
-      setState(() {
-        _drivers[index] = updatedDriver;
-      });
+      if (updatedDriver.isOnline && updatedDriver.isActive) {
+        // Driver still qualifies — update in place
+        setState(() => _drivers[index] = updatedDriver);
+      } else {
+        // Driver went offline — remove from list immediately
+        setState(() => _drivers.removeAt(index));
+      }
+      _setupMarkers();
+    } else if (updatedDriver.isOnline && updatedDriver.isActive) {
+      // Driver just came online — add them
+      setState(() => _drivers.add(updatedDriver));
       _setupMarkers();
     }
   }
 
   void _handleOrderUpdate(PostgresChangePayload payload) {
-    if (payload.eventType == PostgresChangeEvent.insert) {
-      _loadPendingOrders().then((_) => _setupMarkers());
-    } else if (payload.eventType == PostgresChangeEvent.update) {
-      _loadPendingOrders().then((_) => _setupMarkers());
-    } else if (payload.eventType == PostgresChangeEvent.delete) {
+    if (payload.eventType == PostgresChangeEvent.insert ||
+        payload.eventType == PostgresChangeEvent.update ||
+        payload.eventType == PostgresChangeEvent.delete) {
       _loadPendingOrders().then((_) => _setupMarkers());
     }
   }
 
   void _onDriverMarkerTapped(Driver driver) {
-    setState(() {
-      _selectedDriver = driver;
-    });
+    setState(() => _selectedDriver = driver);
 
     showModalBottomSheet(
       context: context,
@@ -266,33 +308,29 @@ class _AdminLogisticsManagementScreenState
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Order #${order.orderNumber}'),
+        title: Text('Order #${order.orderNumber}', maxLines: 1, overflow: TextOverflow.ellipsis),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Status: ${order.status}'),
+            Text('Status: ${order.status}', maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 1.h),
-            Text('Total: \$${order.total.toStringAsFixed(2)}'),
+            Text('Total: \$${order.total.toStringAsFixed(2)}', maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 1.h),
-            Text('Address: ${order.deliveryAddress}'),
+            Text('Address: ${order.deliveryAddress}', maxLines: 1, overflow: TextOverflow.ellipsis),
             if (order.isPriority)
               Padding(
                 padding: EdgeInsets.only(top: 1.h),
                 child: Container(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 2.w, vertical: 0.5.h),
                   decoration: BoxDecoration(
                     color: Colors.red.shade100,
                     borderRadius: BorderRadius.circular(4.0),
                   ),
-                  child: const Text(
-                    'PRIORITY',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: const Text('PRIORITY',
+                      style: TextStyle(
+                          color: Colors.red, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ),
           ],
@@ -300,7 +338,7 @@ class _AdminLogisticsManagementScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(AppLocalizations.of(context)!.close, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           if (order.driverId == null)
             ElevatedButton(
@@ -308,7 +346,7 @@ class _AdminLogisticsManagementScreenState
                 Navigator.pop(context);
                 _showDriverSelectionDialog(order);
               },
-              child: const Text('Assign Driver'),
+              child: Text(AppLocalizations.of(context)!.assignDriver, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
         ],
       ),
@@ -316,18 +354,56 @@ class _AdminLogisticsManagementScreenState
   }
 
   void _showOrderAssignmentDialog(Driver driver) {
+    // Hard block — cannot assign to offline/unapproved driver
+    if (!driver.canTakeOrders) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              AppLocalizations.of(context)!.cannotAssignOrdersDriverIsOffline, maxLines: 1, overflow: TextOverflow.ellipsis),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final availableOrders =
         _pendingOrders.where((o) => o.driverId == null).toList();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Assign Orders to Driver'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(AppLocalizations.of(context)!.assignOrdersToDriver, maxLines: 1, overflow: TextOverflow.ellipsis),
+            SizedBox(height: 0.5.h),
+            Row(
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                SizedBox(width: 1.w),
+                Flexible(child: Text(
+                  'Online · Driver ${driver.id.substring(0, 8)}',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.normal,
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              ],
+            ),
+          ],
+        ),
         content: SizedBox(
           width: 80.w,
           height: 50.h,
           child: availableOrders.isEmpty
-              ? const Center(child: Text('No available orders'))
+              ? Center(child: Text(AppLocalizations.of(context)!.noUnassignedOrdersAvailable, maxLines: 1, overflow: TextOverflow.ellipsis))
               : ListView.builder(
                   itemCount: availableOrders.length,
                   itemBuilder: (context, index) {
@@ -347,10 +423,9 @@ class _AdminLogisticsManagementScreenState
                         Navigator.pop(context);
                         _showOrderAssignmentDialog(driver);
                       },
-                      title: Text('Order #${order.orderNumber}'),
+                      title: Text('Order #${order.orderNumber}', maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text(
-                        '\$${order.total.toStringAsFixed(2)} - ${order.deliveryAddress}',
-                      ),
+                        '\$${order.total.toStringAsFixed(2)} · ${order.deliveryAddress}', maxLines: 1, overflow: TextOverflow.ellipsis),
                       secondary: order.isPriority
                           ? const Icon(Icons.priority_high, color: Colors.red)
                           : null,
@@ -361,63 +436,108 @@ class _AdminLogisticsManagementScreenState
         actions: [
           TextButton(
             onPressed: () {
-              setState(() {
-                _selectedOrderIds.clear();
-              });
+              setState(() => _selectedOrderIds.clear());
               Navigator.pop(context);
             },
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           ElevatedButton(
             onPressed: _selectedOrderIds.isEmpty
                 ? null
                 : () async {
                     Navigator.pop(context);
-                    await _assignOrdersToDriver(driver.id, _selectedOrderIds);
+                    await _assignOrdersToDriver(
+                        driver.id, _selectedOrderIds);
                   },
-            child: Text('Assign ${_selectedOrderIds.length} Orders'),
+            child: Text('Assign ${_selectedOrderIds.length} Orders', maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
     );
   }
 
+  // Only show online + approved drivers — _assignableDrivers guarantees this
   void _showDriverSelectionDialog(OrderModel order) {
-    // FIX: Driver has no isVerified; approval is status-based.
-    final availableDrivers =
-        _drivers.where((d) => d.isOnline && d.isApproved).toList();
+    final eligibleDrivers = _assignableDrivers;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Select Driver'),
+        title: Text(AppLocalizations.of(context)!.selectDriver, maxLines: 1, overflow: TextOverflow.ellipsis),
         content: SizedBox(
           width: 80.w,
           height: 50.h,
-          child: availableDrivers.isEmpty
-              ? const Center(child: Text('No available drivers'))
+          child: eligibleDrivers.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.wifi_off,
+                          size: 48, color: Colors.grey.shade400),
+                      SizedBox(height: 2.h),
+                      Text(
+                        AppLocalizations.of(context)!.noDriversOnline,
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade600,
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      SizedBox(height: 1.h),
+                      Text(
+                        'Wait for a driver to come online\nbefore assigning orders.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13.sp,
+                          color: Colors.grey.shade500,
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                )
               : ListView.builder(
-                  itemCount: availableDrivers.length,
+                  itemCount: eligibleDrivers.length,
                   itemBuilder: (context, index) {
-                    final driver = availableDrivers[index];
+                    final driver = eligibleDrivers[index];
                     final assignedCount = _pendingOrders
                         .where((o) => o.driverId == driver.id)
                         .length;
 
                     return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            driver.isOnline ? Colors.green : Colors.grey,
-                        child: Text(
-                          driver.id.substring(0, 2).toUpperCase(),
-                          style: const TextStyle(color: Colors.white),
-                        ),
+                      leading: Stack(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Colors.green.shade100,
+                            child: Text(
+                              driver.fullName.isNotEmpty
+                                  ? driver.fullName
+                                      .substring(0, 2)
+                                      .toUpperCase()
+                                  : driver.id.substring(0, 2).toUpperCase(),
+                              style:
+                                  TextStyle(color: Colors.green.shade800), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: Colors.white, width: 1.5),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      title: Text('Driver ${driver.id.substring(0, 8)}'),
+                      title: Text(driver.fullName.isNotEmpty
+                          ? driver.fullName
+                          : 'Driver ${driver.id.substring(0, 8)}', maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text(
-                        'Rating: ${driver.rating.toStringAsFixed(1)} | Orders: $assignedCount',
-                      ),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        'Rating: ${driver.rating.toStringAsFixed(1)} · $assignedCount active order${assignedCount != 1 ? 's' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                      trailing:
+                          const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () async {
                         Navigator.pop(context);
                         await _assignOrdersToDriver(driver.id, [order.id]);
@@ -429,18 +549,37 @@ class _AdminLogisticsManagementScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _assignOrdersToDriver(String driverId, List<String> orderIds) async {
+  Future<void> _assignOrdersToDriver(
+      String driverId, List<String> orderIds) async {
+    // Final guard before any DB write — verify driver is still online right now
+    final driver = _drivers.firstWhere(
+      (d) => d.id == driverId,
+      orElse: () => throw Exception('Driver not found in local list'),
+    );
+
+    if (!driver.canTakeOrders) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Assignment blocked — driver is no longer available', maxLines: 1, overflow: TextOverflow.ellipsis),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
     try {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Assigning orders...')),
+          SnackBar(content: Text('Assigning orders...', maxLines: 1, overflow: TextOverflow.ellipsis)),
         );
       }
 
@@ -448,17 +587,15 @@ class _AdminLogisticsManagementScreenState
         await _orderService.assignDriver(orderId, driverId);
       }
 
-      setState(() {
-        _selectedOrderIds.clear();
-      });
-
+      setState(() => _selectedOrderIds.clear());
       await _loadPendingOrders();
       _setupMarkers();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Successfully assigned ${orderIds.length} order(s)'),
+            content:
+                Text('Successfully assigned ${orderIds.length} order(s)', maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.green,
           ),
         );
@@ -467,7 +604,7 @@ class _AdminLogisticsManagementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to assign orders: $e'),
+            content: Text('Failed to assign orders: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.red,
           ),
         );
@@ -520,25 +657,28 @@ class _AdminLogisticsManagementScreenState
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Logistics Management',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
-        ),
+        title: Text(
+          AppLocalizations.of(context)!.logisticsManagement,
+          style:
+              TextStyle(color: Colors.black, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
-            icon: const Icon(Icons.filter_list, color: Colors.black),
-            onPressed: () => _showFilterDialog(),
+            icon: Icon(
+              Icons.filter_list,
+              color: (_driverStatusFilter != 'all' ||
+                      _orderPriorityFilter != 'all')
+                  ? Colors.orange
+                  : Colors.black,
+            ),
+            onPressed: _showFilterDialog,
+            tooltip: AppLocalizations.of(context)!.filterDriversOrders,
           ),
           IconButton(
             icon: Icon(
               _showMetrics ? Icons.close : Icons.analytics_outlined,
               color: Colors.black,
             ),
-            onPressed: () {
-              setState(() {
-                _showMetrics = !_showMetrics;
-              });
-            },
+            onPressed: () => setState(() => _showMetrics = !_showMetrics),
           ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.black),
@@ -556,42 +696,86 @@ class _AdminLogisticsManagementScreenState
                       const Icon(Icons.error_outline,
                           size: 64, color: Colors.red),
                       SizedBox(height: 2.h),
-                      Text(_error!),
+                      Text(_error!, maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(height: 2.h),
                       ElevatedButton(
                         onPressed: _initializeData,
-                        child: const Text('Retry'),
+                        child: Text(AppLocalizations.of(context)!.retry, maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ),
                 )
               : Stack(
                   children: [
-                    GoogleMap(
-                      onMapCreated: _onMapCreated,
-                      initialCameraPosition: _initialPosition,
-                      markers: _markers,
-                      polylines: _polylines,
-                      myLocationEnabled: true,
-                      myLocationButtonEnabled: true,
-                      mapType: MapType.normal,
-                      zoomControlsEnabled: false,
+                    SizedBox.expand(
+                      child: GoogleMap(
+                        onMapCreated: _onMapCreated,
+                        initialCameraPosition: _initialPosition,
+                        markers: _markers,
+                        polylines: _polylines,
+                        myLocationEnabled: true,
+                        myLocationButtonEnabled: true,
+                        mapType: MapType.normal,
+                        zoomControlsEnabled: false,
+                      ),
                     ),
+                    if (_driverStatusFilter != 'all' ||
+                        _orderPriorityFilter != 'all')
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 4.w, vertical: 0.8.h),
+                          color: Colors.orange.withOpacity(0.9),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.filter_list,
+                                  color: Colors.white, size: 16),
+                              SizedBox(width: 2.w),
+                              Expanded(
+                                child: Text(
+                                  'Filters: ${_driverStatusFilter != 'all' ? 'Drivers: $_driverStatusFilter' : ''}${_driverStatusFilter != 'all' && _orderPriorityFilter != 'all' ? ' | ' : ''}${_orderPriorityFilter != 'all' ? 'Orders: $_orderPriorityFilter' : ''}',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _driverStatusFilter = 'all';
+                                    _orderPriorityFilter = 'all';
+                                  });
+                                  _setupMarkers();
+                                },
+                                child: const Icon(Icons.close,
+                                    color: Colors.white, size: 18),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     Positioned(
-                      top: 2.h,
+                      top: (_driverStatusFilter != 'all' ||
+                              _orderPriorityFilter != 'all')
+                          ? 5.h
+                          : 2.h,
                       left: 4.w,
                       right: 4.w,
                       child: QuickActionToolbarWidget(
-                        onlineDriversCount:
-                            _drivers.where((d) => d.isOnline).length,
-                        totalDriversCount: _drivers.length,
-                        pendingOrdersCount: _pendingOrders.length,
+                        onlineDriversCount: _filteredDrivers
+                            .where((d) => d.isOnline)
+                            .length,
+                        totalDriversCount: _filteredDrivers.length,
+                        pendingOrdersCount: _filteredOrders.length,
                         onRefresh: _initializeData,
-                        onToggleOrderQueue: () {
-                          setState(() {
-                            _showOrderQueue = !_showOrderQueue;
-                          });
-                        },
+                        onToggleOrderQueue: () => setState(
+                            () => _showOrderQueue = !_showOrderQueue),
                       ),
                     ),
                     if (_showOrderQueue)
@@ -600,7 +784,7 @@ class _AdminLogisticsManagementScreenState
                         left: 0,
                         right: 0,
                         child: OrderQueuePanelWidget(
-                          orders: _pendingOrders,
+                          orders: _filteredOrders,
                           selectedOrderIds: _selectedOrderIds,
                           onOrderSelected: (orderId) {
                             setState(() {
@@ -616,11 +800,8 @@ class _AdminLogisticsManagementScreenState
                               _showDriverSelectionForBatch();
                             }
                           },
-                          onClearSelection: () {
-                            setState(() {
-                              _selectedOrderIds.clear();
-                            });
-                          },
+                          onClearSelection: () =>
+                              setState(() => _selectedOrderIds.clear()),
                         ),
                       ),
                     if (_showMetrics)
@@ -639,84 +820,141 @@ class _AdminLogisticsManagementScreenState
   }
 
   void _showFilterDialog() {
+    String tempDriverFilter = _driverStatusFilter;
+    String tempOrderFilter = _orderPriorityFilter;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Filter Options'),
-        content: FilterControlsWidget(
-          driverStatusFilter: _driverStatusFilter,
-          orderPriorityFilter: _orderPriorityFilter,
-          onDriverStatusChanged: (value) {
-            setState(() {
-              _driverStatusFilter = value;
-            });
-          },
-          onOrderPriorityChanged: (value) {
-            setState(() {
-              _orderPriorityFilter = value;
-            });
-          },
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: Text(AppLocalizations.of(context)!.filterOptions, maxLines: 1, overflow: TextOverflow.ellipsis),
+          content: FilterControlsWidget(
+            driverStatusFilter: tempDriverFilter,
+            orderPriorityFilter: tempOrderFilter,
+            onDriverStatusChanged: (value) =>
+                setDialogState(() => tempDriverFilter = value),
+            onOrderPriorityChanged: (value) =>
+                setDialogState(() => tempOrderFilter = value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                setState(() {
+                  _driverStatusFilter = 'all';
+                  _orderPriorityFilter = 'all';
+                });
+                _setupMarkers();
+              },
+              child: Text(AppLocalizations.of(context)!.reset, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                setState(() {
+                  _driverStatusFilter = tempDriverFilter;
+                  _orderPriorityFilter = tempOrderFilter;
+                });
+                _setupMarkers();
+              },
+              child: Text(AppLocalizations.of(context)!.apply, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _applyFilters();
-            },
-            child: const Text('Apply'),
-          ),
-        ],
       ),
     );
   }
 
-  void _applyFilters() {
-    _initializeData();
-  }
-
+  // Batch assign also uses _assignableDrivers — no offline drivers ever shown
   void _showDriverSelectionForBatch() {
-    // FIX: Driver has no isVerified; approval is status-based.
-    final availableDrivers =
-        _drivers.where((d) => d.isOnline && d.isApproved).toList();
+    final eligibleDrivers = _assignableDrivers;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Assign ${_selectedOrderIds.length} Orders'),
+        title: Text('Assign ${_selectedOrderIds.length} Orders', maxLines: 1, overflow: TextOverflow.ellipsis),
         content: SizedBox(
           width: 80.w,
           height: 50.h,
-          child: availableDrivers.isEmpty
-              ? const Center(child: Text('No available drivers'))
+          child: eligibleDrivers.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.wifi_off,
+                          size: 48, color: Colors.grey.shade400),
+                      SizedBox(height: 2.h),
+                      Text(
+                        AppLocalizations.of(context)!.noDriversOnline,
+                        style: TextStyle(
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade600,
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      SizedBox(height: 1.h),
+                      Text(
+                        'Wait for a driver to come online\nbefore assigning orders.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13.sp,
+                          color: Colors.grey.shade500,
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                )
               : ListView.builder(
-                  itemCount: availableDrivers.length,
+                  itemCount: eligibleDrivers.length,
                   itemBuilder: (context, index) {
-                    final driver = availableDrivers[index];
+                    final driver = eligibleDrivers[index];
                     final assignedCount = _pendingOrders
                         .where((o) => o.driverId == driver.id)
                         .length;
 
                     return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor:
-                            driver.isOnline ? Colors.green : Colors.grey,
-                        child: Text(
-                          driver.id.substring(0, 2).toUpperCase(),
-                          style: const TextStyle(color: Colors.white),
-                        ),
+                      leading: Stack(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: Colors.green.shade100,
+                            child: Text(
+                              driver.fullName.isNotEmpty
+                                  ? driver.fullName
+                                      .substring(0, 2)
+                                      .toUpperCase()
+                                  : driver.id.substring(0, 2).toUpperCase(),
+                              style:
+                                  TextStyle(color: Colors.green.shade800), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                          Positioned(
+                            right: 0,
+                            bottom: 0,
+                            child: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: Colors.white, width: 1.5),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      title: Text('Driver ${driver.id.substring(0, 8)}'),
+                      title: Text(driver.fullName.isNotEmpty
+                          ? driver.fullName
+                          : 'Driver ${driver.id.substring(0, 8)}', maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text(
-                        'Rating: ${driver.rating.toStringAsFixed(1)} | Current: $assignedCount orders',
-                      ),
-                      trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        'Rating: ${driver.rating.toStringAsFixed(1)} · $assignedCount active order${assignedCount != 1 ? 's' : ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
+                      trailing:
+                          const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () async {
                         Navigator.pop(context);
-                        await _assignOrdersToDriver(driver.id, _selectedOrderIds);
+                        await _assignOrdersToDriver(
+                            driver.id, _selectedOrderIds);
                       },
                     );
                   },
@@ -725,7 +963,7 @@ class _AdminLogisticsManagementScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),

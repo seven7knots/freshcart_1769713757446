@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class EarningsCardWidget extends StatelessWidget {
   final double todayEarnings;
@@ -34,14 +35,13 @@ class EarningsCardWidget extends StatelessWidget {
                 size: 6.w,
               ),
               SizedBox(width: 2.w),
-              Text(
+              Flexible(child: Text(
                 "Today's Earnings",
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w600,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
             ],
           ),
           SizedBox(height: 2.h),
@@ -51,15 +51,14 @@ class EarningsCardWidget extends StatelessWidget {
               color: Colors.white,
               fontSize: 28.sp,
               fontWeight: FontWeight.bold,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 2.h),
           Divider(color: Colors.white.withValues(alpha: 0.3)),
           SizedBox(height: 1.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildStat('Deliveries', completedDeliveries.toString()),
+              _buildStat(AppLocalizations.of(context)!.deliveries, completedDeliveries.toString()),
               _buildStat(
                 'Avg/Delivery',
                 completedDeliveries > 0
@@ -82,8 +81,7 @@ class EarningsCardWidget extends StatelessWidget {
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.8),
             fontSize: 11.sp,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 0.5.h),
         Text(
           value,
@@ -91,8 +89,7 @@ class EarningsCardWidget extends StatelessWidget {
             color: Colors.white,
             fontSize: 16.sp,
             fontWeight: FontWeight.bold,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
     );
   }

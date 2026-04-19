@@ -8,6 +8,7 @@ import '../../routes/app_routes.dart';
 import '../../services/marketplace_service.dart';
 import '../../widgets/custom_image_widget.dart';
 import '../marketplace_screen/widgets/marketplace_bottom_nav_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class MyAdsScreen extends ConsumerWidget {
   const MyAdsScreen({super.key});
@@ -24,13 +25,12 @@ class MyAdsScreen extends ConsumerWidget {
         backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         title: Text(
-          'My Ads',
+          AppLocalizations.of(context)!.myAds,
           style: TextStyle(
             fontSize: 18.sp,
             fontWeight: FontWeight.w600,
             color: theme.textTheme.bodyLarge?.color,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
         actions: [
           IconButton(
@@ -56,21 +56,19 @@ class MyAdsScreen extends ConsumerWidget {
                   Icon(Icons.list_alt, size: 60, color: theme.disabledColor),
                   SizedBox(height: 2.h),
                   Text(
-                    'No ads yet',
+                    AppLocalizations.of(context)!.noAdsYet,
                     style: TextStyle(
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w600,
                       color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 1.h),
                   Text(
-                    'Create your first listing to get started',
+                    AppLocalizations.of(context)!.createYourFirstListingToGet,
                     style: TextStyle(
                       fontSize: 12.sp,
                       color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 3.h),
                   ElevatedButton.icon(
                     onPressed: () {
@@ -84,7 +82,7 @@ class MyAdsScreen extends ConsumerWidget {
                       });
                     },
                     icon: const Icon(Icons.add),
-                    label: const Text('Create Listing'),
+                    label: Text(AppLocalizations.of(context)!.createListing, maxLines: 1, overflow: TextOverflow.ellipsis),
                     style: ElevatedButton.styleFrom(
                       padding: EdgeInsets.symmetric(
                         horizontal: 6.w,
@@ -119,7 +117,7 @@ class MyAdsScreen extends ConsumerWidget {
                   child: Container(
                     margin: EdgeInsets.only(bottom: 2.h),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(3.w),
                       boxShadow: [
                         BoxShadow(
@@ -146,7 +144,7 @@ class MyAdsScreen extends ConsumerWidget {
                               : Container(
                                   width: 25.w,
                                   height: 12.h,
-                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  color: Colors.grey.shade200,
                                   child: Icon(Icons.image,
                                       size: 8.w, color: theme.disabledColor),
                                 ),
@@ -185,10 +183,10 @@ class MyAdsScreen extends ConsumerWidget {
                                       ),
                                       child: Text(
                                         listing.isSold
-                                            ? 'Sold'
+                                            ? AppLocalizations.of(context)!.sold
                                             : listing.isActive
-                                                ? 'Active'
-                                                : 'Inactive',
+                                                ? AppLocalizations.of(context)!.active2
+                                                : AppLocalizations.of(context)!.inactive2,
                                         style: TextStyle(
                                           fontSize: 10.sp,
                                           color: listing.isSold
@@ -197,8 +195,7 @@ class MyAdsScreen extends ConsumerWidget {
                                                   ? Colors.green
                                                   : Colors.grey,
                                           fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
+                                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                                     ),
                                   ],
                                 ),
@@ -209,34 +206,31 @@ class MyAdsScreen extends ConsumerWidget {
                                     fontSize: 15.sp,
                                     fontWeight: FontWeight.bold,
                                     color: theme.colorScheme.primary,
-                                  ),
-                                ),
+                                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                                 SizedBox(height: 1.h),
                                 Row(
                                   children: [
                                     Icon(Icons.visibility,
                                         size: 4.w,
-                                        color: theme.colorScheme.onSurfaceVariant),
+                                        color: Colors.grey),
                                     SizedBox(width: 1.w),
                                     Text(
                                       '${listing.views} views',
                                       style: TextStyle(
                                         fontSize: 11.sp,
-                                        color: theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
+                                        color: Colors.grey,
+                                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                                     SizedBox(width: 3.w),
                                     Icon(Icons.chat_bubble_outline,
                                         size: 4.w,
-                                        color: theme.colorScheme.onSurfaceVariant),
+                                        color: Colors.grey),
                                     SizedBox(width: 1.w),
                                     Text(
                                       '${listing.inquiries} inquiries',
                                       style: TextStyle(
                                         fontSize: 11.sp,
-                                        color: theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
+                                        color: Colors.grey,
+                                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                                   ],
                                 ),
                               ],
@@ -259,21 +253,21 @@ class MyAdsScreen extends ConsumerWidget {
                               final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (ctx) => AlertDialog(
-                                  title: const Text('Delete Listing'),
-                                  content: const Text(
-                                      'Are you sure you want to delete this listing?'),
+                                  title: Text(AppLocalizations.of(context)!.deleteListing2, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  content: Text(
+                                      AppLocalizations.of(context)!.areYouSureYouWantTo10, maxLines: 1, overflow: TextOverflow.ellipsis),
                                   actions: [
                                     TextButton(
                                       onPressed: () =>
                                           Navigator.pop(ctx, false),
-                                      child: const Text('Cancel'),
+                                      child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
                                     ),
                                     TextButton(
                                       onPressed: () =>
                                           Navigator.pop(ctx, true),
-                                      child: const Text('Delete',
+                                      child: Text(AppLocalizations.of(context)!.delete,
                                           style:
-                                              TextStyle(color: Colors.red)),
+                                              TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis),
                                     ),
                                   ],
                                 ),
@@ -285,37 +279,37 @@ class MyAdsScreen extends ConsumerWidget {
                             }
                           },
                           itemBuilder: (context) => [
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'edit',
                               child: Row(
                                 children: [
                                   Icon(Icons.edit, size: 20),
                                   SizedBox(width: 8),
-                                  Text('Edit'),
+                                  Text(AppLocalizations.of(context)!.edit, maxLines: 1, overflow: TextOverflow.ellipsis),
                                 ],
                               ),
                             ),
                             if (!listing.isSold)
-                              const PopupMenuItem(
+                              PopupMenuItem(
                                 value: 'sold',
                                 child: Row(
                                   children: [
                                     Icon(Icons.check_circle,
                                         size: 20, color: Colors.orange),
                                     SizedBox(width: 8),
-                                    Text('Mark as Sold'),
+                                    Text(AppLocalizations.of(context)!.markAsSold, maxLines: 1, overflow: TextOverflow.ellipsis),
                                   ],
                                 ),
                               ),
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value: 'delete',
                               child: Row(
                                 children: [
                                   Icon(Icons.delete,
                                       size: 20, color: Colors.red),
                                   SizedBox(width: 8),
-                                  Text('Delete',
-                                      style: TextStyle(color: Colors.red)),
+                                  Text(AppLocalizations.of(context)!.delete,
+                                      style: TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis),
                                 ],
                               ),
                             ),
@@ -337,16 +331,15 @@ class MyAdsScreen extends ConsumerWidget {
               Icon(Icons.error_outline, size: 60, color: theme.colorScheme.error),
               SizedBox(height: 2.h),
               Text(
-                'Failed to load ads',
+                AppLocalizations.of(context)!.failedToLoadAds,
                 style: TextStyle(
                   fontSize: 16.sp,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
+                  color: Colors.grey,
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 1.h),
               TextButton(
                 onPressed: () => ref.invalidate(myListingsProvider),
-                child: const Text('Retry'),
+                child: Text(AppLocalizations.of(context)!.retry, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),

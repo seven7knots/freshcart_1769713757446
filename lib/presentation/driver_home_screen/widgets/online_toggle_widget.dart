@@ -3,6 +3,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../theme/app_theme.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class OnlineToggleWidget extends StatelessWidget {
   final bool isOnline;
@@ -43,23 +44,21 @@ class OnlineToggleWidget extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isOnline ? 'You are Online' : 'You are Offline',
+                  isOnline ? AppLocalizations.of(context)!.youAreOnline : AppLocalizations.of(context)!.youAreOffline,
                   style: TextStyle(
                     color: AppTheme.textOnLight,
                     fontSize: 14.sp,
                     fontWeight: FontWeight.bold,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 0.5.h),
                 Text(
                   isOnline
-                      ? 'Ready to accept deliveries'
-                      : 'Go online to start earning',
+                      ? AppLocalizations.of(context)!.readyToAcceptDeliveries
+                      : AppLocalizations.of(context)!.goOnlineToStartEarning,
                   style: TextStyle(
                     color: AppTheme.textOnLight.withAlpha(179),
                     fontSize: 11.sp,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),

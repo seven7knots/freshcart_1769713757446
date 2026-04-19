@@ -1,23 +1,23 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 
+/// Analytics service that wraps Firebase Analytics.
+///
+/// Firebase is **optional** — if Firebase is not configured (no
+/// google-services.json / GoogleService-Info.plist), all methods
+/// silently no-op instead of crashing.
 class AnalyticsService {
   static FirebaseAnalytics? _analytics;
   static FirebaseAnalyticsObserver? _observer;
 
-  static FirebaseAnalytics get analytics {
-    if (_analytics == null) {
-      throw Exception('Analytics not initialized. Call initialize() first.');
-    }
-    return _analytics!;
-  }
+  /// Whether Firebase Analytics was successfully initialized.
+  static bool get isInitialized => _analytics != null;
 
-  static FirebaseAnalyticsObserver get observer {
-    if (_observer == null) {
-      throw Exception('Analytics not initialized. Call initialize() first.');
-    }
-    return _observer!;
-  }
+  /// Returns the analytics instance, or null if not initialized.
+  static FirebaseAnalytics? get analytics => _analytics;
+
+  /// Returns the observer instance, or null if not initialized.
+  static FirebaseAnalyticsObserver? get observer => _observer;
 
   static Future<void> initialize() async {
     try {
@@ -25,7 +25,9 @@ class AnalyticsService {
       _observer = FirebaseAnalyticsObserver(analytics: _analytics!);
       debugPrint('✅ Google Analytics initialized successfully');
     } catch (e) {
-      debugPrint('❌ Failed to initialize Analytics: $e');
+      _analytics = null;
+      _observer = null;
+      debugPrint('ℹ️ Analytics not available (Firebase not configured): $e');
     }
   }
 
@@ -110,7 +112,7 @@ class AnalyticsService {
       name: 'sign_up_attempt',
       parameters: {
         'method': method,
-        'success': success,
+        'success': success.toString(),
         'timestamp': DateTime.now().toIso8601String(),
       },
     );
@@ -125,7 +127,7 @@ class AnalyticsService {
       name: 'login_attempt',
       parameters: {
         'method': method,
-        'success': success,
+        'success': success.toString(),
         'timestamp': DateTime.now().toIso8601String(),
       },
     );
@@ -284,7 +286,7 @@ class AnalyticsService {
       name: 'admin_order_approval',
       parameters: {
         'order_id': orderId,
-        'approved': approved,
+        'approved': approved.toString(),
         'timestamp': DateTime.now().toIso8601String(),
       },
     );
@@ -404,7 +406,7 @@ class AnalyticsService {
       name: 'driver_online_status_change',
       parameters: {
         'driver_id': driverId,
-        'is_online': isOnline,
+        'is_online': isOnline.toString(),
         'timestamp': DateTime.now().toIso8601String(),
       },
     );

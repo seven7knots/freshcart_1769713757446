@@ -354,7 +354,7 @@ class DriverProvider extends ChangeNotifier {
     try {
       final result = await _client
           .from('orders')
-          .select('*, stores(name, address, image_url, phone)')
+          .select('*, stores(name, address, image_url)')
           .eq('driver_id', _driver!.userId)
           .inFilter('status', ['assigned', 'picked_up', 'in_transit'])
           .maybeSingle();

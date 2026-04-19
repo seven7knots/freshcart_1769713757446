@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import './widgets/content_edit_modal_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class AdminEditOverlaySystemScreen extends StatelessWidget {
   final Widget child;
@@ -24,14 +25,16 @@ class AdminEditOverlaySystemScreen extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => ContentEditModalWidget(
+      builder: (sheetContext) => ContentEditModalWidget(
         contentType: contentType,
         contentId: contentId,
         contentData: contentData,
         onSaved: () {
-          Navigator.pop(context);
+          // FIX: Removed Navigator.pop(context) — the modal now closes itself
+          // before calling onSaved, so popping here would double-pop and
+          // navigate away from the current screen (A5 bug)
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Saved')),
+            SnackBar(content: Text(AppLocalizations.of(context)!.saved, maxLines: 1, overflow: TextOverflow.ellipsis)),
           );
         },
       ),

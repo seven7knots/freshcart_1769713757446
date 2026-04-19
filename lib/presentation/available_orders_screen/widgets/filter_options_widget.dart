@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../theme/app_theme.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class FilterOptionsWidget extends StatefulWidget {
   final double maxDistance;
@@ -46,9 +47,11 @@ class _FilterOptionsWidgetState extends State<FilterOptionsWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(20.0),
           topRight: Radius.circular(20.0),
@@ -75,14 +78,13 @@ class _FilterOptionsWidgetState extends State<FilterOptionsWidget> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Filter Orders',
+                  Flexible(child: Text(
+                    AppLocalizations.of(context)!.filterOrders,
                     style: GoogleFonts.inter(
                       fontSize: 18.sp,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimaryOf(context),
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   TextButton(
                     onPressed: () {
                       setState(() {
@@ -92,13 +94,12 @@ class _FilterOptionsWidgetState extends State<FilterOptionsWidget> {
                       });
                     },
                     child: Text(
-                      'Reset',
+                      AppLocalizations.of(context)!.reset,
                       style: GoogleFonts.inter(
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.lightTheme.colorScheme.primary,
-                      ),
-                    ),
+                        color: theme.colorScheme.primary,
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ],
               ),
@@ -112,13 +113,12 @@ class _FilterOptionsWidgetState extends State<FilterOptionsWidget> {
                 children: [
                   // Max distance
                   Text(
-                    'Maximum Distance',
+                    AppLocalizations.of(context)!.maximumDistance,
                     style: GoogleFonts.inter(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimaryOf(context),
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 1.h),
                   Row(
                     children: [
@@ -128,9 +128,9 @@ class _FilterOptionsWidgetState extends State<FilterOptionsWidget> {
                           min: 1.0,
                           max: 50.0,
                           divisions: 49,
-                          activeColor: AppTheme.lightTheme.colorScheme.primary,
+                          activeColor: theme.colorScheme.primary,
                           inactiveColor:
-                              AppTheme.lightTheme.scaffoldBackgroundColor,
+                              theme.scaffoldBackgroundColor,
                           onChanged: (value) {
                             setState(() {
                               _maxDistance = value;
@@ -145,7 +145,7 @@ class _FilterOptionsWidgetState extends State<FilterOptionsWidget> {
                           vertical: 0.5.h,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.lightTheme.scaffoldBackgroundColor,
+                          color: Color(0xFFF5F5F5),
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Text(
@@ -154,21 +154,19 @@ class _FilterOptionsWidgetState extends State<FilterOptionsWidget> {
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.textPrimaryOf(context),
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ),
                   SizedBox(height: 3.h),
                   // Min earnings
                   Text(
-                    'Minimum Earnings',
+                    AppLocalizations.of(context)!.minimumEarnings,
                     style: GoogleFonts.inter(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimaryOf(context),
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 1.h),
                   Row(
                     children: [
@@ -178,9 +176,9 @@ class _FilterOptionsWidgetState extends State<FilterOptionsWidget> {
                           min: 0.0,
                           max: 20.0,
                           divisions: 40,
-                          activeColor: AppTheme.lightTheme.colorScheme.primary,
+                          activeColor: theme.colorScheme.primary,
                           inactiveColor:
-                              AppTheme.lightTheme.scaffoldBackgroundColor,
+                              Color(0xFFF5F5F5),
                           onChanged: (value) {
                             setState(() {
                               _minEarnings = value;
@@ -195,7 +193,7 @@ class _FilterOptionsWidgetState extends State<FilterOptionsWidget> {
                           vertical: 0.5.h,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.lightTheme.scaffoldBackgroundColor,
+                          color: Color(0xFFF5F5F5),
                           borderRadius: BorderRadius.circular(8.0),
                         ),
                         child: Text(
@@ -204,21 +202,19 @@ class _FilterOptionsWidgetState extends State<FilterOptionsWidget> {
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.textPrimaryOf(context),
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ),
                   SizedBox(height: 3.h),
                   // Store types
                   Text(
-                    'Preferred Store Types',
+                    AppLocalizations.of(context)!.preferredStoreTypes,
                     style: GoogleFonts.inter(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimaryOf(context),
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 1.h),
                   Wrap(
                     spacing: 2.w,
@@ -242,14 +238,14 @@ class _FilterOptionsWidgetState extends State<FilterOptionsWidget> {
                           ),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? AppTheme.lightTheme.colorScheme.primary
+                                ? theme.colorScheme.primary
                                     .withValues(alpha: 0.2)
-                                : AppTheme.lightTheme.scaffoldBackgroundColor,
+                                : Color(0xFFF5F5F5),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
                               color: isSelected
-                                  ? AppTheme.lightTheme.colorScheme.primary
-                                  : AppTheme.lightTheme.colorScheme.outline,
+                                  ? theme.colorScheme.primary
+                                  : Colors.grey.shade400,
                               width: 1,
                             ),
                           ),
@@ -263,19 +259,18 @@ class _FilterOptionsWidgetState extends State<FilterOptionsWidget> {
                                     Icons.check,
                                     size: 16,
                                     color:
-                                        AppTheme.lightTheme.colorScheme.primary,
+                                        theme.colorScheme.primary,
                                   ),
                                 ),
-                              Text(
+                              Flexible(child: Text(
                                 type,
                                 style: GoogleFonts.inter(
                                   fontSize: 12.sp,
                                   fontWeight: FontWeight.w600,
                                   color: isSelected
-                                      ? AppTheme.lightTheme.colorScheme.primary
+                                      ? theme.colorScheme.primary
                                       : AppTheme.textSecondaryOf(context),
-                                ),
-                              ),
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                             ],
                           ),
                         ),
@@ -301,20 +296,19 @@ class _FilterOptionsWidgetState extends State<FilterOptionsWidget> {
                     Navigator.pop(context);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.lightTheme.colorScheme.primary,
+                    backgroundColor: theme.colorScheme.primary,
                     padding: EdgeInsets.symmetric(vertical: 1.5.h),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.0),
                     ),
                   ),
                   child: Text(
-                    'Apply Filters',
+                    AppLocalizations.of(context)!.applyFilters,
                     style: GoogleFonts.inter(
                       fontSize: 16.sp,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ),
             ),

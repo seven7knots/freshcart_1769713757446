@@ -163,6 +163,30 @@ class AdsService {
     }
   }
 
+  // ========== PUSH NOTIFICATION FOR NEW ADS ==========
+
+  /// Sends a push notification to all active customers/merchants/drivers
+  /// about a newly created ad. Returns the number of notifications sent.
+  Future<int> notifyCustomersAboutAd({
+    required String adId,
+    required String title,
+    String? description,
+  }) async {
+    try {
+      final count = await _client.rpc('notify_all_customers_new_ad', params: {
+        'p_ad_id': adId,
+        'p_title': 'New Promotion: $title',
+        'p_description': description ?? 'Check out our latest offer!',
+      });
+      debugPrint('[ADS] Notified $count users about new ad: $title');
+      return (count as int?) ?? 0;
+    } catch (e) {
+      debugPrint('[ADS] Failed to send ad notifications: $e');
+      // Don't throw — ad was already created, notification is best-effort
+      return 0;
+    }
+  }
+
   // ========== TARGETING RULES ==========
 
   Future<List<Map<String, dynamic>>> getTargetingRules(String adId) async {

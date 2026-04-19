@@ -5,6 +5,7 @@ import '../../models/marketplace_category_model.dart';
 import '../../routes/app_routes.dart';
 import '../../services/marketplace_category_service.dart';
 import '../../theme/app_theme.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// All Categories screen for the MARKETPLACE only.
 /// Loads categories from the marketplace_categories table.
@@ -81,13 +82,12 @@ class _AllCategoriesScreenState extends State<AllCategoriesScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'All Categories',
+          AppLocalizations.of(context)!.allCategories,
           style: TextStyle(
             fontSize: 18.sp,
             fontWeight: FontWeight.w600,
             color: theme.textTheme.bodyLarge?.color,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
       ),
       body: _isLoading
@@ -95,12 +95,11 @@ class _AllCategoriesScreenState extends State<AllCategoriesScreen> {
           : _categories.isEmpty
               ? Center(
                   child: Text(
-                    'No categories available',
+                    AppLocalizations.of(context)!.noCategoriesAvailable,
                     style: TextStyle(
                       fontSize: 14.sp,
                       color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 )
               : RefreshIndicator(
                   onRefresh: _loadCategories,
@@ -116,13 +115,12 @@ class _AllCategoriesScreenState extends State<AllCategoriesScreen> {
                         Padding(
                           padding: EdgeInsets.only(top: 2.h, bottom: 1.h),
                           child: Text(
-                            'Others',
+                            AppLocalizations.of(context)!.others,
                             style: TextStyle(
                               fontSize: 15.sp,
                               fontWeight: FontWeight.w700,
                               color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
 
                       // Secondary categories
@@ -147,7 +145,7 @@ class _AllCategoriesScreenState extends State<AllCategoriesScreen> {
         padding: EdgeInsets.all(3.w),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
               color: theme.colorScheme.shadow.withOpacity(0.05),
@@ -181,15 +179,14 @@ class _AllCategoriesScreenState extends State<AllCategoriesScreen> {
                   fontSize: 14.sp,
                   fontWeight: FontWeight.w600,
                   color: theme.textTheme.bodyLarge?.color,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
 
             // Chevron
             Icon(
               Icons.chevron_right,
               size: 6.w,
-              color: theme.colorScheme.onSurfaceVariant,
+              color: Colors.grey,
             ),
           ],
         ),

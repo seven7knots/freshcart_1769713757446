@@ -9,10 +9,16 @@
 // - No language setting, theme only in preferences
 // - Admin subscription management
 // - Wishlist → favorites screen (functional)
+// - Share Profile & Export Data (implemented)
 // ============================================================
+
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:sizer/sizer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -27,10 +33,10 @@ import '../my_addresses_screen/my_addresses_screen.dart';
 import '../privacy_security_screen/privacy_security_screen.dart';
 import '../notification_preferences_screen/notification_preferences_screen.dart';
 import '../delivery_preferences_screen/delivery_preferences_screen.dart';
-import '../admin_subscription_management_screen/admin_subscription_management_screen.dart';
 import '../favorites_screen/favorites_screen.dart';
 import './widgets/profile_header_widget.dart';
 import './widgets/settings_section_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -43,14 +49,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final bool _isLoading = false;
   int _totalOrders = 0;
   double _totalSpent = 0.0;
-  bool _subscriptionsEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _refreshRoleData();
     _loadStats();
-    _loadSubscriptionToggle();
   }
 
   Future<void> _refreshRoleData() async {
@@ -65,74 +69,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       final ordersResult = await SupabaseService.client
           .from('orders')
-          .select('id, total_amount')
+          .select('id, total')
           .eq('customer_id', userId);
 
       if (mounted) {
         final orders = ordersResult as List;
         double spent = 0;
         for (final o in orders) {
-          spent += (o['total_amount'] as num?)?.toDouble() ?? 0;
+          spent += (o['total'] as num?)?.toDouble() ?? 0;
         }
         setState(() {
           _totalOrders = orders.length;
           _totalSpent = spent;
         });
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('[PROFILE_SCREEN] Silent error: $e'); }
   }
 
-  Future<void> _loadSubscriptionToggle() async {
-    try {
-      final result = await SupabaseService.client
-          .from('app_config')
-          .select('value')
-          .eq('key', 'subscriptions_enabled')
-          .maybeSingle();
 
-      if (mounted) {
-        setState(() {
-          _subscriptionsEnabled = result?['value'] == 'true' || result?['value'] == true;
-        });
-      }
-    } catch (_) {
-      // If app_config table or key doesn't exist, default to false
-      if (mounted) setState(() => _subscriptionsEnabled = false);
-    }
-  }
-
-  Future<void> _toggleSubscriptions() async {
-    final newValue = !_subscriptionsEnabled;
-    setState(() => _subscriptionsEnabled = newValue);
-
-    try {
-      // Upsert the value in app_config
-      await SupabaseService.client.from('app_config').upsert({
-        'key': 'subscriptions_enabled',
-        'value': newValue.toString(),
-        'updated_at': DateTime.now().toIso8601String(),
-      }, onConflict: 'key');
-
-      if (mounted) {
-        HapticFeedback.mediumImpact();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(newValue
-              ? 'Subscriptions enabled — users can now access'
-              : 'Subscriptions disabled — hidden from users'),
-          backgroundColor: newValue ? Colors.green : Colors.grey,
-        ));
-      }
-    } catch (e) {
-      // Rollback on error
-      if (mounted) {
-        setState(() => _subscriptionsEnabled = !newValue);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to toggle subscriptions: $e'),
-          backgroundColor: Colors.red,
-        ));
-      }
-    }
-  }
 
   bool get _shouldShowBack =>
       Navigator.of(context).canPop() && MainLayoutWrapper.of(context) == null;
@@ -165,9 +119,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       )
                     : null,
                 title: Text(
-                  'Profile',
-                  style: theme.appBarTheme.titleTextStyle,
-                ),
+                  AppLocalizations.of(context)!.profile,
+                  style: theme.appBarTheme.titleTextStyle, maxLines: 1, overflow: TextOverflow.ellipsis),
                 automaticallyImplyLeading: false,
                 pinned: true,
                 elevation: 0,
@@ -180,7 +133,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   IconButton(
                     icon: Icon(Icons.settings_outlined, color: Theme.of(context).appBarTheme.foregroundColor),
                     onPressed: _showSettingsMenu,
-                    tooltip: 'Settings',
+                    tooltip: AppLocalizations.of(context)!.settings,
                   ),
                 ],
               ),
@@ -216,15 +169,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           userData: userData,
                           onEditPressed: () => _showEditProfileDialog(authProvider),
                           onAvatarChanged: (url) async {
-                            await authProvider.refreshUserRole();
+                            await authProvider.refreshUserRole(force: true);
                             if (mounted) setState(() {});
                           },
                         ),
                         SizedBox(height: 3.h),
-
-                        // ========================================
-                        // ROLE-BASED SECTIONS
-                        // ========================================
 
                         // Merchant Section
                         if (authProvider.isMerchant) ...[
@@ -241,8 +190,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         // Pending Applications Alerts
                         if (authProvider.hasPendingMerchantApplication) ...[
                           _buildPendingApplicationCard(
-                            title: 'Merchant Application Pending',
-                            subtitle: 'Your merchant application is under review',
+                            title: AppLocalizations.of(context)!.merchantApplicationPending,
+                            subtitle: AppLocalizations.of(context)!.yourMerchantApplicationIsUnderReview,
                             icon: Icons.store,
                             color: Colors.orange,
                           ),
@@ -251,23 +200,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                         if (authProvider.hasPendingDriverApplication) ...[
                           _buildPendingApplicationCard(
-                            title: 'Driver Application Pending',
-                            subtitle: 'Your driver application is under review',
+                            title: AppLocalizations.of(context)!.driverApplicationPending,
+                            subtitle: AppLocalizations.of(context)!.yourDriverApplicationIsUnderReview,
                             icon: Icons.delivery_dining,
                             color: Colors.orange,
                           ),
                           SizedBox(height: 2.h),
                         ],
 
-                        // NO LOYALTY REWARDS WIDGET — removed completely
-
                         SettingsSectionWidget(
-                          title: 'Quick Actions',
+                          title: AppLocalizations.of(context)!.quickActions,
                           items: _getQuickActionItems(),
                         ),
                         SizedBox(height: 2.h),
 
-                        // Admin section (only if admin) — MERGED single dashboard
+                        // Admin section
                         Consumer<AdminProvider>(
                           builder: (context, adminProvider, child) {
                             if (!adminProvider.isAdmin) {
@@ -276,7 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             return Column(
                               children: [
                                 SettingsSectionWidget(
-                                  title: "Admin Panel",
+                                  title: AppLocalizations.of(context)!.adminPanel,
                                   items: _getAdminItems(adminProvider),
                                 ),
                                 SizedBox(height: 2.h),
@@ -286,23 +233,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
 
                         SettingsSectionWidget(
-                          title: "Account",
+                          title: AppLocalizations.of(context)!.account,
                           items: _getAccountItems(authProvider),
                         ),
                         SettingsSectionWidget(
-                          title: 'Delivery & Addresses',
+                          title: AppLocalizations.of(context)!.deliveryAddresses,
                           items: _getDeliveryItems(),
                         ),
                         SettingsSectionWidget(
-                          title: 'Payment & Billing',
+                          title: AppLocalizations.of(context)!.paymentBilling,
                           items: _getPaymentItems(),
                         ),
                         SettingsSectionWidget(
-                          title: 'App Preferences',
+                          title: AppLocalizations.of(context)!.appPreferences,
                           items: _getPreferenceItems(),
                         ),
                         SettingsSectionWidget(
-                          title: 'Help & Support',
+                          title: AppLocalizations.of(context)!.helpSupport,
                           items: _getHelpItems(),
                         ),
                         SizedBox(height: 2.h),
@@ -340,31 +287,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Row(children: [
             Container(
               padding: EdgeInsets.all(3.w),
-              decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(16)),
               child: Icon(Icons.store, color: Colors.white, size: 8.w),
             ),
             SizedBox(width: 4.w),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  Text('My Store',
+                  Text(AppLocalizations.of(context)!.myStore,
                       style: TextStyle(
                           fontSize: 16.sp,
                           fontWeight: FontWeight.bold,
-                          color: theme.brightness == Brightness.dark ? Colors.green.shade300 : Colors.green.shade800)),
+                          color: theme.brightness == Brightness.dark ? Colors.green.shade300 : Colors.green.shade800), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(width: 2.w),
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
-                    decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(14)),
                     child: Text('MERCHANT',
-                        style: TextStyle(color: Colors.white, fontSize: 9.sp, fontWeight: FontWeight.bold)),
+                        style: TextStyle(color: Colors.white, fontSize: 9.sp, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ]),
                 SizedBox(height: 0.5.h),
-                Text('Manage your stores, products & orders',
+                Text(AppLocalizations.of(context)!.manageYourStoresProductsOrders,
                     style: TextStyle(
                         fontSize: 12.sp,
-                        color: theme.brightness == Brightness.dark ? Colors.green.shade400 : Colors.green.shade700)),
+                        color: theme.brightness == Brightness.dark ? Colors.green.shade400 : Colors.green.shade700), maxLines: 1, overflow: TextOverflow.ellipsis),
               ]),
             ),
             Icon(Icons.chevron_right,
@@ -395,31 +342,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Row(children: [
             Container(
               padding: EdgeInsets.all(3.w),
-              decoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.circular(16)),
               child: Icon(Icons.delivery_dining, color: Colors.white, size: 8.w),
             ),
             SizedBox(width: 4.w),
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  Text('Driver Mode',
+                  Text(AppLocalizations.of(context)!.driverMode,
                       style: TextStyle(
                           fontSize: 16.sp,
                           fontWeight: FontWeight.bold,
-                          color: theme.brightness == Brightness.dark ? Colors.blue.shade300 : Colors.blue.shade800)),
+                          color: theme.brightness == Brightness.dark ? Colors.blue.shade300 : Colors.blue.shade800), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(width: 2.w),
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
-                    decoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.circular(8)),
+                    decoration: BoxDecoration(color: Colors.blue, borderRadius: BorderRadius.circular(14)),
                     child: Text('DRIVER',
-                        style: TextStyle(color: Colors.white, fontSize: 9.sp, fontWeight: FontWeight.bold)),
+                        style: TextStyle(color: Colors.white, fontSize: 9.sp, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ]),
                 SizedBox(height: 0.5.h),
-                Text('View assigned orders & start deliveries',
+                Text(AppLocalizations.of(context)!.viewAssignedOrdersStartDeliveries,
                     style: TextStyle(
                         fontSize: 12.sp,
-                        color: theme.brightness == Brightness.dark ? Colors.blue.shade400 : Colors.blue.shade700)),
+                        color: theme.brightness == Brightness.dark ? Colors.blue.shade400 : Colors.blue.shade700), maxLines: 1, overflow: TextOverflow.ellipsis),
               ]),
             ),
             Icon(Icons.chevron_right,
@@ -442,22 +389,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }) {
     return Card(
       elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       color: color.withOpacity(0.1),
       child: Padding(
         padding: EdgeInsets.all(4.w),
         child: Row(children: [
           Container(
             padding: EdgeInsets.all(2.w),
-            decoration: BoxDecoration(color: color.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: color.withOpacity(0.2), borderRadius: BorderRadius.circular(14)),
             child: Icon(icon, color: color, size: 6.w),
           ),
           SizedBox(width: 3.w),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title, style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600, color: color.withOpacity(0.9))),
+              Text(title, style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600, color: color.withOpacity(0.9)), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 0.5.h),
-              Text(subtitle, style: TextStyle(fontSize: 11.sp, color: color.withOpacity(0.7))),
+              Text(subtitle, style: TextStyle(fontSize: 11.sp, color: color.withOpacity(0.7)), maxLines: 1, overflow: TextOverflow.ellipsis),
             ]),
           ),
           Icon(Icons.hourglass_top, color: color, size: 5.w),
@@ -491,25 +438,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 height: 0.5.h,
                 decoration: BoxDecoration(
                   color: theme.colorScheme.outline.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
               SizedBox(height: 2.5.h),
               Icon(Icons.handshake, color: AppTheme.kjRed, size: 12.w),
               SizedBox(height: 1.5.h),
-              Text('Become a Partner',
-                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+              Text(AppLocalizations.of(context)!.becomeAPartner,
+                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 0.5.h),
-              Text('Choose how you want to partner with us',
-                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              Text(AppLocalizations.of(context)!.chooseHowYouWantToPartner,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 3.h),
 
               if (authProvider.canApplyAsMerchant)
                 _buildPartnerOption(
                   ctx: ctx,
                   icon: Icons.store,
-                  title: 'Become a Merchant',
-                  subtitle: 'Create your store, list products, and start selling',
+                  title: AppLocalizations.of(context)!.becomeAMerchant,
+                  subtitle: AppLocalizations.of(context)!.createYourStoreListProductsAnd,
                   color: Colors.green,
                   onTap: () {
                     Navigator.pop(ctx);
@@ -524,8 +471,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _buildPartnerOption(
                   ctx: ctx,
                   icon: Icons.delivery_dining,
-                  title: 'Become a Driver',
-                  subtitle: 'Deliver orders, set your own schedule, earn money',
+                  title: AppLocalizations.of(context)!.becomeADriver,
+                  subtitle: AppLocalizations.of(context)!.deliverOrdersSetYourOwnSchedule,
                   color: Colors.blue,
                   onTap: () {
                     Navigator.pop(ctx);
@@ -568,7 +515,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: EdgeInsets.all(3.w),
               decoration: BoxDecoration(
                 color: color.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Icon(icon, color: color, size: 8.w),
             ),
@@ -577,10 +524,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w700, color: color)),
+                  Text(title, style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w700, color: color), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 0.5.h),
                   Text(subtitle,
-                      style: TextStyle(fontSize: 11.sp, color: theme.colorScheme.onSurfaceVariant),
+                      style: TextStyle(fontSize: 11.sp, color: Colors.grey),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis),
                 ],
@@ -626,19 +573,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 height: 0.5.h,
                 decoration: BoxDecoration(
                     color: theme.colorScheme.outline.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(4)),
+                    borderRadius: BorderRadius.circular(10)),
               ),
             ),
             SizedBox(height: 2.h),
-            Text('Edit Profile', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            Text(AppLocalizations.of(context)!.editProfile, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 0.5.h),
-            Text('Update your personal information',
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            Text(AppLocalizations.of(context)!.updateYourPersonalInformation,
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 3.h),
             TextField(
               controller: nameController,
               decoration: InputDecoration(
-                labelText: 'Full Name',
+                labelText: AppLocalizations.of(context)!.fullName,
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.person),
                 filled: true,
@@ -650,10 +597,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               controller: phoneController,
               keyboardType: TextInputType.phone,
               decoration: InputDecoration(
-                labelText: 'Phone Number',
+                labelText: AppLocalizations.of(context)!.phoneNumber,
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.phone),
-                hintText: '+961 XX XXX XXX',
+                hintText: AppLocalizations.of(context)!.phoneNumberPlaceholder,
                 filled: true,
                 fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
               ),
@@ -663,7 +610,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               readOnly: true,
               controller: TextEditingController(text: authProvider.email ?? ''),
               decoration: InputDecoration(
-                labelText: 'Email',
+                labelText: AppLocalizations.of(context)!.email,
                 border: const OutlineInputBorder(),
                 prefixIcon: const Icon(Icons.email),
                 filled: true,
@@ -672,8 +619,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             SizedBox(height: 0.5.h),
-            Text('  Email cannot be changed here',
-                style: TextStyle(fontSize: 10.sp, color: theme.colorScheme.onSurfaceVariant)),
+            Text(AppLocalizations.of(context)!.emailCannotBeChangedHere,
+                style: TextStyle(fontSize: 10.sp, color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 3.h),
             SizedBox(
               width: double.infinity,
@@ -685,7 +632,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   if (name.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Name cannot be empty'), backgroundColor: Colors.red));
+                        SnackBar(content: Text(AppLocalizations.of(context)!.nameCannotBeEmpty, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red));
                     return;
                   }
 
@@ -698,7 +645,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(success ? 'Profile updated!' : 'Failed to update profile'),
+                      content: Text(success ? AppLocalizations.of(context)!.profileUpdated : AppLocalizations.of(context)!.failedToUpdateProfile, maxLines: 1, overflow: TextOverflow.ellipsis),
                       backgroundColor: success ? Colors.green : Colors.red,
                     ));
                     if (success) setState(() {});
@@ -707,9 +654,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.kjRed,
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                child: Text('Save Changes', style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w600)),
+                child: Text(AppLocalizations.of(context)!.saveChanges, style: TextStyle(fontSize: 15.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ),
           ],
@@ -729,7 +676,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       "email": authProvider.email ?? '',
       "phone": authProvider.phone ?? '',
       "avatar": authProvider.avatarUrl ?? '',
-      "membershipTier": "Member",
+      "membershipTier": 'Member',
       "totalOrders": _totalOrders,
       "isPhoneVerified": authProvider.phoneVerified,
       "isEmailVerified": authProvider.emailVerified,
@@ -743,8 +690,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         CircularProgressIndicator(color: theme.colorScheme.primary),
         SizedBox(height: 2.h),
-        Text('Loading profile...',
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        Text(AppLocalizations.of(context)!.loadingProfile,
+            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
       ]),
     );
   }
@@ -759,22 +706,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       {
         "icon": "history",
         "iconColor": theme.colorScheme.primary,
-        "title": "Order History",
-        "subtitle": "View past orders and reorder",
-        "onTap": () => _goToTab(3),
+        "title": AppLocalizations.of(context)!.orderHistory,
+        "subtitle": AppLocalizations.of(context)!.viewPastOrdersAndReorder,
+        "onTap": () => Navigator.pushNamed(context, AppRoutes.orderHistory),
       },
       {
         "icon": "shopping_cart",
         "iconColor": theme.colorScheme.primary,
-        "title": "Shopping Cart",
-        "subtitle": "Continue your shopping",
+        "title": AppLocalizations.of(context)!.shoppingCart2,
+        "subtitle": AppLocalizations.of(context)!.continueYourShopping,
         "onTap": () => Navigator.pushNamed(context, AppRoutes.shoppingCart),
       },
       {
         "icon": "favorite",
         "iconColor": theme.colorScheme.error,
-        "title": "Favorites",
-        "subtitle": "Your saved items",
+        "title": AppLocalizations.of(context)!.favorites,
+        "subtitle": AppLocalizations.of(context)!.yourSavedItems,
         "onTap": () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const FavoritesScreen()),
@@ -789,41 +736,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
       {
         "icon": "admin_panel_settings",
         "iconColor": theme.colorScheme.error,
-        "title": "Admin Dashboard",
-        "subtitle": "Full system management",
+        "title": AppLocalizations.of(context)!.adminDashboard,
+        "subtitle": AppLocalizations.of(context)!.fullSystemManagement,
         "route": AppRoutes.adminDashboard,
       },
       {
         "icon": "pending_actions",
         "iconColor": Colors.orange,
-        "title": "Applications",
+        "title": AppLocalizations.of(context)!.applications,
         "subtitle": "${adminProvider.pendingApplicationsCount} pending",
         "route": AppRoutes.adminApplications,
       },
       {
         "icon": "people",
         "iconColor": theme.colorScheme.primary,
-        "title": "User Management",
-        "subtitle": "View and manage all users",
+        "title": AppLocalizations.of(context)!.userManagement,
+        "subtitle": AppLocalizations.of(context)!.viewAndManageAllUsers,
         "route": AppRoutes.adminUsersManagement,
       },
       {
         "icon": "shopping_bag",
         "iconColor": Colors.blue,
-        "title": "Order Management",
-        "subtitle": "Monitor and manage orders",
+        "title": AppLocalizations.of(context)!.orderManagement,
+        "subtitle": AppLocalizations.of(context)!.monitorAndManageOrders,
         "route": AppRoutes.enhancedOrderManagement,
       },
-      {
-        "icon": "card_membership",
-        "iconColor": Colors.purple,
-        "title": "Subscription Plans",
-        "subtitle": "Manage plans & pricing",
-        "onTap": () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AdminSubscriptionManagementScreen()),
-            ),
-      },
+
     ];
   }
 
@@ -833,7 +771,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       {
         "icon": "person",
         "iconColor": theme.colorScheme.primary,
-        "title": "Personal Information",
+        "title": AppLocalizations.of(context)!.personalInformation,
         "subtitle": authProvider.fullName ?? 'Name, email, phone number',
         "onTap": () => _showEditProfileDialog(authProvider),
       },
@@ -841,15 +779,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         {
           "icon": "handshake",
           "iconColor": AppTheme.kjRed,
-          "title": "Become a Partner",
-          "subtitle": "Apply as a merchant or driver",
+          "title": AppLocalizations.of(context)!.becomeAPartner,
+          "subtitle": AppLocalizations.of(context)!.applyAsAMerchantOrDriver,
           "onTap": () => _showPartnerOptions(authProvider),
         },
       {
         "icon": "security",
         "iconColor": theme.colorScheme.primary,
-        "title": "Privacy & Security",
-        "subtitle": "Password, account security",
+        "title": AppLocalizations.of(context)!.privacySecurity,
+        "subtitle": AppLocalizations.of(context)!.passwordAccountSecurity,
         "onTap": () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const PrivacySecurityScreen()),
@@ -858,8 +796,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       {
         "icon": "notifications",
         "iconColor": Colors.orange,
-        "title": "Notification Preferences",
-        "subtitle": "Order updates, promotions",
+        "title": AppLocalizations.of(context)!.notificationPreferences,
+        "subtitle": AppLocalizations.of(context)!.orderUpdatesPromotions,
         "onTap": () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const NotificationPreferencesScreen()),
@@ -874,8 +812,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       {
         "icon": "location_on",
         "iconColor": theme.colorScheme.primary,
-        "title": "Delivery Addresses",
-        "subtitle": "Manage your delivery locations",
+        "title": AppLocalizations.of(context)!.deliveryAddresses2,
+        "subtitle": AppLocalizations.of(context)!.manageYourDeliveryLocations,
         "onTap": () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const MyAddressesScreen()),
@@ -884,8 +822,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       {
         "icon": "schedule",
         "iconColor": Colors.blue,
-        "title": "Delivery Preferences",
-        "subtitle": "Time slots, special instructions",
+        "title": AppLocalizations.of(context)!.deliveryPreferences,
+        "subtitle": AppLocalizations.of(context)!.timeSlotsSpecialInstructions,
         "onTap": () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const DeliveryPreferencesScreen()),
@@ -896,42 +834,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   List<Map<String, dynamic>> _getPaymentItems() {
     final theme = Theme.of(context);
-    final adminProvider = Provider.of<AdminProvider>(context, listen: false);
-
     return [
       {
         "icon": "payment",
         "iconColor": theme.colorScheme.primary,
-        "title": "Payment Method",
-        "subtitle": "Cash on Delivery",
+        "title": AppLocalizations.of(context)!.paymentMethod,
+        "subtitle": AppLocalizations.of(context)!.cashOnDelivery,
         "onTap": () => _showCashOnlyInfo(),
       },
       {
         "icon": "receipt_long",
         "iconColor": Colors.green,
-        "title": "Spending Summary",
+        "title": AppLocalizations.of(context)!.spendingSummary,
         "subtitle": "$_totalOrders order${_totalOrders == 1 ? '' : 's'} completed",
         "onTap": () => _showSpendingSummary(),
-      },
-      {
-        "icon": "card_membership",
-        "iconColor": _subscriptionsEnabled ? Colors.purple : Colors.grey,
-        "title": "Subscription Plans",
-        "subtitle": _subscriptionsEnabled
-            ? "Manage your subscription"
-            : "Coming soon",
-        "onTap": _subscriptionsEnabled
-            ? null
-            : () => _showComingSoon('Subscription Plans'),
-        "route": _subscriptionsEnabled ? AppRoutes.subscriptionManagement : null,
-      },
-      // Admin toggle for subscriptions (only visible to admins)
-      if (adminProvider.isAdmin) {
-        "icon": "admin_panel_settings",
-        "iconColor": _subscriptionsEnabled ? Colors.green : Colors.grey,
-        "title": "Subscriptions Toggle",
-        "subtitle": _subscriptionsEnabled ? "ON — Users can access" : "OFF — Hidden from users",
-        "onTap": () => _toggleSubscriptions(),
       },
     ];
   }
@@ -944,7 +860,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: Row(children: [
           Icon(Icons.payment, color: theme.colorScheme.primary),
           const SizedBox(width: 8),
-          const Text('Payment Method'),
+          Flexible(child: Text(AppLocalizations.of(context)!.paymentMethod, maxLines: 1, overflow: TextOverflow.ellipsis)),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -955,18 +871,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: Colors.green.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Icon(Icons.money, color: Colors.green),
               ),
-              title: const Text('Cash on Delivery'),
-              subtitle: const Text('Pay when your order arrives'),
+              title: Text(AppLocalizations.of(context)!.cashOnDelivery, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text(AppLocalizations.of(context)!.payWhenYourOrderArrives, maxLines: 1, overflow: TextOverflow.ellipsis),
               trailing: const Icon(Icons.check_circle, color: Colors.green),
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.ok2, maxLines: 1, overflow: TextOverflow.ellipsis)),
         ],
       ),
     );
@@ -978,20 +894,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Row(children: [
-          Icon(Icons.receipt_long, color: Colors.green),
+          const Icon(Icons.receipt_long, color: Colors.green),
           const SizedBox(width: 8),
-          const Text('Spending Summary'),
+          Flexible(child: Text(AppLocalizations.of(context)!.spendingSummary, maxLines: 1, overflow: TextOverflow.ellipsis)),
         ]),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _buildSummaryRow('Total Orders', '$_totalOrders', Icons.shopping_bag, theme),
+            _buildSummaryRow(AppLocalizations.of(context)!.totalOrders, '$_totalOrders', Icons.shopping_bag, theme),
             SizedBox(height: 2.h),
-            _buildSummaryRow('Total Spent', '\$${_totalSpent.toStringAsFixed(2)}', Icons.attach_money, theme),
+            _buildSummaryRow(AppLocalizations.of(context)!.totalSpent, '\$${_totalSpent.toStringAsFixed(2)}', Icons.attach_money, theme),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.close, maxLines: 1, overflow: TextOverflow.ellipsis)),
         ],
       ),
     );
@@ -1002,40 +918,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Icon(icon, color: theme.colorScheme.primary, size: 24),
         SizedBox(width: 3.w),
-        Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
-        Text(value, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+        Expanded(child: Text(label, style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis)),
+        Flexible(child: Text(value, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
       ],
     );
   }
 
-  // Language REMOVED — only theme toggle remains
   List<Map<String, dynamic>> _getPreferenceItems() {
     return [
       {
         "icon": "dark_mode",
         "iconColor": Theme.of(context).colorScheme.onSurfaceVariant,
-        "title": "App Theme",
+        "title": AppLocalizations.of(context)!.appTheme,
         "subtitle": _themeModeLabel(context),
         "trailing": Consumer<ThemeProvider>(
           builder: (context, themeProvider, child) {
             final cs = Theme.of(context).colorScheme;
             return PopupMenuButton<ThemeMode>(
-              tooltip: 'Theme',
+              tooltip: AppLocalizations.of(context)!.theme,
               initialValue: themeProvider.themeMode,
               onSelected: (mode) => themeProvider.setThemeMode(mode),
-              itemBuilder: (context) => const [
-                PopupMenuItem(value: ThemeMode.system, child: Text('System')),
-                PopupMenuItem(value: ThemeMode.light, child: Text('Light')),
-                PopupMenuItem(value: ThemeMode.dark, child: Text('Dark')),
+              itemBuilder: (context) => [
+                PopupMenuItem(value: ThemeMode.system, child: Text(AppLocalizations.of(context)!.system, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                PopupMenuItem(value: ThemeMode.light, child: Text(AppLocalizations.of(context)!.light, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                PopupMenuItem(value: ThemeMode.dark, child: Text(AppLocalizations.of(context)!.dark, maxLines: 1, overflow: TextOverflow.ellipsis)),
               ],
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(
+                Flexible(child: Text(
                   _themeModeShortLabel(themeProvider.themeMode),
                   style: Theme.of(context)
                       .textTheme
                       .labelLarge
-                      ?.copyWith(color: cs.primary, fontWeight: FontWeight.w600),
-                ),
+                      ?.copyWith(color: cs.primary, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 SizedBox(width: 1.5.w),
                 Icon(Icons.expand_more, color: cs.primary),
               ]),
@@ -1052,38 +966,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
       case ThemeMode.system:
         return Theme.of(context).brightness == Brightness.dark ? "System (Dark)" : "System (Light)";
       case ThemeMode.dark:
-        return "Dark mode";
+        return AppLocalizations.of(context)!.darkMode;
       case ThemeMode.light:
-        return "Light mode";
+        return AppLocalizations.of(context)!.lightMode;
     }
   }
 
   String _themeModeShortLabel(ThemeMode mode) {
     switch (mode) {
       case ThemeMode.system:
-        return 'System';
+        return AppLocalizations.of(context)!.system2;
       case ThemeMode.light:
-        return 'Light';
+        return AppLocalizations.of(context)!.light2;
       case ThemeMode.dark:
-        return 'Dark';
+        return AppLocalizations.of(context)!.dark2;
     }
   }
 
-  // Help section: WhatsApp + Phone, no help center, no live chat, no about
   List<Map<String, dynamic>> _getHelpItems() {
     return [
       {
         "icon": "phone",
         "iconColor": Colors.green,
-        "title": "Customer Support 24/7",
+        "title": AppLocalizations.of(context)!.customerSupport247,
         "subtitle": "+961 81-483570",
         "onTap": () => _launchPhone('+96181483570'),
       },
       {
         "icon": "chat",
         "iconColor": const Color(0xFF25D366),
-        "title": "WhatsApp Support 24/7",
-        "subtitle": "Chat with us on WhatsApp",
+        "title": AppLocalizations.of(context)!.whatsappSupport247,
+        "subtitle": AppLocalizations.of(context)!.chatWithUsOnWhatsapp,
         "onTap": () => _launchWhatsApp('+96181483570'),
       },
     ];
@@ -1101,28 +1014,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not launch phone dialer'), backgroundColor: Colors.red),
+            SnackBar(content: Text(AppLocalizations.of(context)!.couldNotLaunchPhoneDialer, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red),
           );
         }
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not launch phone dialer'), backgroundColor: Colors.red),
+          SnackBar(content: Text(AppLocalizations.of(context)!.couldNotLaunchPhoneDialer, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red),
         );
       }
     }
   }
 
   Future<void> _launchWhatsApp(String number) async {
-    // Try WhatsApp deep link first, fallback to web
     final whatsappUri = Uri.parse('https://wa.me/${number.replaceAll('+', '')}');
     try {
       await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open WhatsApp'), backgroundColor: Colors.red),
+          SnackBar(content: Text(AppLocalizations.of(context)!.couldNotOpenWhatsapp, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red),
         );
       }
     }
@@ -1136,10 +1048,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature — coming soon!'),
+        content: Text('$feature — coming soon!', maxLines: 1, overflow: TextOverflow.ellipsis),
         backgroundColor: Theme.of(context).colorScheme.primary,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
@@ -1160,7 +1072,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: EdgeInsets.symmetric(vertical: 2.h),
               backgroundColor: theme.colorScheme.error,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
             child: authProvider.isLoading
                 ? SizedBox(
@@ -1171,8 +1083,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     const Icon(Icons.logout, size: 20),
                     SizedBox(width: 2.w),
-                    Text('Sign Out',
-                        style: theme.textTheme.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+                    Flexible(child: Text(AppLocalizations.of(context)!.signOut,
+                        style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.surface, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ]),
           ),
         );
@@ -1186,14 +1098,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Sign Out'),
-        content: const Text('Are you sure you want to sign out?'),
+        title: Text(AppLocalizations.of(context)!.signOut, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Text(AppLocalizations.of(context)!.areYouSureYouWantTo6, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis)),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
-            child: const Text('Sign Out'),
+            child: Text(AppLocalizations.of(context)!.signOut, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -1212,7 +1124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   // ============================================================
-  // SETTINGS MENU
+  // SETTINGS MENU — Share Profile & Export Data
   // ============================================================
 
   void _showSettingsMenu() {
@@ -1232,28 +1144,159 @@ class _ProfileScreenState extends State<ProfileScreen> {
             height: 0.5.h,
             decoration: BoxDecoration(
                 color: theme.colorScheme.outline.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(4)),
+                borderRadius: BorderRadius.circular(10)),
           ),
           SizedBox(height: 3.h),
           ListTile(
             leading: Icon(Icons.share, color: theme.colorScheme.primary),
-            title: const Text('Share Profile'),
+            title: Text(AppLocalizations.of(context)!.shareProfile, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(AppLocalizations.of(context)!.inviteFriendsToKjDelivery, maxLines: 1, overflow: TextOverflow.ellipsis),
             onTap: () {
               Navigator.pop(context);
-              _showComingSoon('Profile Sharing');
+              _shareProfile();
             },
           ),
           ListTile(
             leading: Icon(Icons.download, color: theme.colorScheme.primary),
-            title: const Text('Export Data'),
+            title: Text(AppLocalizations.of(context)!.exportData, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(AppLocalizations.of(context)!.downloadYourOrderHistory, maxLines: 1, overflow: TextOverflow.ellipsis),
             onTap: () {
               Navigator.pop(context);
-              _showComingSoon('Data Export');
+              _exportOrderHistory();
             },
           ),
           SizedBox(height: 2.h),
         ]),
       ),
     );
+  }
+
+  // ============================================================
+  // SHARE PROFILE — User's name + app download link
+  // ============================================================
+
+  void _shareProfile() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userName = authProvider.fullName ?? AppLocalizations.of(context)!.aFriend;
+
+    final shareText = '$userName invites you to try KJ Delivery! '
+        'Get fresh groceries and meals delivered to your door in Lebanon. '
+        'Download now: https://play.google.com/store/apps/details?id=com.kjdelivery.app';
+
+    try {
+      await SharePlus.instance.share(
+        ShareParams(text: shareText),
+      );
+    } catch (e) {
+      // Fallback: copy to clipboard
+      await Clipboard.setData(ClipboardData(text: shareText));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.inviteLinkCopiedToClipboard, maxLines: 1, overflow: TextOverflow.ellipsis),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    }
+  }
+
+  // ============================================================
+  // EXPORT DATA — Order history as CSV file
+  // ============================================================
+
+  Future<void> _exportOrderHistory() async {
+    final theme = Theme.of(context);
+
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        content: Row(children: [
+          const CircularProgressIndicator(),
+          SizedBox(width: 5.w),
+          Flexible(child: Text(AppLocalizations.of(context)!.exportingOrderHistory, maxLines: 1, overflow: TextOverflow.ellipsis)),
+        ]),
+      ),
+    );
+
+    try {
+      final userId = SupabaseService.client.auth.currentUser?.id;
+      if (userId == null) {
+        if (mounted) Navigator.pop(context);
+        return;
+      }
+
+      // Fetch all orders
+      final ordersData = await SupabaseService.client
+          .from('orders')
+          .select('id, order_number, status, total, delivery_fee, subtotal, delivery_address, created_at, updated_at')
+          .eq('customer_id', userId)
+          .order('created_at', ascending: false);
+
+      final orders = ordersData as List;
+
+      if (orders.isEmpty) {
+        if (mounted) {
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(AppLocalizations.of(context)!.noOrdersToExport, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.orange),
+          );
+        }
+        return;
+      }
+
+      // Build CSV
+      final buffer = StringBuffer();
+      buffer.writeln('Order Number,Status,Subtotal,Delivery Fee,Total,Address,Date');
+
+      for (final order in orders) {
+        final orderNum = order['order_number'] ?? order['id'] ?? '';
+        final status = order['status'] ?? '';
+        final subtotal = (order['subtotal'] as num?)?.toStringAsFixed(2) ?? '0.00';
+        final deliveryFee = (order['delivery_fee'] as num?)?.toStringAsFixed(2) ?? '0.00';
+        final total = (order['total'] as num?)?.toStringAsFixed(2) ?? '0.00';
+        final address = (order['delivery_address'] as String? ?? '').replaceAll(',', ';');
+        final createdAt = order['created_at'] ?? '';
+
+        buffer.writeln('$orderNum,$status,\$$subtotal,\$$deliveryFee,\$$total,"$address",$createdAt');
+      }
+
+      // Save to temp file
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/kj_delivery_orders.csv');
+      await file.writeAsString(buffer.toString());
+
+      if (mounted) Navigator.pop(context); // Close loading dialog
+
+      // Share the file
+      try {
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(file.path)],
+            subject: AppLocalizations.of(context)!.kjDeliveryOrderHistory,
+          ),
+        );
+      } catch (e) {
+        // Fallback: show success with file path
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Exported ${orders.length} orders to ${file.path}', maxLines: 1, overflow: TextOverflow.ellipsis),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 }

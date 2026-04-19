@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class SubcategoryCardWidget extends StatelessWidget {
   final Map<String, dynamic> subcategory;
@@ -15,7 +17,7 @@ class SubcategoryCardWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final name = (subcategory['name'] as String?) ?? 'Category';
+    final name = (subcategory['name'] as String?) ?? AppLocalizations.of(context)!.category2;
     final desc = (subcategory['description'] as String?) ?? '';
     final imageUrl = (subcategory['image_url'] as String?) ?? '';
     final hasChildren =
@@ -61,10 +63,10 @@ class SubcategoryCardWidget extends StatelessWidget {
                     child: imageUrl.isNotEmpty
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(10),
-                            child: Image.network(
+                            child: CachedNetworkImage(imageUrl: 
                               imageUrl,
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Icon(
+                              errorWidget: (_, __, ___) => Icon(
                                 Icons.category,
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),

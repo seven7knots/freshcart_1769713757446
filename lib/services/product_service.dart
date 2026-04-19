@@ -1,3 +1,10 @@
+// ============================================================
+// FILE: lib/services/product_service.dart
+// ============================================================
+// Product service with CRUD operations
+// SESSION 27 FIX: Search now includes category field so searching
+// "Fruits", "Veggies", "Sandwiches" etc. returns matching products.
+// ============================================================
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -55,7 +62,7 @@ class ProductService {
 
       var query = _client
           .from('products')
-          .select()
+          .select('*, stores(name)')
           .eq('store_id', storeId);
 
       if (availableOnly) {
@@ -66,7 +73,7 @@ class ProductService {
         query = query.eq('is_demo', false);
       }
 
-      final response = await query.order('name', ascending: true);
+      final response = await query.order('created_at', ascending: false);
 
       final products = (response as List)
           .map((p) => Product.fromMap(p as Map<String, dynamic>))
@@ -76,113 +83,6 @@ class ProductService {
       return products;
     } catch (e) {
       debugPrint('[PRODUCT] Error fetching store products: $e');
-      rethrow;
-    }
-  }
-
-  /// Get products by category (within a store)
-  static Future<List<Product>> getProductsByCategory(
-    String storeId,
-    String category, {
-    bool availableOnly = true,
-  }) async {
-    try {
-      debugPrint('[PRODUCT] Fetching products for category: $category');
-
-      var query = _client
-          .from('products')
-          .select()
-          .eq('store_id', storeId)
-          .eq('category', category);
-
-      if (availableOnly) {
-        query = query.eq('is_available', true);
-      }
-
-      final response = await query.order('name', ascending: true);
-
-      final products = (response as List)
-          .map((p) => Product.fromMap(p as Map<String, dynamic>))
-          .toList();
-
-      debugPrint('[PRODUCT] Loaded ${products.length} products for category');
-      return products;
-    } catch (e) {
-      debugPrint('[PRODUCT] Error fetching category products: $e');
-      rethrow;
-    }
-  }
-
-  /// Get featured products
-  static Future<List<Product>> getFeaturedProducts({
-    String? storeId,
-    int limit = 10,
-    bool excludeDemo = true,
-  }) async {
-    try {
-      debugPrint('[PRODUCT] Fetching featured products...');
-
-      var query = _client
-          .from('products')
-          .select('*, stores(name)')
-          .eq('is_available', true)
-          .eq('is_featured', true);
-
-      if (storeId != null) {
-        query = query.eq('store_id', storeId);
-      }
-
-      if (excludeDemo) {
-        query = query.eq('is_demo', false);
-      }
-
-      final response = await query.limit(limit);
-
-      final products = (response as List)
-          .map((p) => Product.fromMap(p as Map<String, dynamic>))
-          .toList();
-
-      debugPrint('[PRODUCT] Loaded ${products.length} featured products');
-      return products;
-    } catch (e) {
-      debugPrint('[PRODUCT] Error fetching featured products: $e');
-      rethrow;
-    }
-  }
-
-  /// Get products on sale
-  static Future<List<Product>> getProductsOnSale({
-    String? storeId,
-    int limit = 20,
-    bool excludeDemo = true,
-  }) async {
-    try {
-      debugPrint('[PRODUCT] Fetching products on sale...');
-
-      var query = _client
-          .from('products')
-          .select('*, stores(name)')
-          .eq('is_available', true)
-          .not('sale_price', 'is', null);
-
-      if (storeId != null) {
-        query = query.eq('store_id', storeId);
-      }
-
-      if (excludeDemo) {
-        query = query.eq('is_demo', false);
-      }
-
-      final response = await query.limit(limit);
-
-      final products = (response as List)
-          .map((p) => Product.fromMap(p as Map<String, dynamic>))
-          .toList();
-
-      debugPrint('[PRODUCT] Loaded ${products.length} sale products');
-      return products;
-    } catch (e) {
-      debugPrint('[PRODUCT] Error fetching sale products: $e');
       rethrow;
     }
   }
@@ -198,11 +98,7 @@ class ProductService {
           .eq('id', id)
           .maybeSingle();
 
-      if (response == null) {
-        debugPrint('[PRODUCT] Product not found: $id');
-        return null;
-      }
-
+      if (response == null) return null;
       return Product.fromMap(response);
     } catch (e) {
       debugPrint('[PRODUCT] Error fetching product: $e');
@@ -210,37 +106,68 @@ class ProductService {
     }
   }
 
-  /// Get product by SKU
-  static Future<Product?> getProductBySku(String storeId, String sku) async {
+  /// Get featured products
+  static Future<List<Product>> getFeaturedProducts({
+    int limit = 20,
+    bool excludeDemo = true,
+  }) async {
     try {
-      final response = await _client
-          .from('products')
-          .select()
-          .eq('store_id', storeId)
-          .eq('sku', sku)
-          .maybeSingle();
+      debugPrint('[PRODUCT] Fetching featured products...');
 
-      if (response == null) return null;
-      return Product.fromMap(response);
+      var query = _client
+          .from('products')
+          .select('*, stores(name)')
+          .eq('is_available', true)
+          .eq('is_featured', true);
+
+      if (excludeDemo) {
+        query = query.eq('is_demo', false);
+      }
+
+      final response =
+          await query.order('created_at', ascending: false).limit(limit);
+
+      final products = (response as List)
+          .map((p) => Product.fromMap(p as Map<String, dynamic>))
+          .toList();
+
+      debugPrint('[PRODUCT] Loaded ${products.length} featured products');
+      return products;
     } catch (e) {
-      debugPrint('[PRODUCT] Error fetching product by SKU: $e');
+      debugPrint('[PRODUCT] Error fetching featured products: $e');
       rethrow;
     }
   }
 
-  /// Get product by barcode
-  static Future<Product?> getProductByBarcode(String barcode) async {
+  /// Get products on sale
+  static Future<List<Product>> getProductsOnSale({
+    int limit = 20,
+    bool excludeDemo = true,
+  }) async {
     try {
-      final response = await _client
+      debugPrint('[PRODUCT] Fetching products on sale...');
+
+      var query = _client
           .from('products')
           .select('*, stores(name)')
-          .eq('barcode', barcode)
-          .maybeSingle();
+          .eq('is_available', true)
+          .not('sale_price', 'is', null);
 
-      if (response == null) return null;
-      return Product.fromMap(response);
+      if (excludeDemo) {
+        query = query.eq('is_demo', false);
+      }
+
+      final response =
+          await query.order('created_at', ascending: false).limit(limit);
+
+      final products = (response as List)
+          .map((p) => Product.fromMap(p as Map<String, dynamic>))
+          .toList();
+
+      debugPrint('[PRODUCT] Loaded ${products.length} sale products');
+      return products;
     } catch (e) {
-      debugPrint('[PRODUCT] Error fetching product by barcode: $e');
+      debugPrint('[PRODUCT] Error fetching sale products: $e');
       rethrow;
     }
   }
@@ -294,6 +221,9 @@ class ProductService {
         'is_featured': isFeatured,
         'is_demo': false,
       };
+
+      // Remove null values
+      data.removeWhere((key, value) => value == null);
 
       final response = await _client
           .from('products')
@@ -356,7 +286,8 @@ class ProductService {
   }
 
   /// Update price
-  static Future<void> updatePrice(String id, double price, {double? salePrice}) async {
+  static Future<void> updatePrice(String id, double price,
+      {double? salePrice}) async {
     final updates = <String, dynamic>{'price': price};
     if (salePrice != null) {
       updates['sale_price'] = salePrice;
@@ -378,10 +309,7 @@ class ProductService {
     try {
       debugPrint('[PRODUCT] Deleting product: $id');
 
-      await _client
-          .from('products')
-          .delete()
-          .eq('id', id);
+      await _client.from('products').delete().eq('id', id);
 
       debugPrint('[PRODUCT] Product deleted: $id');
     } catch (e) {
@@ -399,7 +327,10 @@ class ProductService {
   // SEARCH & UTILITY
   // ============================================================
 
-  /// Search products by name
+  /// Search products by name, description, or category
+  /// Note: PostgREST does not support filtering on joined table
+  /// columns inside .or() — store name search is done client-side
+  /// after fetching results via a separate store lookup if needed.
   static Future<List<Product>> searchProducts(
     String query, {
     String? storeId,
@@ -408,10 +339,11 @@ class ProductService {
     try {
       debugPrint('[PRODUCT] Searching products: $query');
 
+      // Search by product name, arabic name, description, category
       var dbQuery = _client
           .from('products')
           .select('*, stores(name)')
-          .or('name.ilike.%$query%,name_ar.ilike.%$query%,description.ilike.%$query%');
+          .or('name.ilike.%$query%,name_ar.ilike.%$query%,description.ilike.%$query%,category.ilike.%$query%');
 
       if (storeId != null) {
         dbQuery = dbQuery.eq('store_id', storeId);
@@ -438,9 +370,6 @@ class ProductService {
   /// Get low stock products for a store
   static Future<List<Product>> getLowStockProducts(String storeId) async {
     try {
-      // This query gets products where stock_quantity <= low_stock_threshold
-      // Since we can't do column comparison in PostgREST easily,
-      // we'll filter in code
       final response = await _client
           .from('products')
           .select()
@@ -483,4 +412,3 @@ class ProductService {
     }
   }
 }
-

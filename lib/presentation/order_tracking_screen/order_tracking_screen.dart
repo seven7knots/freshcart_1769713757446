@@ -9,6 +9,9 @@ import '../../core/app_export.dart';
 import '../../models/order_model.dart';
 import '../../providers/order_provider.dart';
 import '../../services/supabase_service.dart';
+import '../../widgets/driver_rating_dialog.dart';
+import '../../widgets/store_rating_dialog.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class OrderTrackingScreen extends ConsumerStatefulWidget {
   const OrderTrackingScreen({super.key});
@@ -22,6 +25,12 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   String? _orderId;
   bool _isLoading = true;
   String? _error;
+  bool _hasRated = false;      // SESSION 20: Track if user already rated driver
+  bool _hasRatedStore = false; // SESSION 34: Track if user already rated store
+
+  // SESSION 44: Cache notifier ref so dispose() doesn't crash
+  // (ref.read() is illegal after widget unmount)
+  dynamic _orderTrackingNotifier;
 
   @override
   void didChangeDependencies() {
@@ -31,16 +40,19 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     String? orderId;
 
     if (args is Map<String, dynamic>) {
-      // Could be {'orderId': '...'} OR the full order response from checkout
       orderId = args['orderId'] as String? ?? args['id'] as String?;
     } else if (args is String) {
-      // Direct order ID string
       orderId = args;
     }
 
     if (orderId != null && orderId != _orderId) {
       _orderId = orderId;
-      _subscribeToOrder();
+      // SESSION 44: Cache notifier for safe dispose
+      _orderTrackingNotifier = ref.read(orderTrackingProvider.notifier);
+      // SESSION 44: Defer to avoid "modify provider during build" crash
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _subscribeToOrder();
+      });
     }
   }
 
@@ -54,6 +66,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       await ref
           .read(orderTrackingProvider.notifier)
           .subscribeToOrderUpdates(_orderId!);
+      // SESSION 20: Check if already rated driver
+      await _checkIfRated();
+      // SESSION 34: Check if already rated store
+      await _checkIfRatedStore();
       if (mounted) setState(() => _isLoading = false);
     } catch (e) {
       if (mounted) {
@@ -65,10 +81,174 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     }
   }
 
+  // SESSION 20: Check if user already rated this order's driver
+  Future<void> _checkIfRated() async {
+    try {
+      final userId = SupabaseService.client.auth.currentUser?.id;
+      if (userId == null || _orderId == null) return;
+
+      final existing = await SupabaseService.client
+          .from('driver_ratings')
+          .select('id')
+          .eq('order_id', _orderId!)
+          .eq('customer_id', userId)
+          .maybeSingle();
+
+      if (mounted) {
+        setState(() => _hasRated = existing != null);
+      }
+    } catch (e) {
+      debugPrint('[RATING] Error checking rating: $e');
+    }
+  }
+
+  // SESSION 20: Show driver rating dialog
+  Future<void> _showRatingDialog(OrderModel order) async {
+    if (order.driverId == null) return;
+
+    // Get driver's internal ID (not user_id)
+    String driverId = order.driverId!;
+    String? driverName;
+
+    try {
+      // The order.driverId might be the user_id, get the driver record
+      final driverData = await SupabaseService.client
+          .from('drivers')
+          .select('id, full_name')
+          .eq('user_id', order.driverId!)
+          .maybeSingle();
+
+      if (driverData != null) {
+        driverId = driverData['id'] as String;
+        driverName = driverData['full_name'] as String?;
+      }
+    } catch (e) { debugPrint('[ORDER_TRACKING_SCREEN] Silent error: $e'); }
+
+    if (!mounted) return;
+
+    final rated = await DriverRatingDialog.show(
+      context,
+      orderId: order.id,
+      driverId: driverId,
+      driverName: driverName,
+    );
+
+    if (rated == true && mounted) {
+      setState(() => _hasRated = true);
+    }
+  }
+
+  // SESSION 34: Check if user already rated the store for this order
+  Future<void> _checkIfRatedStore() async {
+    try {
+      final userId = SupabaseService.client.auth.currentUser?.id;
+      if (userId == null || _orderId == null) return;
+
+      final existing = await SupabaseService.client
+          .from('store_ratings')
+          .select('id')
+          .eq('order_id', _orderId!)
+          .eq('customer_id', userId)
+          .maybeSingle();
+
+      if (mounted) {
+        setState(() => _hasRatedStore = existing != null);
+      }
+    } catch (e) {
+      debugPrint('[STORE_RATING] Error checking rating: $e');
+    }
+  }
+
+  // SESSION 34: Show store rating dialog
+  Future<void> _showStoreRatingDialog(OrderModel order) async {
+    final storeId = order.storeId;
+    if (storeId == null || storeId.isEmpty) return;
+
+    // Fetch store name for the dialog
+    String? storeName;
+    try {
+      final storeData = await SupabaseService.client
+          .from('stores')
+          .select('name')
+          .eq('id', storeId)
+          .maybeSingle();
+      storeName = storeData?['name'] as String?;
+    } catch (e) { debugPrint('[ORDER_TRACKING_SCREEN] Silent error: $e'); }
+
+    if (!mounted) return;
+
+    final rated = await StoreRatingDialog.show(
+      context,
+      orderId: order.id,
+      storeId: storeId,
+      storeName: storeName,
+    );
+
+    if (rated == true && mounted) {
+      setState(() => _hasRatedStore = true);
+    }
+  }
+
   @override
   void dispose() {
-    ref.read(orderTrackingProvider.notifier).unsubscribe();
+    // SESSION 44: Use cached notifier — ref.read() crashes after unmount
+    try {
+      _orderTrackingNotifier?.unsubscribe();
+    } catch (_) {
+      // Swallow — widget is being torn down, nothing to do
+    }
     super.dispose();
+  }
+
+  // ============================================================
+  // NAVIGATE TO AI MATE (Support)
+  // ============================================================
+
+  void _navigateToAiMate() {
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.mainLayout,
+      (route) => false,
+      arguments: {'initialIndex': 2},
+    );
+  }
+
+  // ============================================================
+  // CALL / WHATSAPP SUPPORT
+  // ============================================================
+
+  Future<void> _callSupport() async {
+    final url = Uri.parse('tel:+96181483570');
+    try {
+      await launchUrl(url, mode: LaunchMode.platformDefault);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.couldNotOpenDialerCall961, maxLines: 1, overflow: TextOverflow.ellipsis)),
+        );
+      }
+    }
+  }
+
+  Future<void> _whatsappSupport() async {
+    final whatsappUrl = Uri.parse('whatsapp://send?phone=96181483570');
+    final webUrl = Uri.parse('https://wa.me/96181483570');
+    try {
+      final launched = await launchUrl(whatsappUrl, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        await launchUrl(webUrl, mode: LaunchMode.externalNonBrowserApplication);
+      }
+    } catch (_) {
+      try {
+        await launchUrl(webUrl, mode: LaunchMode.platformDefault);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(AppLocalizations.of(context)!.couldNotOpenWhatsappPleaseContact, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          );
+        }
+      }
+    }
   }
 
   // ============================================================
@@ -91,42 +271,42 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
   String _statusTitle(String status) {
     switch (status) {
       case 'pending':
-        return 'Order Placed';
+        return AppLocalizations.of(context)!.orderPlaced;
       case 'accepted':
-        return 'Order Accepted';
+        return AppLocalizations.of(context)!.orderAccepted2;
       case 'assigned':
-        return 'Driver Assigned';
+        return AppLocalizations.of(context)!.driverAssigned2;
       case 'picked_up':
-        return 'Order Picked Up';
+        return AppLocalizations.of(context)!.orderPickedUp;
       case 'delivered':
-        return 'Order Delivered';
+        return AppLocalizations.of(context)!.orderDelivered;
       case 'rejected':
-        return 'Order Rejected';
+        return AppLocalizations.of(context)!.orderRejected2;
       case 'cancelled':
-        return 'Order Cancelled';
+        return AppLocalizations.of(context)!.orderCancelled2;
       default:
-        return 'Processing';
+        return AppLocalizations.of(context)!.processing;
     }
   }
 
   String _statusDescription(String status) {
     switch (status) {
       case 'pending':
-        return 'Your order is being reviewed by the store';
+        return AppLocalizations.of(context)!.yourOrderIsBeingReviewedBy;
       case 'accepted':
-        return 'Store accepted your order, assigning a driver';
+        return AppLocalizations.of(context)!.storeAcceptedYourOrderAssigningA;
       case 'assigned':
-        return 'A driver has been assigned and is heading to the store';
+        return AppLocalizations.of(context)!.aDriverHasBeenAssignedAnd;
       case 'picked_up':
-        return 'Your order is on the way to you!';
+        return AppLocalizations.of(context)!.yourOrderIsOnTheWay;
       case 'delivered':
-        return 'Your order has been delivered. Enjoy!';
+        return AppLocalizations.of(context)!.yourOrderHasBeenDeliveredEnjoy;
       case 'rejected':
-        return 'Unfortunately, your order was rejected';
+        return AppLocalizations.of(context)!.unfortunatelyYourOrderWasRejected;
       case 'cancelled':
-        return 'This order has been cancelled';
+        return AppLocalizations.of(context)!.thisOrderHasBeenCancelled;
       default:
-        return 'Processing your order...';
+        return AppLocalizations.of(context)!.processingYourOrder;
     }
   }
 
@@ -182,9 +362,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Order Tracking',
+        title: Text(AppLocalizations.of(context)!.orderTracking,
             style: theme.textTheme.titleLarge
-                ?.copyWith(fontWeight: FontWeight.w700)),
+                ?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
               icon: const Icon(Icons.refresh), onPressed: _subscribeToOrder),
@@ -213,19 +393,19 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                 Icon(Icons.error_outline,
                     size: 48, color: theme.colorScheme.error),
                 SizedBox(height: 2.h),
-                Text('Error Loading Order',
+                Text(AppLocalizations.of(context)!.errorLoadingOrder,
                     style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w600)),
+                        ?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 1.h),
                 Text(_error!,
                     style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant),
-                    textAlign: TextAlign.center),
+                    textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 3.h),
                 ElevatedButton.icon(
                     onPressed: _subscribeToOrder,
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Retry')),
+                    label: Text(AppLocalizations.of(context)!.retry, maxLines: 1, overflow: TextOverflow.ellipsis)),
               ],
             )));
   }
@@ -238,9 +418,9 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           Icon(Icons.receipt_long_outlined,
               size: 60, color: theme.colorScheme.onSurfaceVariant),
           SizedBox(height: 2.h),
-          Text('Order Not Found',
+          Text(AppLocalizations.of(context)!.orderNotFound,
               style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w600)),
+                  ?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
         ]));
   }
 
@@ -280,20 +460,116 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                       onPressed: () => _cancelOrder(order.id),
                       icon: const Icon(Icons.cancel_outlined,
                           color: Colors.red),
-                      label: const Text('Cancel Order',
-                          style: TextStyle(color: Colors.red)),
+                      label: Text(AppLocalizations.of(context)!.cancelOrder,
+                          style: TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis),
                       style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Colors.red)),
                     )),
-              if (status == 'delivered')
+              // SESSION 20: Rate Driver + Back to Home when delivered
+              if (status == 'delivered') ...[
+                // Rate driver button (only if not yet rated and has a driver)
+                if (!_hasRated && order.driverId != null) ...[
+                  SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showRatingDialog(order),
+                        icon: const Icon(Icons.star_rounded),
+                        label: Text(AppLocalizations.of(context)!.rateYourDriver, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber[700],
+                          foregroundColor: Colors.white,
+                          padding: EdgeInsets.symmetric(vertical: 1.5.h),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      )),
+                  SizedBox(height: 1.5.h),
+                ],
+                // Already rated indicator
+                if (_hasRated) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(vertical: 1.5.h),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                        SizedBox(width: 2.w),
+                        Flexible(child: Text(AppLocalizations.of(context)!.driverRated,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.green, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 1.5.h),
+                ],
+                // SESSION 34: Rate store button
+                if (!_hasRatedStore) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _showStoreRatingDialog(order),
+                      icon: const Icon(Icons.store_rounded),
+                      label: Text(AppLocalizations.of(context)!.rateThisStore, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        foregroundColor: theme.colorScheme.onPrimary,
+                        padding: EdgeInsets.symmetric(vertical: 1.5.h),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 1.5.h),
+                ],
+                // Store already rated indicator
+                if (_hasRatedStore) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(vertical: 1.5.h),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                          color: theme.colorScheme.primary.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle,
+                            color: theme.colorScheme.primary, size: 20),
+                        SizedBox(width: 2.w),
+                        Flexible(
+                          child: Text(
+                            AppLocalizations.of(context)!.storeRated,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 1.5.h),
+                ],
                 SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () => Navigator.pushNamedAndRemoveUntil(
                           context, AppRoutes.mainLayout, (r) => false),
                       icon: const Icon(Icons.home),
-                      label: const Text('Back to Home'),
+                      label: Text(AppLocalizations.of(context)!.backToHome, maxLines: 1, overflow: TextOverflow.ellipsis),
                     )),
+              ],
               SizedBox(height: 4.h),
             ]),
       ),
@@ -323,7 +599,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                     color: color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(16)),
                 child: Icon(_statusIcon(status), color: color, size: 28),
               ),
               SizedBox(width: 3.w),
@@ -333,11 +609,11 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                       children: [
                     Text(_statusTitle(status),
                         style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700, color: color)),
+                            fontWeight: FontWeight.w700, color: color), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 0.3.h),
                     Text(_statusDescription(status),
                         style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant)),
+                            color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ])),
             ]),
             SizedBox(height: 2.h),
@@ -345,36 +621,36 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               Icon(Icons.receipt,
                   size: 14, color: theme.colorScheme.onSurfaceVariant),
               SizedBox(width: 1.w),
-              Text(
+              Flexible(child: Text(
                   'Order #${order.orderNumber ?? order.id.substring(0, 8)}',
                   style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant)),
+                      color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis)),
               const Spacer(),
-              Text('\$${order.total.toStringAsFixed(2)}',
+              Flexible(child: Text('\$${order.total.toStringAsFixed(2)}',
                   style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.primary)),
+                      color: theme.colorScheme.primary), maxLines: 1, overflow: TextOverflow.ellipsis)),
             ]),
             SizedBox(height: 0.5.h),
             Row(children: [
               Icon(Icons.payment,
-                  size: 14, color: theme.colorScheme.onSurfaceVariant),
+                  size: 14, color: Colors.grey),
               SizedBox(width: 1.w),
-              Text(
+              Flexible(child: Text(
                   order.paymentMethod == 'cash_on_delivery'
                       ? 'Cash on Delivery'
                       : order.paymentMethod == 'whish_money'
                           ? 'Whish Money'
                           : order.paymentMethod ?? 'N/A',
                   style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant)),
+                      color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis)),
             ]),
           ]),
     );
   }
 
   // ============================================================
-  // MAP SECTION — Embedded Google Map
+  // MAP SECTION
   // ============================================================
 
   Widget _buildMapSection(
@@ -404,7 +680,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         markers.add(Marker(
           markerId: const MarkerId('driver'),
           position: driverLatLng,
-          infoWindow: const InfoWindow(title: 'Driver'),
+          infoWindow: InfoWindow(title: 'Driver'),
           icon:
               BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         ));
@@ -437,7 +713,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         Container(
           padding: EdgeInsets.all(3.w),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
+            color: Colors.white,
             borderRadius:
                 const BorderRadius.vertical(bottom: Radius.circular(16)),
           ),
@@ -459,7 +735,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   onPressed: () =>
                       _openGoogleMaps(order, driverLocation),
                   icon: const Icon(Icons.navigation, size: 16),
-                  label: const Text('Track on Google Maps'),
+                  label: Text('Track on Google Maps', maxLines: 1, overflow: TextOverflow.ellipsis),
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.teal,
                       foregroundColor: Colors.white),
@@ -504,15 +780,15 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
               color: theme.colorScheme.outline.withOpacity(0.15))),
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Your Driver',
+            Text(AppLocalizations.of(context)!.yourDriver,
                 style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+                    ?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 1.5.h),
             Row(children: [
               CircleAvatar(
@@ -526,24 +802,23 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                    Text('Driver Assigned',
+                    Text(AppLocalizations.of(context)!.driverAssigned,
                         style: theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600)),
-                    Text('On the way',
+                            ?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(AppLocalizations.of(context)!.onTheWay,
                         style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant)),
+                            color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ])),
               IconButton(
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Calling driver...')));
+                  _callSupport();
                 },
                 icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                       color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8)),
+                      borderRadius: BorderRadius.circular(14)),
                   child: const Icon(Icons.phone,
                       color: Colors.green, size: 20),
                 ),
@@ -551,14 +826,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               IconButton(
                 onPressed: () {
                   HapticFeedback.lightImpact();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Opening chat...')));
+                  _navigateToAiMate();
                 },
                 icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                       color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8)),
+                      borderRadius: BorderRadius.circular(14)),
                   child: const Icon(Icons.chat,
                       color: Colors.blue, size: 20),
                 ),
@@ -581,7 +855,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
               color: theme.colorScheme.outline.withOpacity(0.15))),
       child: Column(
@@ -589,7 +863,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
           children: [
             Text('Order Progress',
                 style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+                    ?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 2.h),
             ...List.generate(_statusOrder.length, (i) {
               final status = _statusOrder[i];
@@ -620,8 +894,8 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                             decoration: BoxDecoration(
                                 color: dotColor, shape: BoxShape.circle),
                             child: isComplete
-                                ? const Icon(Icons.check,
-                                    size: 12, color: Colors.white)
+                                ? Icon(Icons.check,
+                                    size: 12, color: theme.colorScheme.surface)
                                 : isCurrent
                                     ? Container(
                                         margin: const EdgeInsets.all(6),
@@ -636,7 +910,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                                 height: 40,
                                 color: isComplete
                                     ? Colors.green
-                                    : theme.colorScheme.outline
+                                    : Colors.grey.shade400
                                         .withOpacity(0.2)),
                         ])),
                     SizedBox(width: 3.w),
@@ -652,16 +926,16 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                                         ? FontWeight.w600
                                         : FontWeight.normal,
                                     color: isFuture
-                                        ? theme.colorScheme.onSurfaceVariant
+                                        ? Colors.grey
                                             .withOpacity(0.5)
-                                        : theme.colorScheme.onSurface)),
+                                        : Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
                             Text(_statusDescription(status),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                     color: isFuture
-                                        ? theme.colorScheme.onSurfaceVariant
+                                        ? Colors.grey
                                             .withOpacity(0.3)
                                         : theme
-                                            .colorScheme.onSurfaceVariant)),
+                                            .colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
                           ]),
                     )),
                   ]);
@@ -689,10 +963,10 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
                           Text(_statusTitle(currentStatus),
                               style: theme.textTheme.bodyMedium?.copyWith(
                                   fontWeight: FontWeight.w600,
-                                  color: theme.colorScheme.error)),
+                                  color: theme.colorScheme.error), maxLines: 1, overflow: TextOverflow.ellipsis),
                           Text(_statusDescription(currentStatus),
                               style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.error)),
+                                  color: theme.colorScheme.error), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ])),
                   ]),
             ],
@@ -709,37 +983,37 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
               color: theme.colorScheme.outline.withOpacity(0.15))),
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Order Details',
+            Text(AppLocalizations.of(context)!.orderDetails,
                 style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+                    ?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 1.5.h),
             _detailRow(
-                theme, 'Subtotal', '\$${order.subtotal.toStringAsFixed(2)}'),
-            _detailRow(theme, 'Delivery Fee',
+                theme, AppLocalizations.of(context)!.subtotal, '\$${order.subtotal.toStringAsFixed(2)}'),
+            _detailRow(theme, AppLocalizations.of(context)!.deliveryFee,
                 '\$${order.deliveryFee.toStringAsFixed(2)}'),
             _detailRow(
-                theme, 'Tax', '\$${order.tax.toStringAsFixed(2)}'),
+                theme, AppLocalizations.of(context)!.tax, '\$${order.tax.toStringAsFixed(2)}'),
             if (order.discount > 0)
-              _detailRow(theme, 'Discount',
+              _detailRow(theme, AppLocalizations.of(context)!.discount,
                   '-\$${order.discount.toStringAsFixed(2)}',
                   isDiscount: true),
             Divider(height: 2.h),
             Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Total',
+                  Flexible(child: Text(AppLocalizations.of(context)!.total,
                       style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  Text('\$${order.total.toStringAsFixed(2)}',
+                          ?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  Flexible(child: Text('\$${order.total.toStringAsFixed(2)}',
                       style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.primary)),
+                          color: theme.colorScheme.primary), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ]),
             SizedBox(height: 1.h),
             Divider(height: 2.h),
@@ -750,7 +1024,7 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
               Expanded(
                   child: Text(order.deliveryAddress,
                       style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant))),
+                          color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis)),
             ]),
           ]),
     );
@@ -763,13 +1037,13 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label,
+            Flexible(child: Text(label,
                 style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant)),
-            Text(value,
+                    color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis)),
+            Flexible(child: Text(value,
                 style: theme.textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: isDiscount ? Colors.green : null)),
+                    color: isDiscount ? Colors.green : null), maxLines: 1, overflow: TextOverflow.ellipsis)),
           ],
         ));
   }
@@ -782,17 +1056,17 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
     final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-              title: const Text('Cancel Order?'),
+              title: Text(AppLocalizations.of(context)!.cancelOrder2, maxLines: 1, overflow: TextOverflow.ellipsis),
               content:
-                  const Text('Are you sure you want to cancel this order?'),
+                  Text(AppLocalizations.of(context)!.areYouSureYouWantTo2, maxLines: 1, overflow: TextOverflow.ellipsis),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('No')),
+                    child: Text(AppLocalizations.of(context)!.no2, maxLines: 1, overflow: TextOverflow.ellipsis)),
                 TextButton(
                     onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('Yes, Cancel',
-                        style: TextStyle(color: Colors.red))),
+                    child: Text(AppLocalizations.of(context)!.yesCancel,
+                        style: TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis)),
               ],
             ));
     if (confirm != true) return;
@@ -804,60 +1078,92 @@ class _OrderTrackingScreenState extends ConsumerState<OrderTrackingScreen> {
         'cancellation_reason': 'Cancelled by customer',
       }).eq('id', orderId);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Order cancelled'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context)!.orderCancelled, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.orange));
         _subscribeToOrder();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Failed to cancel: $e'),
+            content: Text('Failed to cancel: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.red));
       }
     }
   }
 
   // ============================================================
-  // SUPPORT
+  // SUPPORT BOTTOM SHEET
   // ============================================================
 
   void _showSupportSheet(ThemeData theme) {
     showModalBottomSheet(
         context: context,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
         builder: (ctx) => Container(
               padding: EdgeInsets.all(6.w),
               child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Need Help?',
+                    Text(AppLocalizations.of(context)!.needHelp,
                         style: theme.textTheme.titleLarge
-                            ?.copyWith(fontWeight: FontWeight.w600)),
+                            ?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 2.h),
                     Text(
-                        'Contact our support team for any delivery issues.',
+                        AppLocalizations.of(context)!.getInstantHelpFromOurAi,
                         style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant),
-                        textAlign: TextAlign.center),
+                        textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 3.h),
                     ListTile(
-                        leading:
-                            const Icon(Icons.chat, color: Colors.blue),
-                        title: const Text('Live Chat'),
-                        subtitle: const Text('Chat with support'),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.smart_toy, color: Colors.blue),
+                        ),
+                        title: Text(AppLocalizations.of(context)!.aiMate, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(AppLocalizations.of(context)!.chatWithOurAiAssistant, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: const Icon(Icons.chevron_right),
                         onTap: () {
                           Navigator.pop(ctx);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Opening chat...')));
+                          _navigateToAiMate();
                         }),
                     ListTile(
-                        leading:
-                            const Icon(Icons.phone, color: Colors.green),
-                        title: const Text('Call Support'),
-                        subtitle: const Text('+961 XX XXX XXX'),
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.phone, color: Colors.green),
+                        ),
+                        title: Text(AppLocalizations.of(context)!.callSupport, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: const Text('+961 81-483570'),
+                        trailing: const Icon(Icons.chevron_right),
                         onTap: () {
                           Navigator.pop(ctx);
+                          _callSupport();
+                        }),
+                    ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF25D366).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.message, color: Color(0xFF25D366)),
+                        ),
+                        title: Text(AppLocalizations.of(context)!.whatsapp, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(AppLocalizations.of(context)!.n247Support, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.pop(ctx);
+                          _whatsappSupport();
                         }),
                     SizedBox(height: 2.h),
                   ]),

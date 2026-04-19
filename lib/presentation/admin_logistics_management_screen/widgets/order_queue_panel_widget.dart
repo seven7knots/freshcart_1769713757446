@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../models/order_model.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class OrderQueuePanelWidget extends StatelessWidget {
   final List<OrderModel> orders;
@@ -56,25 +57,24 @@ class OrderQueuePanelWidget extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
+                Flexible(child: Text(
                   'Pending Orders (${orders.length})',
                   style: TextStyle(
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w600,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 if (selectedOrderIds.isNotEmpty)
                   Row(
                     children: [
                       TextButton(
                         onPressed: onClearSelection,
-                        child: const Text('Clear'),
+                        child: Text(AppLocalizations.of(context)!.clear, maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                       SizedBox(width: 2.w),
                       ElevatedButton.icon(
                         onPressed: onBatchAssign,
                         icon: const Icon(Icons.assignment_turned_in, size: 16),
-                        label: Text('Assign (${selectedOrderIds.length})'),
+                        label: Text('Assign (${selectedOrderIds.length})', maxLines: 1, overflow: TextOverflow.ellipsis),
                         style: ElevatedButton.styleFrom(
                           padding: EdgeInsets.symmetric(
                             horizontal: 3.w,
@@ -105,12 +105,11 @@ class OrderQueuePanelWidget extends StatelessWidget {
                         ),
                         SizedBox(height: 1.h),
                         Text(
-                          'No pending orders',
+                          AppLocalizations.of(context)!.noPendingOrders,
                           style: TextStyle(
                             fontSize: 14.sp,
                             color: Colors.grey.shade600,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   )
@@ -123,7 +122,7 @@ class OrderQueuePanelWidget extends StatelessWidget {
                       final order = orders[index];
                       final isSelected = selectedOrderIds.contains(order.id);
 
-                      return _buildOrderCard(order, isSelected);
+                      return _buildOrderCard(context, order, isSelected);
                     },
                   ),
           ),
@@ -132,7 +131,7 @@ class OrderQueuePanelWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildOrderCard(OrderModel order, bool isSelected) {
+  Widget _buildOrderCard(BuildContext context, OrderModel order, bool isSelected) {
     return GestureDetector(
       onTap: () => onOrderSelected(order.id),
       child: Container(
@@ -181,8 +180,7 @@ class OrderQueuePanelWidget extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14.sp,
                           fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(width: 2.w),
                       if (order.isPriority)
                         Container(
@@ -200,8 +198,7 @@ class OrderQueuePanelWidget extends StatelessWidget {
                               color: Colors.red,
                               fontSize: 10.sp,
                               fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                     ],
                   ),
@@ -229,8 +226,7 @@ class OrderQueuePanelWidget extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 11.sp,
                           color: Colors.grey.shade600,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(width: 3.w),
                       Container(
                         padding: EdgeInsets.symmetric(
@@ -247,8 +243,7 @@ class OrderQueuePanelWidget extends StatelessWidget {
                             color: _getStatusColor(order.status),
                             fontSize: 10.sp,
                             fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ),
@@ -266,8 +261,7 @@ class OrderQueuePanelWidget extends StatelessWidget {
                     fontSize: 15.sp,
                     fontWeight: FontWeight.bold,
                     color: Colors.black,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 if (order.driverId != null)
                   Container(
                     margin: EdgeInsets.only(top: 0.5.h),
@@ -280,13 +274,12 @@ class OrderQueuePanelWidget extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4.0),
                     ),
                     child: Text(
-                      'Assigned',
+                      AppLocalizations.of(context)!.assigned,
                       style: TextStyle(
                         color: Colors.green,
                         fontSize: 10.sp,
                         fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
               ],
             ),

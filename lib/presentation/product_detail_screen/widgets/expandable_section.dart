@@ -80,7 +80,7 @@ class _ExpandableSectionState extends State<ExpandableSection>
             color: Colors.transparent,
             child: InkWell(
               onTap: _toggleExpansion,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               child: Container(
                 padding: EdgeInsets.all(4.w),
                 child: Row(
@@ -91,8 +91,7 @@ class _ExpandableSectionState extends State<ExpandableSection>
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: theme.colorScheme.onSurface,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                     AnimatedRotation(
                       turns: _isExpanded ? 0.5 : 0.0,

@@ -9,6 +9,7 @@ import './widgets/goal_tracking_widget.dart';
 import './widgets/performance_header_widget.dart';
 import './widgets/performance_metrics_widget.dart';
 import './widgets/rating_display_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class DriverPerformanceDashboardScreen extends StatefulWidget {
   const DriverPerformanceDashboardScreen({super.key});
@@ -35,7 +36,7 @@ class _DriverPerformanceDashboardScreenState
   int _todayTotalDeliveries = 0;
   double _acceptanceRate = 0.0;
   double _customerRating = 5.0;
-  final int _totalRatings = 0;
+  int _totalRatings = 0;
   double _averageDeliveryTime = 0.0;
 
   double _weeklyEarnings = 0.0;
@@ -72,14 +73,14 @@ class _DriverPerformanceDashboardScreenState
 
       final driverData = await SupabaseService.client
           .from('drivers')
-          .select('id, is_online, rating')
+          .select('id, is_online, rating, total_deliveries')
           .eq('user_id', userId)
           .maybeSingle();
 
       if (driverData == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No driver profile found. Apply as a driver first.'), backgroundColor: Colors.orange),
+            SnackBar(content: Text(AppLocalizations.of(context)!.noDriverProfileFoundApplyAs, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.orange),
           );
           setState(() => _isLoading = false);
         }
@@ -89,6 +90,7 @@ class _DriverPerformanceDashboardScreenState
       _driverId = driverData['id'];
       _isOnline = driverData['is_online'] ?? false;
       _customerRating = (driverData['rating'] as num?)?.toDouble() ?? 5.0;
+      _totalRatings = (driverData['total_deliveries'] as num?)?.toInt() ?? 0;
 
       final userData = await SupabaseService.client
           .from('users')
@@ -96,13 +98,14 @@ class _DriverPerformanceDashboardScreenState
           .eq('id', userId)
           .single();
 
-      _driverName = userData['full_name'] ?? 'Driver';
+      _driverName = userData['full_name'] ?? AppLocalizations.of(context)!.driver2;
 
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day);
       final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
       final startOfMonth = DateTime(now.year, now.month, 1);
 
+      // SESSION 20 FIX: Query from 'orders' table (not empty 'deliveries' table)
       await _loadDailyMetrics(startOfDay);
       await _loadWeeklyMetrics(startOfWeek);
       await _loadMonthlyMetrics(startOfMonth);
@@ -115,114 +118,169 @@ class _DriverPerformanceDashboardScreenState
 
       setState(() => _isLoading = false);
     } catch (e) {
-      debugPrint('Error loading performance data: $e');
+      debugPrint('[DRIVER_PERF] Error loading performance data: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error loading data: $e', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red),
         );
       }
       setState(() => _isLoading = false);
     }
   }
 
+  // ============================================================
+  // SESSION 20 FIX: All metrics now query 'orders' table
+  // The old code queried 'deliveries' table which was empty.
+  // Driver earnings = delivery_fee from each completed order.
+  // ============================================================
+
   Future<void> _loadDailyMetrics(DateTime startOfDay) async {
-    final deliveries = await SupabaseService.client
-        .from('deliveries')
-        .select('status, driver_earnings, delivery_time, pickup_time')
-        .eq('driver_id', _driverId)
-        .gte('created_at', startOfDay.toIso8601String());
+    try {
+      // Get ALL orders assigned to this driver today
+      final orders = await SupabaseService.client
+          .from('orders')
+          .select('id, status, delivery_fee, total, created_at, updated_at')
+          .eq('driver_id', _driverId)
+          .gte('created_at', startOfDay.toIso8601String());
 
-    double totalEarnings = 0.0;
-    int completedCount = 0;
-    int assignedCount = 0;
-    int acceptedCount = 0;
-    double totalDeliveryTime = 0.0;
-    int deliveryTimeCount = 0;
+      double totalEarnings = 0.0;
+      int completedCount = 0;
+      int rejectedByDriverCount = 0;
+      int acceptedCount = 0;
 
-    for (var delivery in deliveries) {
-      final status = delivery['status'] as String;
-      if (status == 'delivered') {
-        completedCount++;
-        totalEarnings += (delivery['driver_earnings'] as num?)?.toDouble() ?? 0.0;
-        if (delivery['pickup_time'] != null && delivery['delivery_time'] != null) {
-          final pickupTime = DateTime.parse(delivery['pickup_time'] as String);
-          final deliveryTime = DateTime.parse(delivery['delivery_time'] as String);
-          totalDeliveryTime += deliveryTime.difference(pickupTime).inMinutes;
-          deliveryTimeCount++;
+      for (var order in orders) {
+        final status = order['status'] as String? ?? '';
+
+        if (status == 'delivered') {
+          completedCount++;
+          // Driver earnings = delivery fee from the order
+          final deliveryFee = (order['delivery_fee'] as num?)?.toDouble() ?? 0.0;
+          totalEarnings += deliveryFee;
+        }
+
+        // Count accepted orders (any status past 'assigned' means driver accepted)
+        if (['accepted', 'picked_up', 'in_transit', 'delivered'].contains(status)) {
+          acceptedCount++;
+        }
+
+        // Orders that were assigned but driver didn't accept
+        if (status == 'assigned') {
+          rejectedByDriverCount++;
         }
       }
-      if (status == 'assigned') assignedCount++;
-      if (['accepted', 'picked_up', 'in_transit', 'delivered'].contains(status)) acceptedCount++;
-    }
 
-    _todayEarnings = totalEarnings;
-    _todayCompletedDeliveries = completedCount;
-    _todayTotalDeliveries = deliveries.length;
-    _acceptanceRate = assignedCount > 0
-        ? (acceptedCount / (assignedCount + acceptedCount)) * 100
-        : 100.0;
-    _averageDeliveryTime = deliveryTimeCount > 0 ? totalDeliveryTime / deliveryTimeCount : 0.0;
+      _todayEarnings = totalEarnings;
+      _todayCompletedDeliveries = completedCount;
+      _todayTotalDeliveries = orders.length;
+
+      // Acceptance rate: accepted / (accepted + still-assigned)
+      final totalAssignments = acceptedCount + rejectedByDriverCount;
+      _acceptanceRate = totalAssignments > 0
+          ? (acceptedCount / totalAssignments) * 100
+          : 100.0;
+
+      // Average delivery time: estimate from completed orders
+      // Use time between created_at and updated_at for delivered orders
+      double totalMinutes = 0.0;
+      int timeCount = 0;
+      for (var order in orders) {
+        if (order['status'] == 'delivered' &&
+            order['created_at'] != null &&
+            order['updated_at'] != null) {
+          final created = DateTime.tryParse(order['created_at'] as String);
+          final updated = DateTime.tryParse(order['updated_at'] as String);
+          if (created != null && updated != null) {
+            final mins = updated.difference(created).inMinutes;
+            if (mins > 0 && mins < 180) {
+              // Sanity check: < 3 hours
+              totalMinutes += mins;
+              timeCount++;
+            }
+          }
+        }
+      }
+      _averageDeliveryTime = timeCount > 0 ? totalMinutes / timeCount : 0.0;
+
+      debugPrint('[DRIVER_PERF] Daily: $completedCount deliveries, \$$totalEarnings earnings');
+    } catch (e) {
+      debugPrint('[DRIVER_PERF] Error loading daily metrics: $e');
+    }
   }
 
   Future<void> _loadWeeklyMetrics(DateTime startOfWeek) async {
-    final deliveries = await SupabaseService.client
-        .from('deliveries')
-        .select('status, driver_earnings, delivery_time')
-        .eq('driver_id', _driverId)
-        .eq('status', 'delivered')
-        .gte('delivery_time', startOfWeek.toIso8601String())
-        .order('delivery_time', ascending: true);
+    try {
+      final orders = await SupabaseService.client
+          .from('orders')
+          .select('id, status, delivery_fee, updated_at')
+          .eq('driver_id', _driverId)
+          .eq('status', 'delivered')
+          .gte('updated_at', startOfWeek.toIso8601String())
+          .order('updated_at', ascending: true);
 
-    double totalEarnings = 0.0;
-    Map<String, double> dailyEarnings = {};
+      double totalEarnings = 0.0;
+      Map<String, double> dailyEarnings = {};
 
-    for (var delivery in deliveries) {
-      final earnings = (delivery['driver_earnings'] as num?)?.toDouble() ?? 0.0;
-      totalEarnings += earnings;
-      if (delivery['delivery_time'] != null) {
-        final date = DateTime.parse(delivery['delivery_time'] as String);
-        final dayKey = '${date.year}-${date.month}-${date.day}';
-        dailyEarnings[dayKey] = (dailyEarnings[dayKey] ?? 0.0) + earnings;
+      for (var order in orders) {
+        final earnings = (order['delivery_fee'] as num?)?.toDouble() ?? 0.0;
+        totalEarnings += earnings;
+
+        if (order['updated_at'] != null) {
+          final date = DateTime.parse(order['updated_at'] as String);
+          final dayKey = '${date.year}-${date.month}-${date.day}';
+          dailyEarnings[dayKey] = (dailyEarnings[dayKey] ?? 0.0) + earnings;
+        }
       }
-    }
 
-    _weeklyEarnings = totalEarnings;
-    _weeklyCompletedDeliveries = deliveries.length;
-    _weeklyEarningsData = dailyEarnings.entries
-        .map((e) => {'date': e.key, 'earnings': e.value})
-        .toList();
+      _weeklyEarnings = totalEarnings;
+      _weeklyCompletedDeliveries = orders.length;
+      _weeklyEarningsData = dailyEarnings.entries
+          .map((e) => {'date': e.key, 'earnings': e.value})
+          .toList();
+
+      debugPrint('[DRIVER_PERF] Weekly: ${orders.length} deliveries, \$$totalEarnings earnings');
+    } catch (e) {
+      debugPrint('[DRIVER_PERF] Error loading weekly metrics: $e');
+    }
   }
 
   Future<void> _loadMonthlyMetrics(DateTime startOfMonth) async {
-    final deliveries = await SupabaseService.client
-        .from('deliveries')
-        .select('status, driver_earnings, delivery_time')
-        .eq('driver_id', _driverId)
-        .eq('status', 'delivered')
-        .gte('delivery_time', startOfMonth.toIso8601String())
-        .order('delivery_time', ascending: true);
+    try {
+      final orders = await SupabaseService.client
+          .from('orders')
+          .select('id, status, delivery_fee, updated_at')
+          .eq('driver_id', _driverId)
+          .eq('status', 'delivered')
+          .gte('updated_at', startOfMonth.toIso8601String())
+          .order('updated_at', ascending: true);
 
-    double totalEarnings = 0.0;
-    Map<String, double> weeklyEarnings = {};
+      double totalEarnings = 0.0;
+      Map<String, double> weeklyEarnings = {};
 
-    for (var delivery in deliveries) {
-      final earnings = (delivery['driver_earnings'] as num?)?.toDouble() ?? 0.0;
-      totalEarnings += earnings;
-      if (delivery['delivery_time'] != null) {
-        final date = DateTime.parse(delivery['delivery_time'] as String);
-        final weekNumber = ((date.day - 1) / 7).floor() + 1;
-        final weekKey = 'Week $weekNumber';
-        weeklyEarnings[weekKey] = (weeklyEarnings[weekKey] ?? 0.0) + earnings;
+      for (var order in orders) {
+        final earnings = (order['delivery_fee'] as num?)?.toDouble() ?? 0.0;
+        totalEarnings += earnings;
+
+        if (order['updated_at'] != null) {
+          final date = DateTime.parse(order['updated_at'] as String);
+          final weekNumber = ((date.day - 1) / 7).floor() + 1;
+          final weekKey = 'Week $weekNumber';
+          weeklyEarnings[weekKey] = (weeklyEarnings[weekKey] ?? 0.0) + earnings;
+        }
       }
-    }
 
-    _monthlyEarnings = totalEarnings;
-    _monthlyCompletedDeliveries = deliveries.length;
-    _monthlyEarningsData = weeklyEarnings.entries
-        .map((e) => {'week': e.key, 'earnings': e.value})
-        .toList();
+      _monthlyEarnings = totalEarnings;
+      _monthlyCompletedDeliveries = orders.length;
+      _monthlyEarningsData = weeklyEarnings.entries
+          .map((e) => {'week': e.key, 'earnings': e.value})
+          .toList();
+
+      debugPrint('[DRIVER_PERF] Monthly: ${orders.length} deliveries, \$$totalEarnings earnings');
+    } catch (e) {
+      debugPrint('[DRIVER_PERF] Error loading monthly metrics: $e');
+    }
   }
 
+  // SESSION 20 FIX: Subscribe to orders table (not deliveries)
   void _subscribeToRealtimeUpdates() {
     if (_driverId.isEmpty) return;
     _performanceChannel?.unsubscribe();
@@ -231,7 +289,7 @@ class _DriverPerformanceDashboardScreenState
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
-          table: 'deliveries',
+          table: 'orders',
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: 'driver_id',
@@ -246,7 +304,7 @@ class _DriverPerformanceDashboardScreenState
   }
 
   void _navigateToLogin() {
-    Navigator.of(context).pushReplacementNamed(AppRoutes.driverLogin);
+    Navigator.of(context).pushReplacementNamed(AppRoutes.authentication);
   }
 
   @override
@@ -256,7 +314,7 @@ class _DriverPerformanceDashboardScreenState
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Performance Dashboard'),
+        title: Text(AppLocalizations.of(context)!.performanceDashboard, maxLines: 1, overflow: TextOverflow.ellipsis),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
@@ -272,10 +330,10 @@ class _DriverPerformanceDashboardScreenState
             unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
             indicatorColor: theme.colorScheme.primary,
             indicatorWeight: 3,
-            tabs: const [
-              Tab(text: 'Daily'),
-              Tab(text: 'Weekly'),
-              Tab(text: 'Monthly'),
+            tabs: [
+              Tab(text: AppLocalizations.of(context)!.daily),
+              Tab(text: AppLocalizations.of(context)!.weekly),
+              Tab(text: AppLocalizations.of(context)!.monthly),
             ],
           ),
         ),
@@ -320,9 +378,9 @@ class _DriverPerformanceDashboardScreenState
       physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.all(4.w),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _buildSummaryCard(title: 'Weekly Summary', earnings: _weeklyEarnings, deliveries: _weeklyCompletedDeliveries),
+        _buildSummaryCard(title: AppLocalizations.of(context)!.weeklySummary, earnings: _weeklyEarnings, deliveries: _weeklyCompletedDeliveries),
         SizedBox(height: 2.h),
-        EarningsChartWidget(title: 'Weekly Earnings Trend', data: _weeklyEarningsData, period: 'weekly'),
+        EarningsChartWidget(title: AppLocalizations.of(context)!.weeklyEarningsTrend, data: _weeklyEarningsData, period: 'weekly'),
         SizedBox(height: 2.h),
         RatingDisplayWidget(rating: _customerRating, totalRatings: _totalRatings),
       ]),
@@ -334,9 +392,9 @@ class _DriverPerformanceDashboardScreenState
       physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.all(4.w),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        _buildSummaryCard(title: 'Monthly Summary', earnings: _monthlyEarnings, deliveries: _monthlyCompletedDeliveries),
+        _buildSummaryCard(title: AppLocalizations.of(context)!.monthlySummary, earnings: _monthlyEarnings, deliveries: _monthlyCompletedDeliveries),
         SizedBox(height: 2.h),
-        EarningsChartWidget(title: 'Monthly Earnings Trend', data: _monthlyEarningsData, period: 'monthly'),
+        EarningsChartWidget(title: AppLocalizations.of(context)!.monthlyEarningsTrend, data: _monthlyEarningsData, period: 'monthly'),
         SizedBox(height: 2.h),
         RatingDisplayWidget(rating: _customerRating, totalRatings: _totalRatings),
       ]),
@@ -355,13 +413,13 @@ class _DriverPerformanceDashboardScreenState
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: TextStyle(color: Colors.white, fontSize: 14.sp, fontWeight: FontWeight.w600)),
+        Text(title, style: TextStyle(color: Colors.white, fontSize: 14.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 2.h),
         Text('\$${earnings.toStringAsFixed(2)}',
-            style: TextStyle(color: Colors.white, fontSize: 28.sp, fontWeight: FontWeight.bold)),
+            style: TextStyle(color: Colors.white, fontSize: 28.sp, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         Text('$deliveries Deliveries Completed',
-            style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12.sp)),
+            style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
       ]),
     );
   }

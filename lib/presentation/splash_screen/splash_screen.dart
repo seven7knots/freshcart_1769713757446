@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
-import '../../services/supabase_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -21,8 +21,7 @@ class _SplashScreenState extends State<SplashScreen>
   late Animation<double> _pulseAnimation;
   late Animation<double> _shimmerAnimation;
 
-  bool _isInitialized = false;
-  String _loadingText = 'Initializing...';
+  final String _loadingText = 'Loading...';
 
   @override
   void initState() {
@@ -93,115 +92,14 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _initializeApp() async {
-    try {
-      // Simulate initialization tasks
-      await Future.delayed(const Duration(milliseconds: 500));
-
-      setState(() {
-        _loadingText = 'Loading preferences...';
-      });
-      await _loadUserPreferences();
-
-      setState(() {
-        _loadingText = 'Checking location...';
-      });
-      await _checkLocationPermissions();
-
-      setState(() {
-        _loadingText = 'Preparing your delivery...';
-      });
-      await _prepareCachedData();
-
-      setState(() {
-        _loadingText = 'Almost ready...';
-      });
-      await Future.delayed(const Duration(milliseconds: 800));
-
-      setState(() {
-        _isInitialized = true;
-      });
-
-      // Navigate after initialization
-      await Future.delayed(const Duration(milliseconds: 500));
-      _navigateToNextScreen();
-    } catch (e) {
-      // Handle initialization errors
-      _showRetryOption();
-    }
+    // Supabase + Firebase are already initialized in main() before runApp.
+    // Navigate on the first frame with no artificial delay.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _navigateToNextScreen());
   }
 
-  Future<void> _loadUserPreferences() async {
-    // Simulate loading user preferences
-    await Future.delayed(const Duration(milliseconds: 600));
-  }
-
-  Future<void> _checkLocationPermissions() async {
-    // Simulate checking location permissions
-    await Future.delayed(const Duration(milliseconds: 400));
-  }
-
-  Future<void> _prepareCachedData() async {
-    // Simulate preparing cached product data
-    await Future.delayed(const Duration(milliseconds: 700));
-  }
-
-  void _navigateToNextScreen() async {
-    try {
-      // Check actual Supabase authentication state
-      final session = SupabaseService.client.auth.currentSession;
-      final bool isAuthenticated = session != null;
-
-      // Check if first time (this would use SharedPreferences in production)
-      final bool isFirstTime = false; // Set to false to skip onboarding for now
-
-      if (isAuthenticated) {
-        Navigator.pushReplacementNamed(context, '/home-screen');
-      } else if (isFirstTime) {
-        Navigator.pushReplacementNamed(context, '/onboarding-screen');
-      } else {
-        Navigator.pushReplacementNamed(context, '/authentication-screen');
-      }
-    } catch (e) {
-      // On error, navigate to authentication
-      Navigator.pushReplacementNamed(context, '/authentication-screen');
-    }
-  }
-
-  void _showRetryOption() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        title: Text(
-          'Connection Issue',
-          style: GoogleFonts.inter(
-            color: Colors.white,
-            fontSize: 16.sp,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: Text(
-          'Unable to initialize the app. Please check your connection and try again.',
-          style: GoogleFonts.inter(
-            color: const Color(0xFFB3B3B3),
-            fontSize: 12.sp,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              _initializeApp();
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFE50914),
-            ),
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
+  void _navigateToNextScreen() {
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, AppRoutes.initial);
   }
 
   @override
@@ -385,8 +283,7 @@ class _SplashScreenState extends State<SplashScreen>
               fontSize: 11.sp,
               fontWeight: FontWeight.w400,
               letterSpacing: 0.5,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ],
     );
@@ -465,24 +362,22 @@ class _SplashScreenState extends State<SplashScreen>
       child: Column(
         children: [
           Text(
-            'Fast & Reliable Delivery',
+            AppLocalizations.of(context)!.fastReliableDelivery,
             style: GoogleFonts.inter(
               color: const Color(0xFFB3B3B3),
               fontSize: 10.sp,
               fontWeight: FontWeight.w500,
               letterSpacing: 0.5,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 0.5.h),
           Text(
-            'Powered by KJ Delivery',
+            AppLocalizations.of(context)!.poweredByKjDelivery,
             style: GoogleFonts.inter(
               color: const Color(0xFF666666),
               fontSize: 9.sp,
               fontWeight: FontWeight.w400,
               letterSpacing: 0.3,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
         ],
       ),
     );

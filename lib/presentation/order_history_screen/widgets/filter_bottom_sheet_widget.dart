@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class FilterBottomSheetWidget extends StatefulWidget {
   final Map<String, dynamic> currentFilters;
@@ -49,6 +50,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
 
   void _selectDateRange() async {
     HapticFeedback.lightImpact();
+    final theme = Theme.of(context);
     final DateTimeRange? picked = await showDateRangePicker(
       context: context,
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
@@ -57,7 +59,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: AppTheme.lightTheme.colorScheme,
+            colorScheme: theme.colorScheme,
           ),
           child: child!,
         );
@@ -98,9 +100,11 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: theme.colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SafeArea(
@@ -113,8 +117,8 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
               height: 4,
               margin: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.outline,
-                borderRadius: BorderRadius.circular(2),
+                color: theme.colorScheme.outline,
+                borderRadius: BorderRadius.circular(14),
               ),
             ),
 
@@ -124,27 +128,25 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Filter Orders',
-                    style: AppTheme.lightTheme.textTheme.titleLarge?.copyWith(
+                  Flexible(child: Text(
+                    AppLocalizations.of(context)!.filterOrders,
+                    style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   TextButton(
                     onPressed: _clearAllFilters,
                     child: Text(
-                      'Clear All',
-                      style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-                        color: AppTheme.lightTheme.colorScheme.primary,
-                      ),
-                    ),
+                      AppLocalizations.of(context)!.clearAll,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.primary,
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ],
               ),
             ),
 
             Divider(
-              color: AppTheme.lightTheme.colorScheme.outline
+              color: theme.colorScheme.outline
                   .withValues(alpha: 0.2),
               thickness: 1,
             ),
@@ -158,7 +160,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                     SizedBox(height: 2.h),
 
                     // Date Range Section
-                    _buildSectionTitle('Date Range'),
+                    _buildSectionTitle(context, AppLocalizations.of(context)!.dateRange),
                     SizedBox(height: 1.h),
                     GestureDetector(
                       onTap: _selectDateRange,
@@ -167,26 +169,25 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                         padding: EdgeInsets.all(4.w),
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: AppTheme.lightTheme.colorScheme.outline
+                            color: theme.colorScheme.outline
                                 .withValues(alpha: 0.3),
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
+                            Flexible(child: Text(
                               _selectedDateRange != null
                                   ? '${_selectedDateRange!.start.day}/${_selectedDateRange!.start.month}/${_selectedDateRange!.start.year} - ${_selectedDateRange!.end.day}/${_selectedDateRange!.end.month}/${_selectedDateRange!.end.year}'
-                                  : 'Select date range',
-                              style: AppTheme.lightTheme.textTheme.bodyLarge
+                                  : AppLocalizations.of(context)!.selectDateRange,
+                              style: theme.textTheme.bodyLarge
                                   ?.copyWith(
                                 color: _selectedDateRange != null
-                                    ? AppTheme.lightTheme.colorScheme.onSurface
-                                    : AppTheme.lightTheme.colorScheme
+                                    ? theme.colorScheme.onSurface
+                                    : theme.colorScheme
                                         .onSurfaceVariant,
-                              ),
-                            ),
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                             Row(
                               children: [
                                 if (_selectedDateRange != null)
@@ -196,7 +197,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                                       padding: EdgeInsets.only(right: 2.w),
                                       child: CustomIconWidget(
                                         iconName: 'clear',
-                                        color: AppTheme.lightTheme.colorScheme
+                                        color: theme.colorScheme
                                             .onSurfaceVariant,
                                         size: 18,
                                       ),
@@ -205,7 +206,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                                 CustomIconWidget(
                                   iconName: 'calendar_today',
                                   color:
-                                      AppTheme.lightTheme.colorScheme.primary,
+                                      theme.colorScheme.primary,
                                   size: 20,
                                 ),
                               ],
@@ -218,7 +219,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                     SizedBox(height: 3.h),
 
                     // Order Status Section
-                    _buildSectionTitle('Order Status'),
+                    _buildSectionTitle(context, AppLocalizations.of(context)!.orderStatus),
                     SizedBox(height: 1.h),
                     Wrap(
                       spacing: 2.w,
@@ -242,27 +243,26 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                                 horizontal: 4.w, vertical: 1.h),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? AppTheme.lightTheme.colorScheme.primary
-                                  : AppTheme.lightTheme.colorScheme.outline
+                                  ? theme.colorScheme.primary
+                                  : Colors.grey.shade400
                                       .withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: isSelected
-                                    ? AppTheme.lightTheme.colorScheme.primary
-                                    : AppTheme.lightTheme.colorScheme.outline
+                                    ? theme.colorScheme.primary
+                                    : Colors.grey.shade400
                                         .withValues(alpha: 0.3),
                               ),
                             ),
                             child: Text(
                               status,
-                              style: AppTheme.lightTheme.textTheme.labelMedium
+                              style: theme.textTheme.labelMedium
                                   ?.copyWith(
                                 color: isSelected
-                                    ? AppTheme.lightTheme.colorScheme.onPrimary
-                                    : AppTheme.lightTheme.colorScheme.onSurface,
+                                    ? theme.colorScheme.onPrimary
+                                    : Colors.black87,
                                 fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           ),
                         );
                       }).toList(),
@@ -271,36 +271,34 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                     SizedBox(height: 3.h),
 
                     // Price Range Section
-                    _buildSectionTitle('Price Range'),
+                    _buildSectionTitle(context, AppLocalizations.of(context)!.priceRange),
                     SizedBox(height: 1.h),
                     Container(
                       padding: EdgeInsets.all(4.w),
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: AppTheme.lightTheme.colorScheme.outline
+                          color: Colors.grey.shade400
                               .withValues(alpha: 0.3),
                         ),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: Column(
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
+                              Flexible(child: Text(
                                 '\$${_priceRange.start.round()}',
-                                style: AppTheme.lightTheme.textTheme.bodyLarge
+                                style: theme.textTheme.bodyLarge
                                     ?.copyWith(
                                   fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                              Flexible(child: Text(
                                 '\$${_priceRange.end.round()}',
-                                style: AppTheme.lightTheme.textTheme.bodyLarge
+                                style: theme.textTheme.bodyLarge
                                     ?.copyWith(
                                   fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                             ],
                           ),
                           RangeSlider(
@@ -309,9 +307,8 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                             max: 500,
                             divisions: 50,
                             activeColor:
-                                AppTheme.lightTheme.colorScheme.primary,
-                            inactiveColor: AppTheme
-                                .lightTheme.colorScheme.outline
+                                theme.colorScheme.primary,
+                            inactiveColor: Colors.grey.shade400
                                 .withValues(alpha: 0.3),
                             onChanged: (RangeValues values) {
                               setState(() {
@@ -326,7 +323,7 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                     SizedBox(height: 3.h),
 
                     // Sort By Section
-                    _buildSectionTitle('Sort By'),
+                    _buildSectionTitle(context, AppLocalizations.of(context)!.sortBy),
                     SizedBox(height: 1.h),
                     Column(
                       children: _sortOptions.map((option) {
@@ -344,39 +341,36 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                             margin: EdgeInsets.only(bottom: 1.h),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? AppTheme.lightTheme.colorScheme.primary
+                                  ? theme.colorScheme.primary
                                       .withValues(alpha: 0.1)
                                   : Colors.transparent,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: isSelected
-                                    ? AppTheme.lightTheme.colorScheme.primary
-                                    : AppTheme.lightTheme.colorScheme.outline
+                                    ? theme.colorScheme.primary
+                                    : Colors.grey.shade400
                                         .withValues(alpha: 0.3),
                               ),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
+                                Flexible(child: Text(
                                   option,
-                                  style: AppTheme.lightTheme.textTheme.bodyLarge
+                                  style: theme.textTheme.bodyLarge
                                       ?.copyWith(
                                     color: isSelected
-                                        ? AppTheme
-                                            .lightTheme.colorScheme.primary
-                                        : AppTheme
-                                            .lightTheme.colorScheme.onSurface,
+                                        ? theme.colorScheme.primary
+                                        : Colors.black87,
                                     fontWeight: isSelected
                                         ? FontWeight.w600
                                         : FontWeight.w400,
-                                  ),
-                                ),
+                                  ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                                 if (isSelected)
                                   CustomIconWidget(
                                     iconName: 'check_circle',
                                     color:
-                                        AppTheme.lightTheme.colorScheme.primary,
+                                        theme.colorScheme.primary,
                                     size: 20,
                                   ),
                               ],
@@ -401,15 +395,14 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
                   onPressed: _applyFilters,
                   style: ElevatedButton.styleFrom(
                     padding: EdgeInsets.symmetric(vertical: 2.h),
-                    backgroundColor: AppTheme.lightTheme.colorScheme.primary,
-                    foregroundColor: AppTheme.lightTheme.colorScheme.onPrimary,
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
                   ),
                   child: Text(
-                    'Apply Filters',
-                    style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
+                    AppLocalizations.of(context)!.applyFilters,
+                    style: theme.textTheme.labelLarge?.copyWith(
                       fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ),
             ),
@@ -419,12 +412,13 @@ class _FilterBottomSheetWidgetState extends State<FilterBottomSheetWidget> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    final theme = Theme.of(context);
+
     return Text(
       title,
-      style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+      style: theme.textTheme.titleMedium?.copyWith(
         fontWeight: FontWeight.w600,
-      ),
-    );
+      ), maxLines: 1, overflow: TextOverflow.ellipsis);
   }
 }

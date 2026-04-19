@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class DeliveryPreferencesScreen extends StatefulWidget {
   const DeliveryPreferencesScreen({super.key});
@@ -26,7 +27,7 @@ class _DeliveryPreferencesScreenState extends State<DeliveryPreferencesScreen> {
   final _instructionsController = TextEditingController();
   final _handlingController = TextEditingController();
 
-  final _timeSlots = const [
+  final _timeSlots = [
     {'value': 'anytime', 'label': 'Anytime', 'icon': Icons.access_time},
     {'value': 'morning', 'label': 'Morning (8-12)', 'icon': Icons.wb_sunny},
     {'value': 'afternoon', 'label': 'Afternoon (12-5)', 'icon': Icons.wb_cloudy},
@@ -97,13 +98,13 @@ class _DeliveryPreferencesScreenState extends State<DeliveryPreferencesScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Delivery preferences saved!'), backgroundColor: Colors.green),
+          SnackBar(content: Text(AppLocalizations.of(context)!.deliveryPreferencesSaved, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Failed to save: $e', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red),
         );
       }
     }
@@ -115,11 +116,11 @@ class _DeliveryPreferencesScreenState extends State<DeliveryPreferencesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Delivery Preferences'),
+        title: Text(AppLocalizations.of(context)!.deliveryPreferences, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: _savePreferences,
-            child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            child: Text(AppLocalizations.of(context)!.save, style: TextStyle(color: theme.colorScheme.surface, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -128,7 +129,7 @@ class _DeliveryPreferencesScreenState extends State<DeliveryPreferencesScreen> {
           : ListView(
               padding: EdgeInsets.all(4.w),
               children: [
-                _buildSection(theme: theme, title: 'Preferred Delivery Time', icon: Icons.schedule, children: [
+                _buildSection(theme: theme, title: AppLocalizations.of(context)!.preferredDeliveryTime, icon: Icons.schedule, children: [
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4.w),
                     child: Wrap(
@@ -140,7 +141,7 @@ class _DeliveryPreferencesScreenState extends State<DeliveryPreferencesScreen> {
                           label: Row(mainAxisSize: MainAxisSize.min, children: [
                             Icon(slot['icon'] as IconData, size: 16, color: isSelected ? Colors.white : theme.colorScheme.onSurface),
                             SizedBox(width: 1.w),
-                            Text(slot['label'] as String),
+                            Flexible(child: Text(slot['label'] as String, maxLines: 1, overflow: TextOverflow.ellipsis)),
                           ]),
                           selected: isSelected,
                           onSelected: (selected) {
@@ -156,22 +157,22 @@ class _DeliveryPreferencesScreenState extends State<DeliveryPreferencesScreen> {
                 ]),
                 SizedBox(height: 2.h),
 
-                _buildSection(theme: theme, title: 'Delivery Options', icon: Icons.local_shipping, children: [
-                  _buildToggle(theme, 'Leave at Door', 'Driver leaves order at your door', _leaveAtDoor, (v) => setState(() => _leaveAtDoor = v)),
-                  _buildToggle(theme, 'Ring Doorbell', 'Driver rings doorbell on arrival', _ringDoorbell, (v) => setState(() => _ringDoorbell = v)),
-                  _buildToggle(theme, 'Call on Arrival', 'Driver calls when arriving', _callOnArrival, (v) => setState(() => _callOnArrival = v)),
-                  _buildToggle(theme, 'Contactless Delivery', 'No face-to-face interaction', _contactlessDel, (v) => setState(() => _contactlessDel = v)),
+                _buildSection(theme: theme, title: AppLocalizations.of(context)!.deliveryOptions, icon: Icons.local_shipping, children: [
+                  _buildToggle(theme, AppLocalizations.of(context)!.leaveAtDoor, AppLocalizations.of(context)!.driverLeavesOrderAtYourDoor, _leaveAtDoor, (v) => setState(() => _leaveAtDoor = v)),
+                  _buildToggle(theme, AppLocalizations.of(context)!.ringDoorbell, AppLocalizations.of(context)!.driverRingsDoorbellOnArrival, _ringDoorbell, (v) => setState(() => _ringDoorbell = v)),
+                  _buildToggle(theme, AppLocalizations.of(context)!.callOnArrival, AppLocalizations.of(context)!.driverCallsWhenArriving, _callOnArrival, (v) => setState(() => _callOnArrival = v)),
+                  _buildToggle(theme, AppLocalizations.of(context)!.contactlessDelivery, AppLocalizations.of(context)!.noFaceToFaceInteraction, _contactlessDel, (v) => setState(() => _contactlessDel = v)),
                 ]),
                 SizedBox(height: 2.h),
 
-                _buildSection(theme: theme, title: 'Special Instructions', icon: Icons.edit_note, children: [
+                _buildSection(theme: theme, title: AppLocalizations.of(context)!.specialInstructions, icon: Icons.edit_note, children: [
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
                     child: TextField(
                       controller: _instructionsController,
                       maxLines: 3,
-                      decoration: const InputDecoration(
-                        hintText: 'e.g., Gate code: 1234, Second floor...',
+                      decoration: InputDecoration(
+                        hintText: AppLocalizations.of(context)!.eGGateCode1234Second,
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -181,9 +182,9 @@ class _DeliveryPreferencesScreenState extends State<DeliveryPreferencesScreen> {
                     child: TextField(
                       controller: _handlingController,
                       maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Special Handling',
-                        hintText: 'e.g., Fragile items, keep upright',
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.specialHandling,
+                        hintText: AppLocalizations.of(context)!.eGFragileItemsKeepUpright,
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -200,9 +201,9 @@ class _DeliveryPreferencesScreenState extends State<DeliveryPreferencesScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.kjRed,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
-                    child: const Text('Save Preferences', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                    child: Text(AppLocalizations.of(context)!.savePreferences, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ),
                 SizedBox(height: 4.h),
@@ -224,7 +225,7 @@ class _DeliveryPreferencesScreenState extends State<DeliveryPreferencesScreen> {
           child: Row(children: [
             Icon(icon, color: theme.colorScheme.primary, size: 20),
             SizedBox(width: 2.w),
-            Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            Flexible(child: Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
           ]),
         ),
         ...children,
@@ -234,8 +235,8 @@ class _DeliveryPreferencesScreenState extends State<DeliveryPreferencesScreen> {
 
   Widget _buildToggle(ThemeData theme, String title, String subtitle, bool value, ValueChanged<bool> onChanged) {
     return SwitchListTile(
-      title: Text(title, style: TextStyle(fontWeight: FontWeight.w500, color: theme.colorScheme.onSurface)),
-      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+      title: Text(title, style: TextStyle(fontWeight: FontWeight.w500, color: theme.colorScheme.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
       value: value,
       onChanged: onChanged,
       activeThumbColor: AppTheme.kjRed,

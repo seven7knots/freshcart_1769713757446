@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 import '../../../core/app_export.dart';
 import '../../../services/ads_service.dart';
 import '../../../widgets/custom_icon_widget.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class AdAnalyticsWidget extends StatefulWidget {
   const AdAnalyticsWidget({super.key});
@@ -68,18 +69,17 @@ class _AdAnalyticsWidgetState extends State<AdAnalyticsWidget> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Ad Analytics',
+                  Flexible(child: Text(
+                    AppLocalizations.of(context)!.adAnalytics,
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   DropdownButton<int>(
                     value: _selectedDays,
-                    items: const [
-                      DropdownMenuItem(value: 7, child: Text('7 Days')),
-                      DropdownMenuItem(value: 30, child: Text('30 Days')),
-                      DropdownMenuItem(value: 90, child: Text('90 Days')),
+                    items: [
+                      DropdownMenuItem(value: 7, child: Text(AppLocalizations.of(context)!.n7Days, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      DropdownMenuItem(value: 30, child: Text(AppLocalizations.of(context)!.n30Days, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      DropdownMenuItem(value: 90, child: Text(AppLocalizations.of(context)!.n90Days, maxLines: 1, overflow: TextOverflow.ellipsis)),
                     ],
                     onChanged: (value) {
                       setState(() => _selectedDays = value!);
@@ -105,9 +105,8 @@ class _AdAnalyticsWidgetState extends State<AdAnalyticsWidget> {
                               ),
                               SizedBox(height: 2.h),
                               Text(
-                                'No analytics data yet',
-                                style: theme.textTheme.titleMedium,
-                              ),
+                                AppLocalizations.of(context)!.noAnalyticsDataYet,
+                                style: theme.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
                             ],
                           ),
                         )
@@ -152,11 +151,10 @@ class _AdAnalyticsWidgetState extends State<AdAnalyticsWidget> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            data['ad_title'] ?? 'Unknown Ad',
+            data['ad_title'] ?? AppLocalizations.of(context)!.unknownAd,
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 2.h),
           Row(
             children: [
@@ -166,7 +164,7 @@ class _AdAnalyticsWidgetState extends State<AdAnalyticsWidget> {
                   impressions.toString(),
                 ),
               ),
-              Expanded(child: _buildMetricColumn('Clicks', clicks.toString())),
+              Expanded(child: _buildMetricColumn(AppLocalizations.of(context)!.clicks, clicks.toString())),
             ],
           ),
           SizedBox(height: 2.h),
@@ -197,15 +195,13 @@ class _AdAnalyticsWidgetState extends State<AdAnalyticsWidget> {
           label,
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.outline,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 0.5.h),
         Text(
           value,
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
     );
   }

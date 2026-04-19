@@ -3,6 +3,7 @@ import 'package:sizer/sizer.dart';
 import '../../../theme/app_theme.dart';
 import '../../../routes/app_routes.dart';
 import '../../../widgets/custom_image_widget.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class SellerProfileCardWidget extends StatelessWidget {
   final Map<String, dynamic> sellerProfile;
@@ -16,8 +17,9 @@ class SellerProfileCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final sellerName =
-        sellerProfile['full_name'] as String? ?? 'Unknown Seller';
+        sellerProfile['full_name'] as String? ?? AppLocalizations.of(context)!.unknownSeller;
     final sellerImage = sellerProfile['profile_image_url'] as String?;
     final memberSince = sellerProfile['created_at'] as String?;
 
@@ -34,7 +36,7 @@ class SellerProfileCardWidget extends StatelessWidget {
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
@@ -48,19 +50,17 @@ class SellerProfileCardWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Seller Information',
+            AppLocalizations.of(context)!.sellerInformation,
             style: TextStyle(
               fontSize: 14.sp,
               fontWeight: FontWeight.w600,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 2.h),
           Row(
             children: [
-              // Seller Avatar
               CircleAvatar(
                 radius: 8.w,
-                backgroundColor: Colors.grey[300],
+                backgroundColor: theme.colorScheme.outlineVariant,
                 child: sellerImage != null
                     ? ClipOval(
                         child: CustomImageWidget(
@@ -71,7 +71,7 @@ class SellerProfileCardWidget extends StatelessWidget {
                           semanticLabel: sellerName,
                         ),
                       )
-                    : Icon(Icons.person, size: 8.w, color: Colors.grey[600]),
+                    : Icon(Icons.person, size: 8.w, color: theme.colorScheme.onSurfaceVariant),
               ),
               SizedBox(width: 3.w),
               Expanded(
@@ -83,17 +83,15 @@ class SellerProfileCardWidget extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 0.5.h),
                     if (joinDate != null)
                       Text(
                         'Member since ${_formatDate(joinDate)}',
                         style: TextStyle(
                           fontSize: 11.sp,
-                          color: Colors.grey[600],
-                        ),
-                      ),
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 0.5.h),
                     Row(
                       children: [
@@ -101,13 +99,12 @@ class SellerProfileCardWidget extends StatelessWidget {
                             size: 16, color: Colors.green[600]),
                         SizedBox(width: 1.w),
                         Text(
-                          'Verified Seller',
+                          AppLocalizations.of(context)!.verifiedSeller,
                           style: TextStyle(
                             fontSize: 11.sp,
                             color: Colors.green[700],
                             fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   ],
@@ -116,12 +113,10 @@ class SellerProfileCardWidget extends StatelessWidget {
             ],
           ),
           SizedBox(height: 2.h),
-          // View All Listings Button
           SizedBox(
             width: double.infinity,
             child: OutlinedButton(
               onPressed: () {
-                // Navigate to seller's listings
                 Navigator.pushNamed(
                   context,
                   AppRoutes.marketplaceScreen,
@@ -130,7 +125,7 @@ class SellerProfileCardWidget extends StatelessWidget {
               },
               style: OutlinedButton.styleFrom(
                 side: BorderSide(
-                  color: AppTheme.lightTheme.colorScheme.primary,
+                  color: theme.colorScheme.primary,
                 ),
                 padding: EdgeInsets.symmetric(vertical: 1.2.h),
                 shape: RoundedRectangleBorder(
@@ -138,13 +133,12 @@ class SellerProfileCardWidget extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'View All Listings',
+                AppLocalizations.of(context)!.viewAllListings,
                 style: TextStyle(
                   fontSize: 12.sp,
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.lightTheme.colorScheme.primary,
-                ),
-              ),
+                  color: theme.colorScheme.primary,
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ),
         ],

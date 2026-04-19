@@ -28,10 +28,10 @@ class _ListingImageCarouselWidgetState
     if (widget.images.isEmpty) {
       return Container(
         height: 40.h,
-        color: Colors.grey[200],
+        color: Colors.grey.shade200,
         child: Center(
           child: Icon(Icons.image_not_supported,
-              size: 60, color: Colors.grey[400]),
+              size: 60, color: Colors.grey.shade400),
         ),
       );
     }

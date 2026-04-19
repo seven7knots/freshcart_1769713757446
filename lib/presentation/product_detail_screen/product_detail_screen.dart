@@ -3,38 +3,42 @@
 // ============================================================
 // Product detail with REAL favorites integration via FavoritesProvider.
 // Heart icon now saves/removes from Supabase user_favorites table.
+// FIX: Uses CartNotifier (via Riverpod) instead of DatabaseService.instance
+//      directly, so the cart state stays in sync across screens.
+// SESSION 20 FIX: All snackbars auto-dismiss properly (Issue 4)
 // ============================================================
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' hide Provider, Consumer;
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../models/product_model.dart';
 import '../../providers/admin_provider.dart';
+import '../../providers/cart_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../services/product_service.dart';
 import '../../services/store_service.dart';
-import '../../services/database_service.dart';
 import '../../widgets/custom_image_widget.dart';
 import '../admin_edit_overlay_system_screen/widgets/content_edit_modal_widget.dart';
 import './widgets/expandable_section.dart';
 import './widgets/product_info_section.dart';
-import './widgets/product_reviews_section.dart';
 import './widgets/quantity_selector.dart';
 import './widgets/related_products_section.dart';
+import '../../l10n/generated/app_localizations.dart';
 
-class ProductDetailScreen extends StatefulWidget {
+class ProductDetailScreen extends ConsumerStatefulWidget {
   final Product? product;
   final String? productId;
 
   const ProductDetailScreen({super.key, this.product, this.productId});
 
   @override
-  State<ProductDetailScreen> createState() => _ProductDetailScreenState();
+  ConsumerState<ProductDetailScreen> createState() => _ProductDetailScreenState();
 }
 
-class _ProductDetailScreenState extends State<ProductDetailScreen> {
+class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   int _quantity = 1;
   bool _isAddingToCart = false;
   bool _isLoading = false;
@@ -82,7 +86,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       if (mounted && store != null) {
         setState(() => _storeName = store.name);
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('[PRODUCT_DETAIL_SCREEN] Silent error: $e'); }
   }
 
   Future<void> _loadRelatedProducts() async {
@@ -98,7 +102,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           _relatedProducts = products.where((p) => p.id != _product!.id).take(6).toList();
         });
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('[PRODUCT_DETAIL_SCREEN] Silent error: $e'); }
   }
 
   Future<void> _refreshProduct() async {
@@ -110,6 +114,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final adminProvider = Provider.of<AdminProvider>(context, listen: false);
     if (adminProvider.isAdmin) return true;
     return false;
+  }
+
+  // ============================================================
+  // SESSION 20 FIX: Centralized snackbar helper (Issue 4)
+  // - Clears any existing snackbar before showing new one
+  // - Uses floating behavior so it doesn't stick to scaffold
+  // - Explicit 2-second duration for guaranteed auto-dismiss
+  // ============================================================
+  void _showSnackBar(String message, {Color? backgroundColor, SnackBarAction? action}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(SnackBar(
+        content: Text(message, maxLines: 1, overflow: TextOverflow.ellipsis),
+        backgroundColor: backgroundColor,
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(bottom: 2.h, left: 4.w, right: 4.w),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        action: action,
+      ));
   }
 
   @override
@@ -124,9 +149,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             : Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Icon(Icons.error_outline, size: 64, color: theme.colorScheme.error),
                 SizedBox(height: 2.h),
-                Text('Product not found', style: theme.textTheme.titleLarge),
+                Text(AppLocalizations.of(context)!.productNotFound, style: theme.textTheme.titleLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 2.h),
-                ElevatedButton(onPressed: () => Navigator.pop(context), child: const Text('Go Back')),
+                ElevatedButton(onPressed: () => Navigator.pop(context), child: Text(AppLocalizations.of(context)!.goBack, maxLines: 1, overflow: TextOverflow.ellipsis)),
               ])),
       );
     }
@@ -160,24 +185,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     onPressed: () async {
                       HapticFeedback.lightImpact();
                       final nowFav = await favProvider.toggleDeliveryFavorite(product.id);
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).clearSnackBars();
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(nowFav
-                              ? 'Added to favorites'
-                              : 'Removed from favorites'),
-                          backgroundColor: nowFav ? Colors.green : Colors.grey,
-                          duration: const Duration(seconds: 2),
-                        ));
-                      }
+                      // SESSION 20 FIX: Use centralized snackbar helper
+                      _showSnackBar(
+                        nowFav ? AppLocalizations.of(context)!.addedToFavorites : AppLocalizations.of(context)!.removedFromFavorites2,
+                        backgroundColor: nowFav ? Colors.green : Colors.grey,
+                      );
                     },
                   );
                 },
-              ),
-              IconButton(
-                icon: const Icon(Icons.share_outlined, color: Colors.white),
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Sharing ${product.name}'))),
               ),
             ],
           ),
@@ -222,13 +237,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 padding: EdgeInsets.all(4.w),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.error.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(children: [
                   Icon(Icons.error_outline, color: theme.colorScheme.error),
                   SizedBox(width: 2.w),
-                  Text('This product is currently unavailable',
-                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error, fontWeight: FontWeight.w600)),
+                  Flexible(child: Text(AppLocalizations.of(context)!.thisProductIsCurrentlyUnavailable,
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ]),
               ),
             )),
@@ -238,10 +253,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             SliverToBoxAdapter(child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 4.w),
               child: ExpandableSection(
-                title: 'Product Overview',
+                title: AppLocalizations.of(context)!.productOverview,
                 initiallyExpanded: true,
                 content: Text(product.description!,
-                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.5)),
+                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.5), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             )),
 
@@ -250,16 +265,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             SliverToBoxAdapter(child: Padding(
               padding: EdgeInsets.symmetric(horizontal: 4.w),
               child: ExpandableSection(
-                title: 'Nutrition Facts',
+                title: AppLocalizations.of(context)!.nutritionFacts,
                 content: _buildNutritionalInfo(theme, product.nutritionalInfo!),
               ),
             )),
 
-          // Reviews
-          SliverToBoxAdapter(child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4.w),
-            child: ProductReviewsSection(productId: product.id),
-          )),
+          // Reviews removed — ratings handled via store_ratings table
 
           // Related Products
           if (_relatedProducts.isNotEmpty)
@@ -311,13 +322,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       child: Row(children: [
         const Icon(Icons.admin_panel_settings, color: Colors.orange, size: 20),
         SizedBox(width: 2.w),
-        Expanded(child: Text('Manage Product',
-            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.orange, fontWeight: FontWeight.w600))),
-        _adminButton(Icons.edit, 'Edit', Colors.blue, () => _openEditModal(product)),
+        Expanded(child: Text(AppLocalizations.of(context)!.manageProduct,
+            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.orange, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+        _adminButton(Icons.edit, AppLocalizations.of(context)!.edit, Colors.blue, () => _openEditModal(product)),
         SizedBox(width: 1.w),
-        _adminButton(Icons.local_offer, 'Sale', Colors.deepOrange, () => _showSalePricingDialog(product)),
+        _adminButton(Icons.local_offer, AppLocalizations.of(context)!.sale, Colors.deepOrange, () => _showSalePricingDialog(product)),
         SizedBox(width: 1.w),
-        _adminButton(Icons.delete, 'Delete', Colors.red, () => _confirmDeleteProduct(product)),
+        _adminButton(Icons.delete, AppLocalizations.of(context)!.delete, Colors.red, () => _confirmDeleteProduct(product)),
       ]),
     );
   }
@@ -325,10 +336,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Widget _adminButton(IconData icon, String tooltip, Color color, VoidCallback onTap) {
     return Tooltip(message: tooltip, child: InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: EdgeInsets.all(2.w),
-        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(14)),
         child: Icon(icon, color: color, size: 20),
       ),
     ));
@@ -362,7 +373,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           title: Row(children: [
             const Icon(Icons.local_offer, color: Colors.deepOrange),
             const SizedBox(width: 8),
-            const Text('Sale / Pricing'),
+            Flexible(child: Text(AppLocalizations.of(context)!.salePricing, maxLines: 1, overflow: TextOverflow.ellipsis)),
           ]),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
@@ -372,16 +383,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(children: [
-                Text('Original Price: ', style: Theme.of(context).textTheme.bodyMedium),
-                Text('${product.currency} ${originalPrice.toStringAsFixed(2)}',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                Flexible(child: Text(AppLocalizations.of(context)!.originalPrice, style: Theme.of(context).textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                Flexible(child: Text('${product.currency} ${originalPrice.toStringAsFixed(2)}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
               ]),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: salePriceCtrl,
               decoration: InputDecoration(
-                labelText: 'Sale Price',
+                labelText: AppLocalizations.of(context)!.salePrice,
                 border: const OutlineInputBorder(),
                 prefixText: '${product.currency} ',
                 prefixIcon: const Icon(Icons.attach_money),
@@ -395,7 +406,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             Wrap(spacing: 8, runSpacing: 8, children: [
               for (final pct in [10, 20, 25, 30, 50])
                 ActionChip(
-                  label: Text('$pct% OFF'),
+                  label: Text('$pct% OFF', maxLines: 1, overflow: TextOverflow.ellipsis),
                   onPressed: () {
                     final newPrice = originalPrice * (1 - pct / 100);
                     salePriceCtrl.text = newPrice.toStringAsFixed(2);
@@ -408,12 +419,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               TextButton.icon(
                 onPressed: () => setDialogState(() => removeSale = true),
                 icon: const Icon(Icons.close, color: Colors.red, size: 18),
-                label: const Text('Remove Sale', style: TextStyle(color: Colors.red)),
+                label: Text(AppLocalizations.of(context)!.removeSale, style: TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ]),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis)),
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(ctx);
@@ -427,26 +438,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     } else if (newSalePrice == null || salePriceCtrl.text.trim().isEmpty) {
                       await ProductService.removeSalePrice(product.id);
                     } else {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Sale price must be less than original price'), backgroundColor: Colors.red));
-                      }
+                      // SESSION 20 FIX: Use centralized snackbar helper
+                      _showSnackBar(AppLocalizations.of(context)!.salePriceMustBeLessThan, backgroundColor: Colors.red);
                       return;
                     }
                   }
                   _refreshProduct();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Pricing updated'), backgroundColor: Colors.green));
-                  }
+                  // SESSION 20 FIX: Use centralized snackbar helper
+                  _showSnackBar(AppLocalizations.of(context)!.pricingUpdated, backgroundColor: Colors.green);
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-                  }
+                  // SESSION 20 FIX: Use centralized snackbar helper
+                  _showSnackBar('Error: $e', backgroundColor: Colors.red);
                 }
               },
-              child: Text(removeSale ? 'Remove Sale' : 'Apply'),
+              child: Text(removeSale ? AppLocalizations.of(context)!.removeSale2 : AppLocalizations.of(context)!.apply2, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ],
         );
@@ -456,29 +461,27 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   void _confirmDeleteProduct(Product product) {
     showDialog(context: context, builder: (ctx) => AlertDialog(
-      title: const Text('Delete Product?'),
-      content: Text('Are you sure you want to delete "${product.name}"? This cannot be undone.'),
+      title: Text(AppLocalizations.of(context)!.deleteProduct2, maxLines: 1, overflow: TextOverflow.ellipsis),
+      content: Text('Are you sure you want to delete "${product.name}"? This cannot be undone.', maxLines: 1, overflow: TextOverflow.ellipsis),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis)),
         ElevatedButton(
           onPressed: () async {
             Navigator.pop(ctx);
             try {
               await ProductService.deleteProduct(product.id);
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Product deleted'), backgroundColor: Colors.red));
+                // SESSION 20 FIX: Use centralized snackbar helper
+                _showSnackBar(AppLocalizations.of(context)!.productDeleted, backgroundColor: Colors.red);
                 Navigator.pop(context);
               }
             } catch (e) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
-              }
+              // SESSION 20 FIX: Use centralized snackbar helper
+              _showSnackBar('Error: $e', backgroundColor: Colors.red);
             }
           },
           style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-          child: const Text('Delete'),
+          child: Text(AppLocalizations.of(context)!.delete, maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ],
     ));
@@ -490,17 +493,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       child: Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          Text('Total', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(AppLocalizations.of(context)!.total, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
           Text('${product.currency} ${total.toStringAsFixed(2)}',
-              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: theme.colorScheme.primary)),
+              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700, color: theme.colorScheme.primary), maxLines: 1, overflow: TextOverflow.ellipsis),
         ])),
         SizedBox(width: 4.w),
         Expanded(flex: 2, child: ElevatedButton.icon(
           onPressed: _isAddingToCart ? null : () => _addToCart(product),
           icon: _isAddingToCart
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.surface))
               : const Icon(Icons.add_shopping_cart),
-          label: const Text('Add to Cart'),
+          label: Text(AppLocalizations.of(context)!.addToCart, maxLines: 1, overflow: TextOverflow.ellipsis),
           style: ElevatedButton.styleFrom(
             padding: EdgeInsets.symmetric(vertical: 1.8.h),
             backgroundColor: theme.colorScheme.primary,
@@ -511,28 +514,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
+  // SESSION 20 FIX: _addToCart now uses _showSnackBar helper
   Future<void> _addToCart(Product product) async {
     HapticFeedback.mediumImpact();
     setState(() => _isAddingToCart = true);
     try {
-      await DatabaseService.instance.addToCart(
+      await ref.read(cartNotifierProvider.notifier).addToCart(
         productId: product.id,
         quantity: _quantity,
       );
       if (mounted) {
         setState(() => _isAddingToCart = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${product.name} x$_quantity added to cart'),
+        _showSnackBar(
+          '${product.name} x$_quantity added to cart',
           backgroundColor: Colors.green,
-          action: SnackBarAction(label: 'View Cart', textColor: Colors.white,
-              onPressed: () => Navigator.pushNamed(context, '/shopping-cart-screen')),
-        ));
+          action: SnackBarAction(
+            label: AppLocalizations.of(context)!.viewCart,
+            textColor: Colors.white,
+            onPressed: () => Navigator.pushNamed(context, '/shopping-cart-screen'),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isAddingToCart = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to add to cart: $e'), backgroundColor: Colors.red));
+        _showSnackBar('Failed to add to cart: $e', backgroundColor: Colors.red);
       }
     }
   }
@@ -542,8 +548,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       ...info.entries.map((e) => Padding(
         padding: EdgeInsets.only(bottom: 0.5.h),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(e.key, style: theme.textTheme.bodyMedium),
-          Text(e.value.toString(), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+          Flexible(child: Text(e.key, style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Flexible(child: Text(e.value.toString(), style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
         ]),
       )),
     ]);

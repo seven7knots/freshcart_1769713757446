@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class QuantitySelector extends StatelessWidget {
   final int quantity;
@@ -22,8 +23,8 @@ class QuantitySelector extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Quantity', style: theme.textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface)),
+        Text(AppLocalizations.of(context)!.quantity, style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         Row(children: [
           _buildButton(theme, Icons.remove, enabled && quantity > 1 ? () {
@@ -35,11 +36,11 @@ class QuantitySelector extends StatelessWidget {
             width: 15.w, height: 6.h,
             decoration: BoxDecoration(
               border: Border.all(color: theme.colorScheme.outline),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Center(child: Text(quantity.toString(),
                 style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface))),
+                    fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis)),
           ),
           SizedBox(width: 4.w),
           _buildButton(theme, Icons.add, enabled && quantity < maxQuantity ? () {
@@ -48,8 +49,8 @@ class QuantitySelector extends StatelessWidget {
           } : null),
           if (quantity >= maxQuantity) ...[
             SizedBox(width: 4.w),
-            Expanded(child: Text('Max quantity reached',
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error))),
+            Expanded(child: Text(AppLocalizations.of(context)!.maxQuantityReached,
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error), maxLines: 1, overflow: TextOverflow.ellipsis)),
           ],
         ]),
       ]),
@@ -61,11 +62,11 @@ class QuantitySelector extends StatelessWidget {
       width: 12.w, height: 6.h,
       decoration: BoxDecoration(
         color: onPressed != null ? theme.colorScheme.primary : theme.colorScheme.outline.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Material(color: Colors.transparent, child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(14),
         child: Center(child: Icon(icon, color: onPressed != null
             ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant, size: 20)),
       )),

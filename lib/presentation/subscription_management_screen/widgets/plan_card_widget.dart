@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../models/subscription_plan_model.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class PlanCardWidget extends StatelessWidget {
   final SubscriptionPlanModel plan;
@@ -43,13 +44,12 @@ class PlanCardWidget extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
+              Flexible(child: Text(
                 plan.name,
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: theme.colorScheme.onSurface,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
               if (isCurrentPlan)
                 Container(
                   padding: EdgeInsets.symmetric(
@@ -63,11 +63,10 @@ class PlanCardWidget extends StatelessWidget {
                   child: Text(
                     'CURRENT',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white,
+                      color: theme.colorScheme.surface,
                       fontWeight: FontWeight.w700,
                       fontSize: 10.sp,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
             ],
           ),
@@ -75,13 +74,12 @@ class PlanCardWidget extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
+              Flexible(child: Text(
                 '\$${plan.price.toStringAsFixed(2)}',
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: theme.colorScheme.primary,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
               SizedBox(width: 2.w),
               Padding(
                 padding: EdgeInsets.only(bottom: 0.5.h),
@@ -89,8 +87,7 @@ class PlanCardWidget extends StatelessWidget {
                   '/${plan.billingCycle ?? 'month'}',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
@@ -100,19 +97,17 @@ class PlanCardWidget extends StatelessWidget {
               plan.description!,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
           SizedBox(height: 2.h),
           Divider(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
           SizedBox(height: 2.h),
           Text(
-            'Features',
+            AppLocalizations.of(context)!.features,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.onSurface,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
           ...plan.features.map(
             (feature) => Padding(
@@ -130,9 +125,8 @@ class PlanCardWidget extends StatelessWidget {
                     child: Text(
                       feature.toString(),
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurface,
-                      ),
-                    ),
+                        color: Colors.black87,
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ],
               ),
@@ -145,24 +139,23 @@ class PlanCardWidget extends StatelessWidget {
               onPressed: isCurrentPlan ? null : onSubscribe,
               style: ElevatedButton.styleFrom(
                 backgroundColor: isCurrentPlan
-                    ? theme.colorScheme.outline
+                    ? Colors.grey.shade400
                     : theme.colorScheme.primary,
                 foregroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(vertical: 1.5.h),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12.0),
                 ),
-                disabledBackgroundColor: theme.colorScheme.outline.withValues(
+                disabledBackgroundColor: Colors.grey.shade400.withValues(
                   alpha: 0.3,
                 ),
               ),
               child: Text(
-                isCurrentPlan ? 'Current Plan' : 'Subscribe',
+                isCurrentPlan ? AppLocalizations.of(context)!.currentPlan : AppLocalizations.of(context)!.subscribe2,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ),
         ],

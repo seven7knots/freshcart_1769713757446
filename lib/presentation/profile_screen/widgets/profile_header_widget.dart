@@ -11,6 +11,8 @@ import 'package:sizer/sizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../theme/app_theme.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class ProfileHeaderWidget extends StatelessWidget {
   final Map<String, dynamic> userData;
@@ -29,10 +31,10 @@ class ProfileHeaderWidget extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    final name = userData["name"] as String? ?? 'User';
+    final name = userData["name"] as String? ?? AppLocalizations.of(context)!.user;
     final email = userData["email"] as String? ?? '';
     final avatarUrl = userData["avatar"] as String?;
-    final membershipTier = userData["membershipTier"] as String? ?? 'Member';
+    final membershipTier = userData["membershipTier"] as String? ?? AppLocalizations.of(context)!.member;
     final totalOrders = userData["totalOrders"] ?? 0;
 
     return Container(
@@ -68,12 +70,12 @@ class ProfileHeaderWidget extends StatelessWidget {
                       ),
                       child: ClipOval(
                         child: avatarUrl != null && avatarUrl.isNotEmpty
-                            ? Image.network(
+                            ? CachedNetworkImage(imageUrl: 
                                 avatarUrl,
                                 width: 20.w,
                                 height: 20.w,
                                 fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _defaultAvatar(cs, name),
+                                errorWidget: (_, __, ___) => _defaultAvatar(cs, name),
                               )
                             : _defaultAvatar(cs, name),
                       ),
@@ -126,8 +128,7 @@ class ProfileHeaderWidget extends StatelessWidget {
                             style: theme.textTheme.labelMedium?.copyWith(
                               color: cs.secondary,
                               fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ],
                       ),
                     ),
@@ -146,7 +147,7 @@ class ProfileHeaderWidget extends StatelessWidget {
               IconButton(
                 onPressed: onEditPressed,
                 icon: Icon(Icons.edit, color: cs.primary, size: 5.w),
-                tooltip: 'Edit Profile',
+                tooltip: AppLocalizations.of(context)!.editProfile,
               ),
             ],
           ),
@@ -154,7 +155,7 @@ class ProfileHeaderWidget extends StatelessWidget {
           // ========================================
           // STATS ROW — Only Orders (Points & Saved removed)
           // ========================================
-          _buildStatItem(context, 'Orders', '$totalOrders', Icons.shopping_bag),
+          _buildStatItem(context, AppLocalizations.of(context)!.orders, '$totalOrders', Icons.shopping_bag),
         ],
       ),
     );
@@ -171,8 +172,7 @@ class ProfileHeaderWidget extends StatelessWidget {
             fontSize: 10.w,
             fontWeight: FontWeight.bold,
             color: AppTheme.kjRed,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
     );
   }
@@ -186,28 +186,26 @@ class ProfileHeaderWidget extends StatelessWidget {
       padding: EdgeInsets.symmetric(vertical: 1.5.h),
       decoration: BoxDecoration(
         color: cs.surfaceContainerHighest.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, color: cs.primary, size: 6.w),
           SizedBox(width: 3.w),
-          Text(
+          Flexible(child: Text(
             value,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w700,
               color: cs.primary,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis)),
           SizedBox(width: 2.w),
-          Text(
+          Flexible(child: Text(
             label,
             style: theme.textTheme.bodyMedium?.copyWith(
               color: cs.onSurfaceVariant,
               fontWeight: FontWeight.w500,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis)),
         ],
       ),
     );
@@ -233,23 +231,23 @@ class ProfileHeaderWidget extends StatelessWidget {
                 height: 0.5.h,
                 decoration: BoxDecoration(
                   color: theme.colorScheme.outline.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
               SizedBox(height: 2.h),
-              Text('Change Profile Photo',
-                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+              Text(AppLocalizations.of(context)!.changeProfilePhoto,
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 2.h),
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Icon(Icons.camera_alt, color: Colors.blue),
                 ),
-                title: const Text('Take Photo'),
+                title: Text(AppLocalizations.of(context)!.takePhoto, maxLines: 1, overflow: TextOverflow.ellipsis),
                 onTap: () {
                   Navigator.pop(ctx);
                   _pickAndUploadAvatar(context, ImageSource.camera);
@@ -260,11 +258,11 @@ class ProfileHeaderWidget extends StatelessWidget {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: const Icon(Icons.photo_library, color: Colors.green),
                 ),
-                title: const Text('Choose from Gallery'),
+                title: Text(AppLocalizations.of(context)!.chooseFromGallery, maxLines: 1, overflow: TextOverflow.ellipsis),
                 onTap: () {
                   Navigator.pop(ctx);
                   _pickAndUploadAvatar(context, ImageSource.gallery);
@@ -276,11 +274,11 @@ class ProfileHeaderWidget extends StatelessWidget {
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: Colors.red.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: const Icon(Icons.delete, color: Colors.red),
                   ),
-                  title: const Text('Remove Photo', style: TextStyle(color: Colors.red)),
+                  title: Text(AppLocalizations.of(context)!.removePhoto, style: TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis),
                   onTap: () {
                     Navigator.pop(ctx);
                     _removeAvatar(context);
@@ -308,21 +306,19 @@ class ProfileHeaderWidget extends StatelessWidget {
       final mimeType = ext == 'png' ? 'image/png' : 'image/jpeg';
       final userId = Supabase.instance.client.auth.currentUser?.id;
       if (userId == null) throw Exception('Not authenticated');
-
       final fileName = 'avatars/$userId/${DateTime.now().millisecondsSinceEpoch}.$ext';
       await Supabase.instance.client.storage.from('uploads').uploadBinary(fileName, bytes, fileOptions: FileOptions(upsert: true, contentType: mimeType));
       final publicUrl = Supabase.instance.client.storage.from('uploads').getPublicUrl(fileName);
       await Supabase.instance.client.from('users').update({'avatar_url': publicUrl}).eq('id', userId);
-
       if (context.mounted) {
         Navigator.pop(context);
         onAvatarChanged?.call(publicUrl);
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile photo updated!'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.profilePhotoUpdated, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.green));
       }
     } catch (e) {
       if (context.mounted) {
         Navigator.of(context, rootNavigator: true).pop();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update photo: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update photo: $e', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red));
       }
     }
   }
@@ -334,11 +330,11 @@ class ProfileHeaderWidget extends StatelessWidget {
       await Supabase.instance.client.from('users').update({'avatar_url': null}).eq('id', userId);
       onAvatarChanged?.call('');
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profile photo removed'), backgroundColor: Colors.orange));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.profilePhotoRemoved, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.orange));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to remove photo: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to remove photo: $e', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red));
       }
     }
   }

@@ -1,0 +1,1 @@
+// Intentionally left empty. Configuration is in settings.gradle.kts and app/build.gradle.kts.

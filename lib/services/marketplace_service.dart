@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -427,7 +428,8 @@ class MarketplaceService {
               .from('marketplace_listings')
               .update({'views': listing.views + 1}).eq('id', listingId);
         }
-      } catch (_) {}
+      } catch (e) { // ignore: avoid_print
+      print('[MARKETPLACE_SERVICE] Silent error: \$e'); }
     }
   }
 

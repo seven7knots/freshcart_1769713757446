@@ -49,8 +49,7 @@ class SettingsSectionWidget extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: cs.onSurface,
                 fontSize: _getResponsiveFontSize(context, 16),
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           ListView.separated(
             shrinkWrap: true,

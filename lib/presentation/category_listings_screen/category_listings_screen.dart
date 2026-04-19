@@ -12,6 +12,7 @@ import '../../routes/app_routes.dart';
 import '../../widgets/admin_action_button.dart';
 import '../../widgets/custom_image_widget.dart';
 import '../marketplace_screen/widgets/marketplace_search_bar_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Provider that fetches listings for a specific category string.
 /// Using String as family key — stable equality, no Map identity issues.
@@ -54,21 +55,21 @@ class _CategoryListingsScreenState
   }
 
   String _getMarketplaceCategoryName(String categoryId) {
-    const names = <String, String>{
-      'vehicles': 'Vehicles',
-      'properties': 'Properties',
-      'mobiles': 'Mobiles & Accessories',
-      'electronics': 'Electronics & Appliances',
-      'furniture': 'Furniture & Decor',
-      'business': 'Businesses & Industrial',
-      'pets': 'Pets',
-      'kids': 'Kids & Babies',
-      'sports': 'Sports & Equipment',
-      'hobbies': 'Hobbies',
-      'jobs': 'Jobs',
-      'fashion': 'Fashion & Beauty',
+    final names = <String, String>{
+      'vehicles': AppLocalizations.of(context)!.vehicles,
+      'properties': AppLocalizations.of(context)!.properties,
+      'mobiles': AppLocalizations.of(context)!.mobilesAccessories,
+      'electronics': AppLocalizations.of(context)!.electronicsAppliances,
+      'furniture': AppLocalizations.of(context)!.furnitureDecor,
+      'business': AppLocalizations.of(context)!.businessesIndustrial,
+      'pets': AppLocalizations.of(context)!.pets,
+      'kids': AppLocalizations.of(context)!.kidsBabies,
+      'sports': AppLocalizations.of(context)!.sportsEquipment,
+      'hobbies': AppLocalizations.of(context)!.hobbies,
+      'jobs': AppLocalizations.of(context)!.jobs,
+      'fashion': AppLocalizations.of(context)!.fashionBeauty,
       'services': 'Services',
-      'all': 'All Listings',
+      'all': AppLocalizations.of(context)!.allListings,
     };
     return names[categoryId.toLowerCase()] ?? 'Marketplace';
   }
@@ -103,8 +104,7 @@ class _CategoryListingsScreenState
             fontSize: 18.sp,
             fontWeight: FontWeight.w600,
             color: theme.textTheme.bodyLarge?.color,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
         actions: [
           provider.Consumer2<AuthProvider, AdminProvider>(
@@ -114,7 +114,7 @@ class _CategoryListingsScreenState
                 children: [
                   AdminActionButton(
                     icon: Icons.add,
-                    label: 'Add',
+                    label: AppLocalizations.of(context)!.add,
                     isCompact: true,
                     onPressed: () {
                       Navigator.pushNamed(context, AppRoutes.createListingScreen)
@@ -158,16 +158,16 @@ class _CategoryListingsScreenState
                             size: 60,
                             color: theme.colorScheme.onSurfaceVariant),
                         SizedBox(height: 2.h),
-                        Text('No listings found',
+                        Text(AppLocalizations.of(context)!.noListingsFound,
                             style: TextStyle(
                                 fontSize: 16.sp,
                                 fontWeight: FontWeight.w600,
-                                color: theme.colorScheme.onSurfaceVariant)),
+                                color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
                         SizedBox(height: 1.h),
-                        Text('Try a different category or search term',
+                        Text(AppLocalizations.of(context)!.tryADifferentCategoryOrSearch,
                             style: TextStyle(
                                 fontSize: 12.sp,
-                                color: theme.colorScheme.onSurfaceVariant)),
+                                color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   );
@@ -200,26 +200,26 @@ class _CategoryListingsScreenState
                     Icon(Icons.error_outline,
                         size: 60, color: theme.colorScheme.error),
                     SizedBox(height: 2.h),
-                    Text('Error loading listings',
+                    Text(AppLocalizations.of(context)!.errorLoadingListings,
                         style: TextStyle(
                             fontSize: 16.sp,
                             fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.onSurfaceVariant)),
+                            color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 1.h),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 6.w),
                       child: Text(error.toString(),
                           style: TextStyle(
                               fontSize: 12.sp,
-                              color: theme.colorScheme.onSurfaceVariant),
-                          textAlign: TextAlign.center),
+                              color: Colors.grey),
+                          textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                     SizedBox(height: 2.h),
                     ElevatedButton.icon(
                       onPressed: () => ref.invalidate(
                           _categoryListingsProvider(widget.categoryId)),
                       icon: const Icon(Icons.refresh),
-                      label: const Text('Retry'),
+                      label: Text(AppLocalizations.of(context)!.retry, maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ],
                 ),
@@ -290,7 +290,7 @@ class _CategoryListingsScreenState
                     child: Container(
                       padding: EdgeInsets.all(2.w),
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
+                        color: Colors.white,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
@@ -303,7 +303,7 @@ class _CategoryListingsScreenState
                         isFavorite ? Icons.favorite : Icons.favorite_border,
                         color: isFavorite
                             ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurfaceVariant,
+                            : Colors.grey,
                         size: 5.w,
                       ),
                     ),
@@ -325,7 +325,7 @@ class _CategoryListingsScreenState
                           style: TextStyle(
                               fontSize: 10.sp,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white)),
+                              color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                 // Negotiable badge
@@ -344,7 +344,7 @@ class _CategoryListingsScreenState
                           style: TextStyle(
                               fontSize: 9.sp,
                               fontWeight: FontWeight.w600,
-                              color: Colors.white)),
+                              color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
               ],
@@ -371,8 +371,7 @@ class _CategoryListingsScreenState
                       fontSize: 16.sp,
                       fontWeight: FontWeight.bold,
                       color: theme.colorScheme.primary,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 1.h),
                   Row(
                     children: [
@@ -380,14 +379,14 @@ class _CategoryListingsScreenState
                           listing.locationText!.isNotEmpty) ...[
                         Icon(Icons.location_on,
                             size: 4.w,
-                            color: theme.colorScheme.onSurfaceVariant),
+                            color: Colors.grey),
                         SizedBox(width: 1.w),
                         Flexible(
                           child: Text(
                             listing.locationText!,
                             style: TextStyle(
                                 fontSize: 11.sp,
-                                color: theme.colorScheme.onSurfaceVariant),
+                                color: Colors.grey),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -396,14 +395,13 @@ class _CategoryListingsScreenState
                       if (listing.createdAt != null) ...[
                         Icon(Icons.access_time,
                             size: 4.w,
-                            color: theme.colorScheme.onSurfaceVariant),
+                            color: Colors.grey),
                         SizedBox(width: 1.w),
                         Text(
                           _timeAgo(listing.createdAt),
                           style: TextStyle(
                               fontSize: 11.sp,
-                              color: theme.colorScheme.onSurfaceVariant),
-                        ),
+                              color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ],
                   ),
@@ -425,8 +423,7 @@ class _CategoryListingsScreenState
                           fontSize: 9.sp,
                           fontWeight: FontWeight.w600,
                           color: theme.colorScheme.primary,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ],
                 ],

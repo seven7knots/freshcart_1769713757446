@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../providers/marketplace_provider.dart';
 import '../../services/marketplace_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class ServiceBookingScreen extends ConsumerStatefulWidget {
   const ServiceBookingScreen({super.key});
@@ -40,7 +41,7 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
       String serviceId, String providerId, double basePrice) async {
     if (_selectedDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select date and time')));
+          SnackBar(content: Text('Please select date and time', maxLines: 1, overflow: TextOverflow.ellipsis)));
       return;
     }
 
@@ -60,13 +61,13 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Booking created successfully')));
+            SnackBar(content: Text('Booking created successfully', maxLines: 1, overflow: TextOverflow.ellipsis)));
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+            .showSnackBar(SnackBar(content: Text('Error: ${e.toString()}', maxLines: 1, overflow: TextOverflow.ellipsis)));
       }
     } finally {
       if (mounted) setState(() => _isBooking = false);
@@ -82,7 +83,7 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title:
-            Text('Book Service', style: Theme.of(context).textTheme.titleLarge),
+            Text(AppLocalizations.of(context)!.bookService, style: Theme.of(context).textTheme.titleLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
         elevation: 0,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -90,20 +91,20 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
       body: serviceAsync.when(
         data: (service) {
           if (service == null) {
-            return const Center(child: Text('Service not found'));
+            return Center(child: Text(AppLocalizations.of(context)!.serviceNotFound, maxLines: 1, overflow: TextOverflow.ellipsis));
           }
           return ListView(
             padding: EdgeInsets.all(4.w),
             children: [
               Text('Service: ${service.name}',
                   style:
-                      TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600)),
+                      TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 2.h),
               ListTile(
-                title: const Text('Select Date & Time'),
+                title: Text(AppLocalizations.of(context)!.selectDateTime, maxLines: 1, overflow: TextOverflow.ellipsis),
                 subtitle: Text(_selectedDate != null
                     ? _selectedDate.toString().substring(0, 16)
-                    : 'Not selected'),
+                    : AppLocalizations.of(context)!.notSelected, maxLines: 1, overflow: TextOverflow.ellipsis),
                 trailing: const Icon(Icons.calendar_today),
                 onTap: _selectDate,
                 tileColor:
@@ -112,18 +113,18 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
                     borderRadius: BorderRadius.circular(8.0)),
               ),
               SizedBox(height: 2.h),
-              Text('Payment Method',
+              Text(AppLocalizations.of(context)!.paymentMethod,
                   style:
-                      TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600)),
+                      TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 1.h),
               RadioListTile<String>(
-                title: const Text('Cash'),
+                title: Text(AppLocalizations.of(context)!.cash, maxLines: 1, overflow: TextOverflow.ellipsis),
                 value: 'cash',
                 groupValue: _paymentMethod,
                 onChanged: (v) => setState(() => _paymentMethod = v!),
               ),
               RadioListTile<String>(
-                title: const Text('Wallet'),
+                title: Text(AppLocalizations.of(context)!.wallet, maxLines: 1, overflow: TextOverflow.ellipsis),
                 value: 'wallet',
                 groupValue: _paymentMethod,
                 onChanged: (v) => setState(() => _paymentMethod = v!),
@@ -131,8 +132,8 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
               SizedBox(height: 2.h),
               TextField(
                 controller: _notesController,
-                decoration: const InputDecoration(
-                    labelText: 'Special Requests (Optional)',
+                decoration: InputDecoration(
+                    labelText: AppLocalizations.of(context)!.specialRequestsOptional,
                     border: OutlineInputBorder()),
                 maxLines: 3,
               ),
@@ -148,24 +149,24 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Base Fare', style: TextStyle(fontSize: 13.sp)),
-                        Text('\$${service.basePrice.toStringAsFixed(2)}',
+                        Flexible(child: Text(AppLocalizations.of(context)!.baseFare, style: TextStyle(fontSize: 13.sp), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                        Flexible(child: Text('\$${service.basePrice.toStringAsFixed(2)}',
                             style: TextStyle(
-                                fontSize: 13.sp, fontWeight: FontWeight.w600)),
+                                fontSize: 13.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
                       ],
                     ),
                     Divider(height: 2.h),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Total',
+                        Flexible(child: Text(AppLocalizations.of(context)!.total,
                             style: TextStyle(
-                                fontSize: 15.sp, fontWeight: FontWeight.bold)),
-                        Text('\$${service.basePrice.toStringAsFixed(2)}',
+                                fontSize: 15.sp, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                        Flexible(child: Text('\$${service.basePrice.toStringAsFixed(2)}',
                             style: TextStyle(
                                 fontSize: 15.sp,
                                 fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.primary)),
+                                color: Theme.of(context).colorScheme.primary), maxLines: 1, overflow: TextOverflow.ellipsis)),
                       ],
                     ),
                   ],
@@ -181,7 +182,7 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
                     minimumSize: Size(double.infinity, 6.h)),
                 child: _isBooking
                     ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Confirm Booking'),
+                    : Text(AppLocalizations.of(context)!.confirmBooking, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           );
@@ -189,7 +190,7 @@ class _ServiceBookingScreenState extends ConsumerState<ServiceBookingScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
             child: Text('Error: ${error.toString()}',
-                style: TextStyle(color: Colors.red, fontSize: 12.sp))),
+                style: TextStyle(color: Colors.red, fontSize: 12.sp), maxLines: 1, overflow: TextOverflow.ellipsis)),
       ),
     );
   }

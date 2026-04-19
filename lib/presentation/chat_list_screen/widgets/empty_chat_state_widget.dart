@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class EmptyChatStateWidget extends StatelessWidget {
   final VoidCallback onExploreMarketplace;
@@ -20,26 +21,24 @@ class EmptyChatStateWidget extends StatelessWidget {
             Icon(
               Icons.chat_bubble_outline,
               size: 20.w,
-              color: Colors.grey[400],
+              color: Colors.grey.shade400,
             ),
             SizedBox(height: 3.h),
             Text(
-              'No conversations yet',
+              AppLocalizations.of(context)!.noConversationsYet,
               style: TextStyle(
                 fontSize: 16.sp,
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 1.h),
             Text(
-              'Start chatting with sellers about items you are interested in',
+              AppLocalizations.of(context)!.startChattingWithSellersAboutItems,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12.sp,
-                color: Colors.grey[600],
-              ),
-            ),
+                color: Colors.grey.shade600,
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 4.h),
             ElevatedButton(
               onPressed: onExploreMarketplace,
@@ -54,13 +53,12 @@ class EmptyChatStateWidget extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'Explore Marketplace',
+                AppLocalizations.of(context)!.exploreMarketplace,
                 style: TextStyle(
                   fontSize: 13.sp,
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ],
         ),

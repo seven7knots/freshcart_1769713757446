@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class SavedForLaterWidget extends StatefulWidget {
   final List<Map<String, dynamic>> savedItems;
@@ -71,7 +72,7 @@ class _SavedForLaterWidgetState extends State<SavedForLaterWidget>
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: theme.colorScheme.outline.withValues(alpha: 0.1),
         ),
@@ -104,8 +105,7 @@ class _SavedForLaterWidgetState extends State<SavedForLaterWidget>
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: theme.colorScheme.onSurface,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                   AnimatedRotation(
                     turns: _isExpanded ? 0.5 : 0,
@@ -162,7 +162,7 @@ class _SavedForLaterWidgetState extends State<SavedForLaterWidget>
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: theme.colorScheme.outline.withValues(alpha: 0.1),
         ),
@@ -175,20 +175,20 @@ class _SavedForLaterWidgetState extends State<SavedForLaterWidget>
             width: 15.w,
             height: 15.w,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(16),
               color: theme.colorScheme.surface,
             ),
             child: Stack(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(16),
                   child: CustomImageWidget(
                     imageUrl: item['image'] ?? '',
                     width: 15.w,
                     height: 15.w,
                     fit: BoxFit.cover,
                     semanticLabel:
-                        item['semanticLabel'] ?? 'Saved product image',
+                        item['semanticLabel'] ?? AppLocalizations.of(context)!.savedProductImage,
                   ),
                 ),
                 if (isOutOfStock)
@@ -196,7 +196,7 @@ class _SavedForLaterWidgetState extends State<SavedForLaterWidget>
                     width: 15.w,
                     height: 15.w,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(16),
                       color: theme.colorScheme.surface.withValues(alpha: 0.8),
                     ),
                     child: Center(
@@ -207,8 +207,7 @@ class _SavedForLaterWidgetState extends State<SavedForLaterWidget>
                           color: theme.colorScheme.error,
                           fontWeight: FontWeight.w600,
                           fontSize: 8.sp,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
               ],
@@ -224,7 +223,7 @@ class _SavedForLaterWidgetState extends State<SavedForLaterWidget>
               children: [
                 // Product Name
                 Text(
-                  item['name'] ?? 'Product Name',
+                  item['name'] ?? AppLocalizations.of(context)!.productName2,
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: isOutOfStock
@@ -241,8 +240,7 @@ class _SavedForLaterWidgetState extends State<SavedForLaterWidget>
                     item['weight'],
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
 
                 SizedBox(height: 1.h),
@@ -255,17 +253,15 @@ class _SavedForLaterWidgetState extends State<SavedForLaterWidget>
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: theme.colorScheme.primary,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     if (originalPrice != null && discount != null) ...[
                       SizedBox(width: 2.w),
                       Text(
                         '\$${originalPrice.toStringAsFixed(2)}',
                         style: theme.textTheme.bodySmall?.copyWith(
                           decoration: TextDecoration.lineThrough,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                          color: Colors.grey,
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ],
                 ),
@@ -288,22 +284,21 @@ class _SavedForLaterWidgetState extends State<SavedForLaterWidget>
                           padding: EdgeInsets.symmetric(vertical: 1.h),
                           decoration: BoxDecoration(
                             color: isOutOfStock
-                                ? theme.colorScheme.outline
+                                ? Colors.grey.shade400
                                     .withValues(alpha: 0.1)
                                 : theme.colorScheme.primary,
-                            borderRadius: BorderRadius.circular(6),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           child: Text(
-                            isOutOfStock ? 'Out of Stock' : 'Move to Cart',
+                            isOutOfStock ? AppLocalizations.of(context)!.outOfStock2 : AppLocalizations.of(context)!.moveToCart,
                             textAlign: TextAlign.center,
                             style: theme.textTheme.labelMedium?.copyWith(
                               color: isOutOfStock
-                                  ? theme.colorScheme.onSurface
+                                  ? Colors.black87
                                       .withValues(alpha: 0.6)
                                   : theme.colorScheme.onPrimary,
                               fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ),
                     ),
@@ -320,7 +315,7 @@ class _SavedForLaterWidgetState extends State<SavedForLaterWidget>
                         padding: EdgeInsets.all(1.5.w),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.error.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: CustomIconWidget(
                           iconName: 'delete_outline',

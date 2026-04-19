@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../models/driver_model.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class DriverMarkerInfoWidget extends StatelessWidget {
   final Driver driver;
@@ -49,8 +50,7 @@ class DriverMarkerInfoWidget extends StatelessWidget {
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 20,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               SizedBox(width: 3.w),
               Expanded(
@@ -62,8 +62,7 @@ class DriverMarkerInfoWidget extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16.sp,
                         fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 0.5.h),
                     Row(
                       children: [
@@ -79,13 +78,12 @@ class DriverMarkerInfoWidget extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4.0),
                           ),
                           child: Text(
-                            isOnline ? 'Online' : 'Offline',
+                            isOnline ? AppLocalizations.of(context)!.online2 : AppLocalizations.of(context)!.offline2,
                             style: TextStyle(
                               color: isOnline ? Colors.green : Colors.grey,
                               fontSize: 12.sp,
                               fontWeight: FontWeight.w500,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                         SizedBox(width: 2.w),
                         if (isApproved)
@@ -99,13 +97,12 @@ class DriverMarkerInfoWidget extends StatelessWidget {
                               borderRadius: BorderRadius.circular(4.0),
                             ),
                             child: Text(
-                              'Approved',
+                              AppLocalizations.of(context)!.approved,
                               style: TextStyle(
                                 color: Colors.blue,
                                 fontSize: 12.sp,
                                 fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           ),
                       ],
                     ),
@@ -122,19 +119,19 @@ class DriverMarkerInfoWidget extends StatelessWidget {
             children: [
               _buildStatItem(
                 icon: Icons.star,
-                label: 'Rating',
+                label: AppLocalizations.of(context)!.rating,
                 value: driver.rating.toStringAsFixed(1),
                 color: Colors.amber,
               ),
               _buildStatItem(
                 icon: Icons.local_shipping,
-                label: 'Deliveries',
+                label: AppLocalizations.of(context)!.deliveries,
                 value: driver.totalDeliveries.toString(),
                 color: Colors.blue,
               ),
               _buildStatItem(
                 icon: Icons.assignment,
-                label: 'Current',
+                label: AppLocalizations.of(context)!.current,
                 value: assignedOrdersCount.toString(),
                 color: Colors.orange,
               ),
@@ -147,8 +144,7 @@ class DriverMarkerInfoWidget extends StatelessWidget {
             style: TextStyle(
               fontSize: 13.sp,
               color: Colors.grey.shade700,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           if (driver.vehiclePlate != null && driver.vehiclePlate!.isNotEmpty) ...[
             SizedBox(height: 0.5.h),
             Text(
@@ -156,8 +152,7 @@ class DriverMarkerInfoWidget extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13.sp,
                 color: Colors.grey.shade700,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
           SizedBox(height: 2.h),
           SizedBox(
@@ -165,7 +160,7 @@ class DriverMarkerInfoWidget extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: isOnline ? onAssignOrders : null,
               icon: const Icon(Icons.add_task),
-              label: const Text('Assign Orders'),
+              label: Text(AppLocalizations.of(context)!.assignOrders, maxLines: 1, overflow: TextOverflow.ellipsis),
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(vertical: 1.5.h),
                 shape: RoundedRectangleBorder(
@@ -194,15 +189,13 @@ class DriverMarkerInfoWidget extends StatelessWidget {
           style: TextStyle(
             fontSize: 16.sp,
             fontWeight: FontWeight.bold,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         Text(
           label,
           style: TextStyle(
             fontSize: 12.sp,
             color: Colors.grey.shade600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
     );
   }

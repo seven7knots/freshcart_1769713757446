@@ -8,6 +8,7 @@ import '../../models/marketplace_category_model.dart';
 import '../../services/marketplace_category_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/custom_image_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class MarketplaceAdminScreen extends StatefulWidget {
   const MarketplaceAdminScreen({super.key});
@@ -46,22 +47,21 @@ class _MarketplaceAdminScreenState extends State<MarketplaceAdminScreen>
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Marketplace Admin',
+          AppLocalizations.of(context)!.marketplaceAdmin,
           style: TextStyle(
             fontSize: 18.sp,
             fontWeight: FontWeight.w600,
             color: theme.textTheme.bodyLarge?.color,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppTheme.kjRed,
           unselectedLabelColor: theme.colorScheme.onSurfaceVariant,
           indicatorColor: AppTheme.kjRed,
-          tabs: const [
-            Tab(icon: Icon(Icons.campaign), text: 'Ad Banner'),
-            Tab(icon: Icon(Icons.category), text: 'Categories'),
+          tabs: [
+            Tab(icon: Icon(Icons.campaign), text: AppLocalizations.of(context)!.adBanner),
+            Tab(icon: Icon(Icons.category), text: AppLocalizations.of(context)!.categories),
           ],
         ),
       ),
@@ -183,7 +183,7 @@ class _AdBannerManagementTabState extends State<_AdBannerManagementTab> {
       if (mounted) {
         setState(() => _isUploadingImage = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload image: $e')),
+          SnackBar(content: Text('Failed to upload image: $e', maxLines: 1, overflow: TextOverflow.ellipsis)),
         );
       }
     }
@@ -212,8 +212,8 @@ class _AdBannerManagementTabState extends State<_AdBannerManagementTab> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Marketplace ad updated!'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.marketplaceAdUpdated, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.green,
           ),
         );
@@ -221,7 +221,7 @@ class _AdBannerManagementTabState extends State<_AdBannerManagementTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: $e')),
+          SnackBar(content: Text('Failed to save: $e', maxLines: 1, overflow: TextOverflow.ellipsis)),
         );
       }
     } finally {
@@ -240,11 +240,11 @@ class _AdBannerManagementTabState extends State<_AdBannerManagementTab> {
     return ListView(
       padding: EdgeInsets.all(4.w),
       children: [
-        Text('Ad Banner Preview',
+        Text(AppLocalizations.of(context)!.adBannerPreview,
             style: TextStyle(
                 fontSize: 15.sp,
                 fontWeight: FontWeight.w700,
-                color: theme.textTheme.bodyLarge?.color)),
+                color: theme.textTheme.bodyLarge?.color), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         Container(
           height: 18.h,
@@ -262,13 +262,13 @@ class _AdBannerManagementTabState extends State<_AdBannerManagementTab> {
                       width: double.infinity,
                       height: 18.h,
                       fit: BoxFit.cover,
-                      semanticLabel: 'Ad preview')
+                      semanticLabel: AppLocalizations.of(context)!.adPreview)
                 else
                   Container(
                       width: double.infinity,
                       height: 18.h,
-                      color: Colors.grey[300],
-                      child: Icon(Icons.image, size: 12.w, color: Colors.grey)),
+                      color: theme.colorScheme.outlineVariant,
+                      child: Icon(Icons.image, size: 12.w, color: theme.colorScheme.onSurfaceVariant)),
                 Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -292,14 +292,14 @@ class _AdBannerManagementTabState extends State<_AdBannerManagementTab> {
                           style: TextStyle(
                               fontSize: 15.sp,
                               fontWeight: FontWeight.bold,
-                              color: Colors.white)),
+                              color: theme.colorScheme.surface), maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(height: 0.5.h),
                       Text(
                           _subtitleController.text.isNotEmpty
                               ? _subtitleController.text
-                              : 'Ad subtitle',
+                              : AppLocalizations.of(context)!.adSubtitle,
                           style: TextStyle(
-                              fontSize: 12.sp, color: Colors.white70)),
+                              fontSize: 12.sp, color: Colors.white70), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
@@ -316,7 +316,7 @@ class _AdBannerManagementTabState extends State<_AdBannerManagementTab> {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2))
               : const Icon(Icons.image),
-          label: Text(_isUploadingImage ? 'Uploading...' : 'Change Image'),
+          label: Text(_isUploadingImage ? AppLocalizations.of(context)!.uploading : AppLocalizations.of(context)!.changeImage, maxLines: 1, overflow: TextOverflow.ellipsis),
           style: OutlinedButton.styleFrom(
             foregroundColor: primaryRed,
             side: BorderSide(color: primaryRed),
@@ -324,10 +324,10 @@ class _AdBannerManagementTabState extends State<_AdBannerManagementTab> {
           ),
         ),
         SizedBox(height: 3.h),
-        _buildField('Ad Title', _titleController, 'Special Offers This Week',
+        _buildField(AppLocalizations.of(context)!.adTitle, _titleController, AppLocalizations.of(context)!.specialOffersThisWeek,
             theme, isDark),
         SizedBox(height: 2.h),
-        _buildField('Ad Subtitle', _subtitleController,
+        _buildField(AppLocalizations.of(context)!.adSubtitle2, _subtitleController,
             'Up to 50% off on selected items', theme, isDark),
         SizedBox(height: 3.h),
         SizedBox(
@@ -342,14 +342,14 @@ class _AdBannerManagementTabState extends State<_AdBannerManagementTab> {
                   borderRadius: BorderRadius.circular(3.w)),
             ),
             child: _isSaving
-                ? const SizedBox(
+                ? SizedBox(
                     width: 24,
                     height: 24,
                     child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white))
-                : Text('Save Ad Banner',
+                        strokeWidth: 2, color: theme.colorScheme.surface))
+                : Text(AppLocalizations.of(context)!.saveAdBanner,
                     style: TextStyle(
-                        fontSize: 16.sp, fontWeight: FontWeight.w600)),
+                        fontSize: 16.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ),
         SizedBox(height: 4.h),
@@ -366,7 +366,7 @@ class _AdBannerManagementTabState extends State<_AdBannerManagementTab> {
             style: TextStyle(
                 fontSize: 13.sp,
                 fontWeight: FontWeight.w600,
-                color: theme.textTheme.bodyLarge?.color)),
+                color: theme.textTheme.bodyLarge?.color), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 0.5.h),
         TextField(
           controller: controller,
@@ -378,7 +378,7 @@ class _AdBannerManagementTabState extends State<_AdBannerManagementTab> {
             filled: true,
             fillColor: isDark
                 ? theme.colorScheme.surfaceContainerHighest
-                : Colors.grey[100],
+                : Colors.grey.shade100,
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(2.w),
                 borderSide: BorderSide.none),
@@ -421,7 +421,7 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+            .showSnackBar(SnackBar(content: Text('Error: $e', maxLines: 1, overflow: TextOverflow.ellipsis)));
       }
     }
   }
@@ -432,13 +432,13 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
       await _service.reorderCategories(_categories);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Order saved!'), backgroundColor: Colors.green),
+          SnackBar(content: Text(AppLocalizations.of(context)!.orderSaved, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error saving order: $e')));
+            .showSnackBar(SnackBar(content: Text('Error saving order: $e', maxLines: 1, overflow: TextOverflow.ellipsis)));
       }
     } finally {
       if (mounted) setState(() => _isSavingOrder = false);
@@ -452,7 +452,7 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+            .showSnackBar(SnackBar(content: Text('Error: $e', maxLines: 1, overflow: TextOverflow.ellipsis)));
       }
     }
   }
@@ -464,7 +464,7 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+            .showSnackBar(SnackBar(content: Text('Error: $e', maxLines: 1, overflow: TextOverflow.ellipsis)));
       }
     }
   }
@@ -473,17 +473,17 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Category'),
+        title: Text(AppLocalizations.of(context)!.deleteCategory, maxLines: 1, overflow: TextOverflow.ellipsis),
         content: Text(
-            'Delete "${cat.name}"? Existing listings with this category will NOT be removed, but users won\'t be able to filter by it.'),
+            'Delete "${cat.name}"? Existing listings with this category will NOT be removed, but users won\'t be able to filter by it.', maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel')),
+              child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis)),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               child:
-                  const Text('Delete', style: TextStyle(color: Colors.red))),
+                  Text(AppLocalizations.of(context)!.delete, style: TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis)),
         ],
       ),
     );
@@ -494,7 +494,7 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Error: $e')));
+              .showSnackBar(SnackBar(content: Text('Error: $e', maxLines: 1, overflow: TextOverflow.ellipsis)));
         }
       }
     }
@@ -515,7 +515,7 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
           builder: (ctx, setDialogState) {
             final theme = Theme.of(ctx);
             return AlertDialog(
-              title: Text(isNew ? 'Add Category' : 'Edit Category'),
+              title: Text(isNew ? AppLocalizations.of(context)!.addCategory2 : AppLocalizations.of(context)!.editCategory2, maxLines: 1, overflow: TextOverflow.ellipsis),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -523,31 +523,31 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
                     if (isNew) ...[
                       TextField(
                         controller: idController,
-                        decoration: const InputDecoration(
-                          labelText: 'ID (lowercase, no spaces)',
-                          hintText: 'e.g. garden_tools',
+                        decoration: InputDecoration(
+                          labelText: AppLocalizations.of(context)!.idLowercaseNoSpaces,
+                          hintText: AppLocalizations.of(context)!.eGGardenTools2,
                         ),
                       ),
                       SizedBox(height: 1.h),
                     ],
                     TextField(
                       controller: nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Display Name',
-                        hintText: 'e.g. Garden & Tools',
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.displayName,
+                        hintText: AppLocalizations.of(context)!.eGGardenTools,
                       ),
                     ),
                     SizedBox(height: 1.h),
                     TextField(
                       controller: iconController,
-                      decoration: const InputDecoration(
-                        labelText: 'Icon Name',
-                        hintText: 'e.g. yard, build, palette',
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.iconName,
+                        hintText: AppLocalizations.of(context)!.eGYardBuildPalette,
                       ),
                     ),
                     SizedBox(height: 1.h),
                     SwitchListTile(
-                      title: const Text('Primary (show on home row)'),
+                      title: Text(AppLocalizations.of(context)!.primaryShowOnHomeRow, maxLines: 1, overflow: TextOverflow.ellipsis),
                       value: isPrimary,
                       contentPadding: EdgeInsets.zero,
                       onChanged: (v) =>
@@ -559,13 +559,13 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Cancel')),
+                    child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(ctx, true),
                   style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.kjRed,
                       foregroundColor: Colors.white),
-                  child: Text(isNew ? 'Add' : 'Save'),
+                  child: Text(isNew ? AppLocalizations.of(context)!.add2 : AppLocalizations.of(context)!.save2, maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ],
             );
@@ -580,7 +580,7 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
           final id = idController.text.trim().toLowerCase().replaceAll(' ', '_');
           if (id.isEmpty || nameController.text.trim().isEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('ID and Name are required')));
+                SnackBar(content: Text(AppLocalizations.of(context)!.idAndNameAreRequired, maxLines: 1, overflow: TextOverflow.ellipsis)));
             return;
           }
           await _service.addCategory(
@@ -601,7 +601,7 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Error: $e')));
+              .showSnackBar(SnackBar(content: Text('Error: $e', maxLines: 1, overflow: TextOverflow.ellipsis)));
         }
       }
     }
@@ -664,13 +664,12 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
           padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
           child: Row(
             children: [
-              Text(
+              Flexible(child: Text(
                 '${_categories.length} categories',
                 style: TextStyle(
                   fontSize: 13.sp,
                   color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
               const Spacer(),
               if (_isSavingOrder)
                 const SizedBox(
@@ -681,14 +680,14 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
                 TextButton.icon(
                   onPressed: _saveOrder,
                   icon: Icon(Icons.save, size: 5.w, color: primaryRed),
-                  label: Text('Save Order',
-                      style: TextStyle(color: primaryRed, fontSize: 12.sp)),
+                  label: Text(AppLocalizations.of(context)!.saveOrder,
+                      style: TextStyle(color: primaryRed, fontSize: 12.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               SizedBox(width: 2.w),
               ElevatedButton.icon(
                 onPressed: () => _showAddEditDialog(),
                 icon: const Icon(Icons.add, size: 18),
-                label: Text('Add', style: TextStyle(fontSize: 12.sp)),
+                label: Text(AppLocalizations.of(context)!.add, style: TextStyle(fontSize: 12.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryRed,
                   foregroundColor: Colors.white,
@@ -718,8 +717,7 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
                     'Long-press and drag to reorder. Tap "Save Order" to persist.',
                     style: TextStyle(
                         fontSize: 10.sp,
-                        color: theme.textTheme.bodyLarge?.color),
-                  ),
+                        color: theme.textTheme.bodyLarge?.color), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ],
             ),
@@ -763,7 +761,7 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
         color: cat.isActive
             ? theme.colorScheme.surface
             : theme.colorScheme.surface.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: cat.isActive
               ? theme.colorScheme.outline.withOpacity(0.1)
@@ -789,7 +787,7 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
             child: Icon(
               _getIconData(cat.icon),
               size: 5.w,
-              color: cat.isActive ? primaryRed : Colors.grey,
+              color: cat.isActive ? primaryRed : theme.colorScheme.onSurfaceVariant,
             ),
           ),
           SizedBox(width: 3.w),
@@ -809,14 +807,13 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
                         : Colors.grey,
                     decoration:
                         cat.isActive ? null : TextDecoration.lineThrough,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 Row(
                   children: [
                     Text('ID: ${cat.id}',
                         style: TextStyle(
                             fontSize: 9.sp,
-                            color: theme.colorScheme.onSurfaceVariant)),
+                            color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(width: 2.w),
                     if (cat.isPrimary)
                       Container(
@@ -824,13 +821,13 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
                             horizontal: 1.5.w, vertical: 0.2.h),
                         decoration: BoxDecoration(
                           color: primaryRed.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(3),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                         child: Text('Primary',
                             style: TextStyle(
                                 fontSize: 8.sp,
                                 color: primaryRed,
-                                fontWeight: FontWeight.w600)),
+                                fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                   ],
                 ),
@@ -841,7 +838,7 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
           // Action buttons
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert,
-                size: 5.w, color: theme.colorScheme.onSurfaceVariant),
+                size: 5.w, color: Colors.grey),
             onSelected: (value) {
               switch (value) {
                 case 'edit':
@@ -859,13 +856,13 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'edit',
                 child: Row(
                   children: [
                     Icon(Icons.edit, size: 20),
                     SizedBox(width: 8),
-                    Text('Edit'),
+                    Text('Edit', maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -877,7 +874,7 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
                         cat.isActive ? Icons.visibility_off : Icons.visibility,
                         size: 20),
                     const SizedBox(width: 8),
-                    Text(cat.isActive ? 'Deactivate' : 'Activate'),
+                    Text(cat.isActive ? 'Deactivate' : 'Activate', maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -890,17 +887,17 @@ class _CategoriesCrudTabState extends State<_CategoriesCrudTab> {
                     const SizedBox(width: 8),
                     Text(cat.isPrimary
                         ? 'Remove from Home'
-                        : 'Show on Home'),
+                        : 'Show on Home', maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'delete',
                 child: Row(
                   children: [
                     Icon(Icons.delete, size: 20, color: Colors.red),
                     SizedBox(width: 8),
-                    Text('Delete', style: TextStyle(color: Colors.red)),
+                    Text('Delete', style: TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),

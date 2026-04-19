@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../services/category_service.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class CategoryFormModalWidget extends StatefulWidget {
   final Map<String, dynamic>? existingCategory;
@@ -88,7 +89,7 @@ class _CategoryFormModalWidgetState extends State<CategoryFormModalWidget> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(content: Text(e.toString(), maxLines: 1, overflow: TextOverflow.ellipsis)),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -120,11 +121,10 @@ class _CategoryFormModalWidgetState extends State<CategoryFormModalWidget> {
                   child: Text(
                     widget.existingCategory == null
                         ? 'Create Category'
-                        : 'Edit Category',
+                        : AppLocalizations.of(context)!.editCategory2,
                     textAlign: TextAlign.center,
                     style: theme.textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                  ),
+                        ?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
                 const SizedBox(width: 48),
               ],
@@ -143,22 +143,22 @@ class _CategoryFormModalWidgetState extends State<CategoryFormModalWidget> {
                     TextFormField(
                       controller: _nameController,
                       decoration:
-                          const InputDecoration(labelText: 'Category Name *'),
+                          InputDecoration(labelText: AppLocalizations.of(context)!.categoryName),
                       validator: (v) =>
-                          v == null || v.trim().isEmpty ? 'Required' : null,
+                          v == null || v.trim().isEmpty ? AppLocalizations.of(context)!.required : null,
                     ),
                     SizedBox(height: 2.h),
                     DropdownButtonFormField<String>(
                       initialValue: _type,
                       decoration:
-                          const InputDecoration(labelText: 'Category Type'),
-                      items: const [
+                          InputDecoration(labelText: AppLocalizations.of(context)!.categoryType),
+                      items: [
                         DropdownMenuItem(
-                            value: 'product', child: Text('Product')),
+                            value: 'product', child: Text(AppLocalizations.of(context)!.product, maxLines: 1, overflow: TextOverflow.ellipsis)),
                         DropdownMenuItem(
-                            value: 'marketplace', child: Text('Marketplace')),
+                            value: 'marketplace', child: Text(AppLocalizations.of(context)!.marketplace, maxLines: 1, overflow: TextOverflow.ellipsis)),
                         DropdownMenuItem(
-                            value: 'service', child: Text('Service')),
+                            value: 'service', child: Text(AppLocalizations.of(context)!.service, maxLines: 1, overflow: TextOverflow.ellipsis)),
                       ],
                       onChanged: (v) => setState(() => _type = v!),
                     ),
@@ -167,18 +167,18 @@ class _CategoryFormModalWidgetState extends State<CategoryFormModalWidget> {
                       controller: _descriptionController,
                       maxLines: 3,
                       decoration:
-                          const InputDecoration(labelText: 'Description'),
+                          InputDecoration(labelText: AppLocalizations.of(context)!.description),
                     ),
                     SizedBox(height: 2.h),
                     TextFormField(
                       controller: _sortOrderController,
                       keyboardType: TextInputType.number,
                       decoration:
-                          const InputDecoration(labelText: 'Sort Order'),
+                          InputDecoration(labelText: AppLocalizations.of(context)!.sortOrder),
                     ),
                     SizedBox(height: 2.h),
                     SwitchListTile(
-                      title: const Text('Active'),
+                      title: Text(AppLocalizations.of(context)!.active, maxLines: 1, overflow: TextOverflow.ellipsis),
                       value: _isActive,
                       onChanged: (v) => setState(() => _isActive = v),
                       contentPadding: EdgeInsets.zero,
@@ -191,8 +191,8 @@ class _CategoryFormModalWidgetState extends State<CategoryFormModalWidget> {
                         child: _isLoading
                             ? const CircularProgressIndicator()
                             : Text(widget.existingCategory == null
-                                ? 'Create'
-                                : 'Update'),
+                                ? AppLocalizations.of(context)!.create2
+                                : AppLocalizations.of(context)!.update, maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                   ],

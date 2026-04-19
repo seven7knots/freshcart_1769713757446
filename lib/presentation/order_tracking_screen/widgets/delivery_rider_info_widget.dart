@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class DeliveryRiderInfoWidget extends StatelessWidget {
   final Map<String, dynamic> riderInfo;
@@ -21,22 +22,21 @@ class DeliveryRiderInfoWidget extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Your Delivery Partner',
-            style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+            AppLocalizations.of(context)!.yourDeliveryPartner,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
-              color: AppTheme.lightTheme.colorScheme.onSurface,
-            ),
-          ),
+              color: Theme.of(context).colorScheme.onSurface,
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 3.h),
           Row(
             children: [
@@ -46,7 +46,7 @@ class DeliveryRiderInfoWidget extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: AppTheme.lightTheme.colorScheme.outline
+                    color: Theme.of(context).colorScheme.outline
                         .withValues(alpha: 0.2),
                   ),
                 ),
@@ -68,11 +68,10 @@ class DeliveryRiderInfoWidget extends StatelessWidget {
                   children: [
                     Text(
                       riderInfo['name'] as String,
-                      style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.lightTheme.colorScheme.onSurface,
-                      ),
-                    ),
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 0.5.h),
                     Row(
                       children: [
@@ -85,20 +84,18 @@ class DeliveryRiderInfoWidget extends StatelessWidget {
                         Text(
                           '${riderInfo['rating']} (${riderInfo['totalDeliveries']} deliveries)',
                           style:
-                              AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                            color: AppTheme
-                                .lightTheme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context)
+                                .colorScheme.onSurfaceVariant,
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                     SizedBox(height: 0.5.h),
                     Text(
                       riderInfo['vehicleInfo'] as String,
-                      style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                        color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -111,7 +108,7 @@ class DeliveryRiderInfoWidget extends StatelessWidget {
                       HapticFeedback.lightImpact();
                       onCallPressed?.call();
                     },
-                    tooltip: 'Call rider',
+                    tooltip: AppLocalizations.of(context)!.callRider,
                   ),
                   SizedBox(width: 2.w),
                   _buildActionButton(
@@ -121,7 +118,7 @@ class DeliveryRiderInfoWidget extends StatelessWidget {
                       HapticFeedback.lightImpact();
                       onMessagePressed?.call();
                     },
-                    tooltip: 'Message rider',
+                    tooltip: AppLocalizations.of(context)!.messageRider,
                   ),
                 ],
               ),
@@ -142,15 +139,15 @@ class DeliveryRiderInfoWidget extends StatelessWidget {
       width: 10.w,
       height: 10.w,
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.secondary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
+        color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: IconButton(
         onPressed: onPressed,
         tooltip: tooltip,
         icon: CustomIconWidget(
           iconName: icon,
-          color: AppTheme.lightTheme.colorScheme.secondary,
+          color: Theme.of(context).colorScheme.secondary,
           size: 5.w,
         ),
       ),

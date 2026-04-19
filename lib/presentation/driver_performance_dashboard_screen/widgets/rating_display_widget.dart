@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class RatingDisplayWidget extends StatelessWidget {
   final double rating;
@@ -24,20 +25,19 @@ class RatingDisplayWidget extends StatelessWidget {
         boxShadow: [BoxShadow(color: cs.shadow.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Customer Rating',
-            style: TextStyle(color: cs.onSurface, fontSize: 14.sp, fontWeight: FontWeight.bold)),
+        Text(AppLocalizations.of(context)!.customerRating,
+            style: TextStyle(color: cs.onSurface, fontSize: 14.sp, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 2.h),
         Row(children: [
-          Text(rating.toStringAsFixed(1),
-              style: TextStyle(color: cs.onSurface, fontSize: 32.sp, fontWeight: FontWeight.bold)),
+          Flexible(child: Text(rating.toStringAsFixed(1),
+              style: TextStyle(color: cs.onSurface, fontSize: 32.sp, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis)),
           SizedBox(width: 3.w),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             _buildStarRating(rating),
             SizedBox(height: 0.5.h),
             Text(
-              totalRatings > 0 ? 'Based on $totalRatings ratings' : 'No ratings yet',
-              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 10.sp),
-            ),
+              totalRatings > 0 ? 'Based on $totalRatings ratings' : AppLocalizations.of(context)!.noRatingsYet,
+              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 10.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
           ]),
         ]),
         SizedBox(height: 2.h),
@@ -72,13 +72,13 @@ class RatingDisplayWidget extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Row(children: [
-      Text('$stars', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11.sp)),
+      Flexible(child: Text('$stars', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11.sp), maxLines: 1, overflow: TextOverflow.ellipsis)),
       SizedBox(width: 2.w),
       Icon(Icons.star, color: Colors.amber, size: 3.w),
       SizedBox(width: 2.w),
       Expanded(
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(10),
           child: LinearProgressIndicator(
             value: percentage,
             backgroundColor: cs.outline.withOpacity(0.2),
@@ -88,8 +88,8 @@ class RatingDisplayWidget extends StatelessWidget {
         ),
       ),
       SizedBox(width: 2.w),
-      Text('${(percentage * 100).toInt()}%',
-          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 10.sp)),
+      Flexible(child: Text('${(percentage * 100).toInt()}%',
+          style: TextStyle(color: cs.onSurfaceVariant, fontSize: 10.sp), maxLines: 1, overflow: TextOverflow.ellipsis)),
     ]);
   }
 }

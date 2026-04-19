@@ -9,6 +9,7 @@ import '../../services/store_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/admin_editable_item_wrapper.dart';
 import '../../widgets/custom_image_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Shows stores belonging to a specific category or subcategory.
 ///
@@ -87,11 +88,11 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen> {
         if (stores.isEmpty) {
           try {
             stores = await StoreService.getStoresByCategory(
-              widget.categoryId,
+              widget.categoryName.toLowerCase(),
               activeOnly: true,
               excludeDemo: true,
             );
-          } catch (_) {}
+          } catch (e) { debugPrint('[CATEGORY_STORES_SCREEN] Silent error: $e'); }
         }
       }
 
@@ -137,12 +138,12 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.categoryName),
+        title: Text(widget.categoryName, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
             onPressed: _loadStores,
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: AppLocalizations.of(context)!.refresh,
           ),
         ],
       ),
@@ -155,7 +156,7 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen> {
               controller: _searchCtrl,
               onChanged: (_) => setState(() => _applySearch()),
               decoration: InputDecoration(
-                hintText: 'Search stores...',
+                hintText: AppLocalizations.of(context)!.searchStores,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
@@ -166,7 +167,7 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen> {
                         },
                       )
                     : null,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                 contentPadding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.5.h),
               ),
             ),
@@ -184,6 +185,9 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen> {
                             onRefresh: _loadStores,
                             child: ListView.separated(
                               padding: EdgeInsets.fromLTRB(4.w, 1.h, 4.w, 3.h),
+                              physics: const ClampingScrollPhysics(),
+                              keyboardDismissBehavior:
+                                  ScrollViewKeyboardDismissBehavior.onDrag,
                               itemCount: _filtered.length,
                               separatorBuilder: (_, __) => SizedBox(height: 2.h),
                               itemBuilder: (context, index) {
@@ -232,12 +236,15 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen> {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: Stack(
                 children: [
-                  CustomImageWidget(
-                    imageUrl: store.imageUrl ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
-                    width: double.infinity,
+                  SizedBox(
                     height: 18.h,
-                    fit: BoxFit.cover,
-                    semanticLabel: 'Store: ${store.name}',
+                    width: double.infinity,
+                    child: CustomImageWidget(
+                      imageUrl: store.imageUrl ?? 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5',
+                      height: 18.h,
+                      fit: BoxFit.cover,
+                      semanticLabel: 'Store: ${store.name}',
+                    ),
                   ),
                   // Status overlays
                   if (!store.isActive || !store.isAcceptingOrders)
@@ -248,7 +255,7 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen> {
                           child: Container(
                             padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
                             decoration: BoxDecoration(color: theme.colorScheme.error, borderRadius: BorderRadius.circular(20)),
-                            child: Text('Closed', style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onError, fontWeight: FontWeight.w600)),
+                            child: Text(AppLocalizations.of(context)!.closed, style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.onError, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                           ),
                         ),
                       ),
@@ -259,11 +266,11 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen> {
                       top: 1.h, right: 2.w,
                       child: Container(
                         padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
-                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.7), borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.7), borderRadius: BorderRadius.circular(16)),
                         child: Row(mainAxisSize: MainAxisSize.min, children: [
                           Icon(Icons.star, color: Colors.amber, size: 4.w),
                           SizedBox(width: 1.w),
-                          Text(store.ratingDisplay, style: TextStyle(color: Colors.white, fontSize: 10.sp, fontWeight: FontWeight.w600)),
+                          Flexible(child: Text(store.ratingDisplay, style: TextStyle(color: Colors.white, fontSize: 10.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
                         ]),
                       ),
                     ),
@@ -273,8 +280,8 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen> {
                       top: 1.h, left: 2.w,
                       child: Container(
                         padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.3.h),
-                        decoration: BoxDecoration(color: AppTheme.kjRed, borderRadius: BorderRadius.circular(8)),
-                        child: Text('★ Featured', style: TextStyle(color: Colors.white, fontSize: 9.sp, fontWeight: FontWeight.w700)),
+                        decoration: BoxDecoration(color: AppTheme.kjRed, borderRadius: BorderRadius.circular(14)),
+                        child: Text(AppLocalizations.of(context)!.featured, style: TextStyle(color: Colors.white, fontSize: 9.sp, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                 ],
@@ -289,26 +296,26 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen> {
                   Text(store.name, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 0.5.h),
                   if (store.description != null && store.description!.isNotEmpty)
-                    Text(store.description!, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(store.description!, style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey), maxLines: 2, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 1.h),
                   Row(
                     children: [
                       if (store.category != null) ...[
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.3.h),
-                          decoration: BoxDecoration(color: theme.colorScheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                          child: Text(store.category!, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w500)),
+                          decoration: BoxDecoration(color: theme.colorScheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(14)),
+                          child: Text(store.category!, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                         SizedBox(width: 2.w),
                       ],
-                      Icon(Icons.access_time, size: 3.5.w, color: theme.colorScheme.onSurfaceVariant),
+                      Icon(Icons.access_time, size: 3.5.w, color: Colors.grey),
                       SizedBox(width: 1.w),
-                      Text(store.prepTimeDisplay, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                      Flexible(child: Text(store.prepTimeDisplay, style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis)),
                       if ((store.minimumOrder ?? 0) > 0) ...[
                         SizedBox(width: 3.w),
-                        Icon(Icons.shopping_bag_outlined, size: 3.5.w, color: theme.colorScheme.onSurfaceVariant),
+                        Icon(Icons.shopping_bag_outlined, size: 3.5.w, color: Colors.grey),
                         SizedBox(width: 1.w),
-                        Text('Min \$${(store.minimumOrder ?? 0).toStringAsFixed(0)}', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                        Flexible(child: Text('Min \$${(store.minimumOrder ?? 0).toStringAsFixed(0)}', style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis)),
                       ],
                     ],
                   ),
@@ -326,11 +333,11 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen> {
       mainAxisAlignment: MainAxisAlignment.center, children: [
         Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
         SizedBox(height: 2.h),
-        Text('Failed to load stores', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+        Text(AppLocalizations.of(context)!.failedToLoadStores, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         Text(_error ?? '', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), textAlign: TextAlign.center, maxLines: 3),
         SizedBox(height: 2.h),
-        ElevatedButton.icon(onPressed: _loadStores, icon: const Icon(Icons.refresh), label: const Text('Retry')),
+        ElevatedButton.icon(onPressed: _loadStores, icon: Icon(Icons.refresh), label: Text(AppLocalizations.of(context)!.retry, maxLines: 1, overflow: TextOverflow.ellipsis)),
       ],
     )));
   }
@@ -340,11 +347,11 @@ class _CategoryStoresScreenState extends State<CategoryStoresScreen> {
       mainAxisAlignment: MainAxisAlignment.center, children: [
         Icon(Icons.store_outlined, size: 64, color: theme.colorScheme.outline),
         SizedBox(height: 2.h),
-        Text('No stores in this category', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+        Text(AppLocalizations.of(context)!.noStoresInThisCategory, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
-        Text('Stores assigned to this category will appear here.', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), textAlign: TextAlign.center),
+        Text(AppLocalizations.of(context)!.storesAssignedToThisCategoryWill, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 2.h),
-        OutlinedButton.icon(onPressed: _loadStores, icon: const Icon(Icons.refresh), label: const Text('Refresh')),
+        OutlinedButton.icon(onPressed: _loadStores, icon: Icon(Icons.refresh), label: Text(AppLocalizations.of(context)!.refresh, maxLines: 1, overflow: TextOverflow.ellipsis)),
       ],
     )));
   }

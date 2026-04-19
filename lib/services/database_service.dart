@@ -1,4 +1,5 @@
 // Enhanced DatabaseService with model integration
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import './supabase_service.dart';
 
@@ -16,7 +17,11 @@ class DatabaseService {
   Future<List<Map<String, dynamic>>> getCartItems() async {
     try {
       final userId = _client.auth.currentUser?.id;
-      if (userId == null) throw Exception('User not authenticated');
+      debugPrint('[CART_DB] getCartItems - userId: $userId');
+      if (userId == null) {
+        debugPrint('[CART_DB] ❌ User not authenticated, returning empty');
+        return [];
+      }
 
       final response = await _client.from('cart_items').select('''
             *,
@@ -38,8 +43,11 @@ class DatabaseService {
             )
           ''').eq('user_id', userId).order('created_at', ascending: false);
 
-      return List<Map<String, dynamic>>.from(response);
+      final items = List<Map<String, dynamic>>.from(response);
+      debugPrint('[CART_DB] ✅ getCartItems returned ${items.length} items');
+      return items;
     } catch (e) {
+      debugPrint('[CART_DB] ❌ getCartItems error: $e');
       throw Exception('Failed to load cart items: $e');
     }
   }
@@ -53,6 +61,7 @@ class DatabaseService {
   }) async {
     try {
       final userId = _client.auth.currentUser?.id;
+      debugPrint('[CART_DB] addToCart - userId: $userId, productId: $productId, qty: $quantity');
       if (userId == null) throw Exception('User not authenticated');
 
       // Check if item already exists in cart
@@ -66,6 +75,7 @@ class DatabaseService {
       if (existing != null) {
         // Update existing item
         final newQuantity = (existing['quantity'] as int) + quantity;
+        debugPrint('[CART_DB] Updating existing cart item: ${existing['id']}, new qty: $newQuantity');
         final response = await _client
             .from('cart_items')
             .update({
@@ -76,9 +86,11 @@ class DatabaseService {
             .eq('id', existing['id'])
             .select()
             .single();
+        debugPrint('[CART_DB] ✅ Updated cart item');
         return response;
       } else {
         // Insert new item
+        debugPrint('[CART_DB] Inserting new cart item');
         final response = await _client
             .from('cart_items')
             .insert({
@@ -90,9 +102,11 @@ class DatabaseService {
             })
             .select()
             .single();
+        debugPrint('[CART_DB] ✅ Inserted new cart item: ${response['id']}');
         return response;
       }
     } catch (e) {
+      debugPrint('[CART_DB] ❌ addToCart error: $e');
       throw Exception('Failed to add item to cart: $e');
     }
   }

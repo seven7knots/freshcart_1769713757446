@@ -60,15 +60,17 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color:
-                AppTheme.lightTheme.colorScheme.shadow.withValues(alpha: 0.1),
+                theme.colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -80,17 +82,17 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
             child: TextField(
               controller: widget.controller,
               onChanged: widget.onChanged,
-              style: AppTheme.lightTheme.textTheme.bodyLarge,
+              style: theme.textTheme.bodyLarge,
               decoration: InputDecoration(
                 hintText: widget.hintText,
-                hintStyle: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-                  color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                hintStyle: theme.textTheme.bodyLarge?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
                 prefixIcon: Padding(
                   padding: EdgeInsets.all(3.w),
                   child: CustomIconWidget(
                     iconName: 'search',
-                    color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                    color: theme.colorScheme.onSurfaceVariant,
                     size: 20,
                   ),
                 ),
@@ -101,8 +103,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
                           padding: EdgeInsets.all(3.w),
                           child: CustomIconWidget(
                             iconName: 'clear',
-                            color: AppTheme
-                                .lightTheme.colorScheme.onSurfaceVariant,
+                            color: theme.colorScheme.onSurfaceVariant,
                             size: 20,
                           ),
                         ),
@@ -122,7 +123,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
             width: 1,
             height: 6.h,
             color:
-                AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
+                theme.colorScheme.outline.withValues(alpha: 0.2),
           ),
           GestureDetector(
             onTap: _handleVoiceSearch,
@@ -133,16 +134,16 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
                 padding: EdgeInsets.all(2.w),
                 decoration: BoxDecoration(
                   color: _isListening
-                      ? AppTheme.lightTheme.colorScheme.primary
+                      ? theme.colorScheme.primary
                           .withValues(alpha: 0.1)
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: CustomIconWidget(
                   iconName: _isListening ? 'mic' : 'mic_none',
                   color: _isListening
-                      ? AppTheme.lightTheme.colorScheme.primary
-                      : AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant,
                   size: 20,
                 ),
               ),
@@ -156,7 +157,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
                 padding: EdgeInsets.all(2.w),
                 child: CustomIconWidget(
                   iconName: 'qr_code_scanner',
-                  color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+                  color: theme.colorScheme.onSurfaceVariant,
                   size: 20,
                 ),
               ),

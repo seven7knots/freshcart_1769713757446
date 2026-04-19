@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class FilterControlsWidget extends StatelessWidget {
   final String driverStatusFilter;
@@ -22,33 +23,32 @@ class FilterControlsWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Driver Status',
+          AppLocalizations.of(context)!.driverStatus,
           style: TextStyle(
             fontSize: 14.sp,
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         Wrap(
           spacing: 2.w,
           children: [
             _buildFilterChip(
-              label: 'All',
+              label: AppLocalizations.of(context)!.all,
               isSelected: driverStatusFilter == 'all',
               onTap: () => onDriverStatusChanged('all'),
             ),
             _buildFilterChip(
-              label: 'Online',
+              label: AppLocalizations.of(context)!.online,
               isSelected: driverStatusFilter == 'online',
               onTap: () => onDriverStatusChanged('online'),
             ),
             _buildFilterChip(
-              label: 'Offline',
+              label: AppLocalizations.of(context)!.offline,
               isSelected: driverStatusFilter == 'offline',
               onTap: () => onDriverStatusChanged('offline'),
             ),
             _buildFilterChip(
-              label: 'Busy',
+              label: AppLocalizations.of(context)!.busy,
               isSelected: driverStatusFilter == 'busy',
               onTap: () => onDriverStatusChanged('busy'),
             ),
@@ -56,28 +56,27 @@ class FilterControlsWidget extends StatelessWidget {
         ),
         SizedBox(height: 2.h),
         Text(
-          'Order Priority',
+          AppLocalizations.of(context)!.orderPriority,
           style: TextStyle(
             fontSize: 14.sp,
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         Wrap(
           spacing: 2.w,
           children: [
             _buildFilterChip(
-              label: 'All',
+              label: AppLocalizations.of(context)!.all,
               isSelected: orderPriorityFilter == 'all',
               onTap: () => onOrderPriorityChanged('all'),
             ),
             _buildFilterChip(
-              label: 'Priority',
+              label: AppLocalizations.of(context)!.priority,
               isSelected: orderPriorityFilter == 'priority',
               onTap: () => onOrderPriorityChanged('priority'),
             ),
             _buildFilterChip(
-              label: 'Standard',
+              label: AppLocalizations.of(context)!.standard,
               isSelected: orderPriorityFilter == 'standard',
               onTap: () => onOrderPriorityChanged('standard'),
             ),
@@ -106,8 +105,7 @@ class FilterControlsWidget extends StatelessWidget {
             color: isSelected ? Colors.white : Colors.black,
             fontSize: 13.sp,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
     );
   }

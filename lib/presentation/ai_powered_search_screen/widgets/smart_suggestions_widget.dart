@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class SmartSuggestionsWidget extends StatelessWidget {
   final Function(String) onSuggestionTap;
@@ -14,33 +15,33 @@ class SmartSuggestionsWidget extends StatelessWidget {
     final suggestions = [
       {
         'icon': Icons.restaurant,
-        'title': 'Cheap Italian food open now',
-        'query': 'cheap Italian food open now',
+        'title': AppLocalizations.of(context)!.cheapItalianFoodOpenNow,
+        'query': AppLocalizations.of(context)!.cheapItalianFoodOpenNow2,
       },
       {
         'icon': Icons.local_grocery_store,
         'title': 'Fresh vegetables under \$20',
-        'query': 'fresh vegetables under 20',
+        'query': AppLocalizations.of(context)!.freshVegetablesUnder20,
       },
       {
         'icon': Icons.local_pharmacy,
-        'title': 'Pharmacy near me',
-        'query': 'pharmacy near me',
+        'title': AppLocalizations.of(context)!.pharmacyNearMe,
+        'query': AppLocalizations.of(context)!.pharmacyNearMe2,
       },
       {
         'icon': Icons.build,
-        'title': 'Mechanics within 5 miles',
-        'query': 'mechanics within 5 miles',
+        'title': AppLocalizations.of(context)!.mechanicsWithin5Miles,
+        'query': AppLocalizations.of(context)!.mechanicsWithin5Miles2,
       },
       {
         'icon': Icons.cleaning_services,
-        'title': 'Cleaners available today',
-        'query': 'cleaners available today',
+        'title': AppLocalizations.of(context)!.cleanersAvailableToday,
+        'query': AppLocalizations.of(context)!.cleanersAvailableToday2,
       },
       {
         'icon': Icons.shopping_bag,
-        'title': 'Retail stores open now',
-        'query': 'retail stores open now',
+        'title': AppLocalizations.of(context)!.retailStoresOpenNow,
+        'query': AppLocalizations.of(context)!.retailStoresOpenNow2,
       },
     ];
 
@@ -57,24 +58,22 @@ class SmartSuggestionsWidget extends StatelessWidget {
                 size: 6.w,
               ),
               SizedBox(width: 2.w),
-              Text(
-                'Smart Suggestions',
+              Flexible(child: Text(
+                AppLocalizations.of(context)!.smartSuggestions,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w600,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
             ],
           ),
           SizedBox(height: 2.h),
           Text(
-            'Try asking AI in natural language:',
+            AppLocalizations.of(context)!.tryAskingAiInNaturalLanguage,
             style: TextStyle(
               color: Colors.white70,
               fontSize: 12.sp,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 2.h),
           ...suggestions.map((suggestion) {
             return GestureDetector(
@@ -110,8 +109,7 @@ class SmartSuggestionsWidget extends StatelessWidget {
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 13.sp,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                     Icon(
                       Icons.arrow_forward_ios,

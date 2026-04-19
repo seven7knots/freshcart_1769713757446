@@ -9,6 +9,7 @@ import '../services/ads_service.dart';
 import '../services/product_service.dart';
 import '../services/store_service.dart';
 import '../services/supabase_service.dart';
+import '../l10n/generated/app_localizations.dart';
 
 class AdminEditableItemWrapper extends StatelessWidget {
   final Widget child;
@@ -43,7 +44,7 @@ class AdminEditableItemWrapper extends StatelessWidget {
       Container(
         decoration: showBorder ? BoxDecoration(
           border: Border.all(color: Colors.orange.withAlpha(128), width: 2, strokeAlign: BorderSide.strokeAlignOutside),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ) : null,
         child: child,
       ),
@@ -111,18 +112,18 @@ class _MenuButton extends StatelessWidget {
           padding: EdgeInsets.all(4.w),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(width: 12.w, height: 0.5.h, margin: EdgeInsets.only(bottom: 2.h),
-              decoration: BoxDecoration(color: theme.colorScheme.outline.withAlpha(77), borderRadius: BorderRadius.circular(2))),
+              decoration: BoxDecoration(color: theme.colorScheme.outline.withAlpha(77), borderRadius: BorderRadius.circular(14))),
             Text('Edit $_label: $itemName', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 2.h),
             // Edit
             _tile(ctx, Icons.edit, Colors.blue, 'Edit $_label', () { Navigator.pop(ctx); _openEdit(context); }),
             SizedBox(height: 1.h),
             // Change Image
-            _tile(ctx, Icons.image, Colors.purple, 'Change Image', () { Navigator.pop(ctx); _openEdit(context); }),
+            _tile(ctx, Icons.image, Colors.purple, AppLocalizations.of(context)!.changeImage, () { Navigator.pop(ctx); _openEdit(context); }),
             SizedBox(height: 1.h),
             // Toggle Active
             _tile(ctx, _isActive ? Icons.visibility_off : Icons.visibility, Colors.orange,
-              _isActive ? 'Deactivate' : 'Activate', () { Navigator.pop(ctx); _toggleActive(context); }),
+              _isActive ? AppLocalizations.of(context)!.deactivate : AppLocalizations.of(context)!.activate, () { Navigator.pop(ctx); _toggleActive(context); }),
             SizedBox(height: 1.h),
             // Delete
             _tile(ctx, Icons.delete, Colors.red, 'Delete $_label', () { Navigator.pop(ctx); _confirmDelete(context); }, isDanger: true),
@@ -137,13 +138,13 @@ class _MenuButton extends StatelessWidget {
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(14)),
         child: Icon(icon, color: color, size: 20),
       ),
-      title: Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: isDanger ? Colors.red : null)),
+      title: Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: isDanger ? Colors.red : null), maxLines: 1, overflow: TextOverflow.ellipsis),
       trailing: const Icon(Icons.chevron_right, size: 20),
       onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
     );
   }
 
@@ -154,7 +155,7 @@ class _MenuButton extends StatelessWidget {
         contentType: contentType == 'carousel' ? 'ad' : contentType,
         contentId: contentId, contentData: contentData,
         onSaved: () { Navigator.pop(ctx); onUpdated?.call();
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$_label updated'), backgroundColor: Colors.green)); },
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$_label updated', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.green)); },
       ),
     );
   }
@@ -177,27 +178,27 @@ class _MenuButton extends StatelessWidget {
       onUpdated?.call();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('$_label ${newActive ? "activated" : "deactivated"}'),
+          content: Text('$_label ${newActive ? "activated" : "deactivated"}', maxLines: 1, overflow: TextOverflow.ellipsis),
           backgroundColor: Colors.orange,
         ));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red));
       }
     }
   }
 
   void _confirmDelete(BuildContext context) {
     showDialog(context: context, builder: (ctx) => AlertDialog(
-      title: Text('Delete $_label?'),
-      content: const Text('This action cannot be undone.'),
+      title: Text('Delete $_label?', maxLines: 1, overflow: TextOverflow.ellipsis),
+      content: Text(AppLocalizations.of(context)!.thisActionCannotBeUndone, maxLines: 1, overflow: TextOverflow.ellipsis),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis)),
         ElevatedButton(
           onPressed: () { Navigator.pop(ctx); _doDelete(context); },
           style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-          child: const Text('Delete'),
+          child: Text(AppLocalizations.of(context)!.delete, maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ],
     ));
@@ -219,11 +220,11 @@ class _MenuButton extends StatelessWidget {
       }
       onDeleted?.call();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$_label deleted'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$_label deleted', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red));
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red));
       }
     }
   }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class EmptyStateWidget extends StatelessWidget {
   final VoidCallback? onExploreProducts;
@@ -14,18 +15,22 @@ class EmptyStateWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return SingleChildScrollView(
+      physics: const NeverScrollableScrollPhysics(),
       child: Padding(
         padding: EdgeInsets.all(6.w),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Empty state illustration
+            SizedBox(height: 4.h),
+
             Container(
               width: 60.w,
-              height: 30.h,
+              height: 160,
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.outline
+                color: Theme.of(context)
+                    .colorScheme
+                    .outline
                     .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
@@ -34,67 +39,44 @@ class EmptyStateWidget extends StatelessWidget {
                 children: [
                   CustomIconWidget(
                     iconName: 'shopping_bag',
-                    color: AppTheme.lightTheme.colorScheme.outline,
-                    size: 80,
+                    color: Theme.of(context).colorScheme.outline,
+                    size: 60,
                   ),
-                  SizedBox(height: 2.h),
+                  const SizedBox(height: 12),
                   CustomIconWidget(
                     iconName: 'receipt_long',
-                    color: AppTheme.lightTheme.colorScheme.outline
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outline
                         .withValues(alpha: 0.5),
-                    size: 40,
+                    size: 32,
                   ),
                 ],
               ),
             ),
 
-            SizedBox(height: 4.h),
+            SizedBox(height: 3.h),
 
-            // Title
             Text(
-              'No Orders Yet',
-              style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppTheme.lightTheme.colorScheme.onSurface,
-              ),
-              textAlign: TextAlign.center,
-            ),
+              AppLocalizations.of(context)!.noOrdersYet2,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+              textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
 
-            SizedBox(height: 2.h),
+            SizedBox(height: 1.5.h),
 
-            // Description
             Text(
-              'Start shopping to see your order history here. Discover fresh groceries and everyday essentials.',
-              style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
+              AppLocalizations.of(context)!.startShoppingToSeeYourOrder,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+              textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
 
             SizedBox(height: 4.h),
 
-            // Popular categories
-            Text(
-              'Popular Categories',
-              style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-
-            SizedBox(height: 2.h),
-
-            // Category chips
-            Wrap(
-              spacing: 2.w,
-              runSpacing: 1.h,
-              alignment: WrapAlignment.center,
-              children: _buildCategoryChips(),
-            ),
-
-            SizedBox(height: 4.h),
-
-            // Explore button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -104,10 +86,10 @@ class EmptyStateWidget extends StatelessWidget {
                 },
                 style: ElevatedButton.styleFrom(
                   padding: EdgeInsets.symmetric(vertical: 2.h),
-                  backgroundColor: AppTheme.lightTheme.colorScheme.primary,
-                  foregroundColor: AppTheme.lightTheme.colorScheme.onPrimary,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 child: Row(
@@ -115,66 +97,24 @@ class EmptyStateWidget extends StatelessWidget {
                   children: [
                     CustomIconWidget(
                       iconName: 'explore',
-                      color: AppTheme.lightTheme.colorScheme.onPrimary,
+                      color: Theme.of(context).colorScheme.onPrimary,
                       size: 20,
                     ),
                     SizedBox(width: 2.w),
-                    Text(
-                      'Explore Products',
-                      style: AppTheme.lightTheme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    Flexible(child: Text(
+                      AppLocalizations.of(context)!.exploreProducts,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ],
                 ),
               ),
             ),
+
+            SizedBox(height: 2.h),
           ],
         ),
       ),
     );
-  }
-
-  List<Widget> _buildCategoryChips() {
-    final categories = [
-      {'name': 'Fresh Fruits', 'icon': 'apple'},
-      {'name': 'Vegetables', 'icon': 'eco'},
-      {'name': 'Dairy', 'icon': 'local_drink'},
-      {'name': 'Bakery', 'icon': 'cake'},
-      {'name': 'Meat & Fish', 'icon': 'restaurant'},
-      {'name': 'Snacks', 'icon': 'cookie'},
-    ];
-
-    return categories.map((category) {
-      return Container(
-        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-        decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color:
-                AppTheme.lightTheme.colorScheme.primary.withValues(alpha: 0.3),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CustomIconWidget(
-              iconName: category['icon'] as String,
-              color: AppTheme.lightTheme.colorScheme.primary,
-              size: 16,
-            ),
-            SizedBox(width: 1.w),
-            Text(
-              category['name'] as String,
-              style: AppTheme.lightTheme.textTheme.labelMedium?.copyWith(
-                color: AppTheme.lightTheme.colorScheme.primary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      );
-    }).toList();
   }
 }

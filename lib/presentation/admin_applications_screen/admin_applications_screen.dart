@@ -4,6 +4,7 @@ import '../../providers/admin_provider.dart';
 import '../../models/merchant_model.dart';
 import '../../models/driver_model.dart';
 import '../../core/app_export.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Admin Applications Screen
 /// Displays and manages pending merchant and driver applications
@@ -46,7 +47,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Applications'),
+        title: Text(AppLocalizations.of(context)!.applications, maxLines: 1, overflow: TextOverflow.ellipsis),
         bottom: TabBar(
           controller: _tabController,
           tabs: [
@@ -57,7 +58,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                   children: [
                     const Icon(Icons.store),
                     const SizedBox(width: 8),
-                    const Text('Merchants'),
+                    Flexible(child: Text(AppLocalizations.of(context)!.merchants, maxLines: 1, overflow: TextOverflow.ellipsis)),
                     if (admin.pendingMerchants.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       Container(
@@ -65,13 +66,12 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: colorScheme.error,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Text(
                           '${admin.pendingMerchants.length}',
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 12),
-                        ),
+                              color: Colors.white, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ],
@@ -85,7 +85,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                   children: [
                     const Icon(Icons.delivery_dining),
                     const SizedBox(width: 8),
-                    const Text('Drivers'),
+                    Flexible(child: Text(AppLocalizations.of(context)!.drivers, maxLines: 1, overflow: TextOverflow.ellipsis)),
                     if (admin.pendingDrivers.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       Container(
@@ -93,13 +93,12 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: colorScheme.error,
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Text(
                           '${admin.pendingDrivers.length}',
                           style: const TextStyle(
-                              color: Colors.white, fontSize: 12),
-                        ),
+                              color: Colors.white, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ],
@@ -122,15 +121,13 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                 children: [
                   const Icon(Icons.lock, size: 64, color: Colors.grey),
                   const SizedBox(height: 16),
-                  const Text(
-                    'Access Denied',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
+                  Text(
+                    AppLocalizations.of(context)!.accessDenied,
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 8),
-                  const Text(
-                    'You do not have admin privileges.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
+                  Text(
+                    AppLocalizations.of(context)!.youDoNotHaveAdminPrivileges,
+                    style: TextStyle(color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             );
@@ -158,8 +155,8 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
     if (merchants.isEmpty) {
       return _buildEmptyState(
         icon: Icons.store_outlined,
-        title: 'No Pending Merchant Applications',
-        subtitle: 'All merchant applications have been processed.',
+        title: AppLocalizations.of(context)!.noPendingMerchantApplications,
+        subtitle: AppLocalizations.of(context)!.allMerchantApplicationsHaveBeenProcessed,
       );
     }
 
@@ -195,7 +192,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                   height: 60,
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     image: merchant.logoUrl != null
                         ? DecorationImage(
                             image: NetworkImage(merchant.logoUrl!),
@@ -219,24 +216,22 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
                       if (merchant.businessType != null)
                         Text(
                           merchant.businessType!,
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: Colors.grey.shade600,
                             fontSize: 14,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.orange.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Text(
                           'PENDING',
@@ -244,8 +239,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                             color: Colors.orange,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ),
@@ -260,15 +254,15 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
             // Details
             if (merchant.description != null) ...[
               _buildDetailRow(
-                  Icons.description, 'Description', merchant.description!),
+                  Icons.description, AppLocalizations.of(context)!.description, merchant.description!),
               const SizedBox(height: 8),
             ],
             if (merchant.address != null) ...[
-              _buildDetailRow(Icons.location_on, 'Address', merchant.address!),
+              _buildDetailRow(Icons.location_on, AppLocalizations.of(context)!.address, merchant.address!),
               const SizedBox(height: 8),
             ],
             if (merchant.userEmail != null) ...[
-              _buildDetailRow(Icons.email, 'Email', merchant.userEmail!),
+              _buildDetailRow(Icons.email, AppLocalizations.of(context)!.email, merchant.userEmail!),
               const SizedBox(height: 8),
             ],
             _buildDetailRow(
@@ -286,13 +280,13 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                   child: OutlinedButton.icon(
                     onPressed: () => _showRejectDialog(
                       context: context,
-                      title: 'Reject Merchant',
+                      title: AppLocalizations.of(context)!.rejectMerchant,
                       onReject: (reason) =>
                           _rejectMerchant(merchant.id, reason),
                     ),
                     icon: const Icon(Icons.close, color: Colors.red),
-                    label: const Text('Reject',
-                        style: TextStyle(color: Colors.red)),
+                    label: Text(AppLocalizations.of(context)!.reject,
+                        style: TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.red),
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -304,7 +298,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                   child: ElevatedButton.icon(
                     onPressed: () => _approveMerchant(merchant.id),
                     icon: const Icon(Icons.check),
-                    label: const Text('Approve'),
+                    label: Text(AppLocalizations.of(context)!.approve, maxLines: 1, overflow: TextOverflow.ellipsis),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -330,8 +324,8 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
     if (drivers.isEmpty) {
       return _buildEmptyState(
         icon: Icons.delivery_dining_outlined,
-        title: 'No Pending Driver Applications',
-        subtitle: 'All driver applications have been processed.',
+        title: AppLocalizations.of(context)!.noPendingDriverApplications,
+        subtitle: AppLocalizations.of(context)!.allDriverApplicationsHaveBeenProcessed,
       );
     }
 
@@ -391,23 +385,20 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
                       Row(
                         children: [
                           Text(
                             driver.vehicleType.icon,
-                            style: const TextStyle(fontSize: 16),
-                          ),
+                            style: const TextStyle(fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
                           const SizedBox(width: 4),
                           Text(
                             driver.vehicleType.displayName,
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: Colors.grey.shade600,
                               fontSize: 14,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -416,7 +407,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                             horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: Colors.orange.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Text(
                           'PENDING',
@@ -424,8 +415,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                             color: Colors.orange,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ),
@@ -438,19 +428,19 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
             const SizedBox(height: 12),
 
             // Details
-            _buildDetailRow(Icons.phone, 'Phone', driver.phone),
+            _buildDetailRow(Icons.phone, AppLocalizations.of(context)!.phone, driver.phone),
             const SizedBox(height: 8),
             if (driver.email != null) ...[
-              _buildDetailRow(Icons.email, 'Email', driver.email!),
+              _buildDetailRow(Icons.email, AppLocalizations.of(context)!.email, driver.email!),
               const SizedBox(height: 8),
             ],
             if (driver.vehiclePlate != null) ...[
               _buildDetailRow(
-                  Icons.directions_car, 'Plate', driver.vehiclePlate!),
+                  Icons.directions_car, AppLocalizations.of(context)!.plate, driver.vehiclePlate!),
               const SizedBox(height: 8),
             ],
             if (driver.licenseNumber != null) ...[
-              _buildDetailRow(Icons.badge, 'License', driver.licenseNumber!),
+              _buildDetailRow(Icons.badge, AppLocalizations.of(context)!.license, driver.licenseNumber!),
               const SizedBox(height: 8),
             ],
             _buildDetailRow(
@@ -468,12 +458,12 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                   child: OutlinedButton.icon(
                     onPressed: () => _showRejectDialog(
                       context: context,
-                      title: 'Reject Driver',
+                      title: AppLocalizations.of(context)!.rejectDriver,
                       onReject: (reason) => _rejectDriver(driver.id, reason),
                     ),
                     icon: const Icon(Icons.close, color: Colors.red),
-                    label: const Text('Reject',
-                        style: TextStyle(color: Colors.red)),
+                    label: Text(AppLocalizations.of(context)!.reject,
+                        style: TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Colors.red),
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -485,7 +475,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
                   child: ElevatedButton.icon(
                     onPressed: () => _approveDriver(driver.id),
                     icon: const Icon(Icons.check),
-                    label: const Text('Approve'),
+                    label: Text(AppLocalizations.of(context)!.approve, maxLines: 1, overflow: TextOverflow.ellipsis),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -514,25 +504,23 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 80, color: Colors.grey[300]),
+          Icon(icon, size: 80, color: Colors.grey.shade300),
           const SizedBox(height: 16),
           Text(
             title,
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: TextStyle(color: Colors.grey[600]),
-          ),
+            style: TextStyle(color: Colors.grey.shade600), maxLines: 1, overflow: TextOverflow.ellipsis),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _loadApplications,
             icon: const Icon(Icons.refresh),
-            label: const Text('Refresh'),
+            label: Text(AppLocalizations.of(context)!.refresh, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -543,27 +531,26 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: Colors.grey[600]),
+        Icon(icon, size: 18, color: Colors.grey.shade600),
         const SizedBox(width: 8),
-        Text(
+        Flexible(child: Text(
           '$label: ',
           style: TextStyle(
-            color: Colors.grey[600],
+            color: Colors.grey.shade600,
             fontSize: 14,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis)),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(fontSize: 14),
-          ),
+            style: const TextStyle(fontSize: 14), maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ],
     );
   }
 
   String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} at ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    final local = date.toLocal();
+    return '${local.day}/${local.month}/${local.year} at ${local.hour}:${local.minute.toString().padLeft(2, '0')}';
   }
 
   // ============================================================
@@ -574,7 +561,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
     final adminProvider = Provider.of<AdminProvider>(context, listen: false);
 
     final confirm = await _showConfirmDialog(
-      title: 'Approve Merchant',
+      title: AppLocalizations.of(context)!.approveMerchant,
       message:
           'Are you sure you want to approve this merchant application? They will gain merchant privileges immediately.',
     );
@@ -588,8 +575,8 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(success
-            ? 'Merchant approved successfully!'
-            : 'Failed to approve merchant'),
+            ? AppLocalizations.of(context)!.merchantApprovedSuccessfully
+            : AppLocalizations.of(context)!.failedToApproveMerchant, maxLines: 1, overflow: TextOverflow.ellipsis),
         backgroundColor: success ? Colors.green : Colors.red,
       ),
     );
@@ -606,7 +593,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content:
-            Text(success ? 'Merchant rejected' : 'Failed to reject merchant'),
+            Text(success ? AppLocalizations.of(context)!.merchantRejected : AppLocalizations.of(context)!.failedToRejectMerchant, maxLines: 1, overflow: TextOverflow.ellipsis),
         backgroundColor: success ? Colors.orange : Colors.red,
       ),
     );
@@ -616,7 +603,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
     final adminProvider = Provider.of<AdminProvider>(context, listen: false);
 
     final confirm = await _showConfirmDialog(
-      title: 'Approve Driver',
+      title: AppLocalizations.of(context)!.approveDriver,
       message:
           'Are you sure you want to approve this driver application? They will gain driver privileges immediately.',
     );
@@ -630,7 +617,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-            success ? 'Driver approved successfully!' : 'Failed to approve driver'),
+            success ? AppLocalizations.of(context)!.driverApprovedSuccessfully : AppLocalizations.of(context)!.failedToApproveDriver, maxLines: 1, overflow: TextOverflow.ellipsis),
         backgroundColor: success ? Colors.green : Colors.red,
       ),
     );
@@ -645,7 +632,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(success ? 'Driver rejected' : 'Failed to reject driver'),
+        content: Text(success ? AppLocalizations.of(context)!.driverRejected : AppLocalizations.of(context)!.failedToRejectDriver, maxLines: 1, overflow: TextOverflow.ellipsis),
         backgroundColor: success ? Colors.orange : Colors.red,
       ),
     );
@@ -662,17 +649,17 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
+        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Text(message, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Confirm'),
+            child: Text(AppLocalizations.of(context)!.confirm, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -689,18 +676,18 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(title),
+        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Please provide a reason for rejection (optional):'),
+            Text(AppLocalizations.of(context)!.pleaseProvideAReasonForRejection, maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 16),
             TextField(
               controller: _rejectionReasonController,
               maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'e.g., Missing documents, Invalid information...',
+              decoration: InputDecoration(
+                hintText: AppLocalizations.of(context)!.eGMissingDocumentsInvalidInformation,
                 border: OutlineInputBorder(),
               ),
             ),
@@ -709,7 +696,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           ElevatedButton(
             onPressed: () {
@@ -718,7 +705,7 @@ class _AdminApplicationsScreenState extends State<AdminApplicationsScreen>
               onReject(reason.isEmpty ? null : reason);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Reject'),
+            child: Text(AppLocalizations.of(context)!.reject, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),

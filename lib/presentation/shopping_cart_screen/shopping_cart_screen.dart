@@ -6,6 +6,9 @@ import 'package:sizer/sizer.dart';
 import '../../providers/cart_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../widgets/main_layout_wrapper.dart';
+import '../../widgets/shimmer_placeholder.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class ShoppingCartScreen extends ConsumerStatefulWidget {
   const ShoppingCartScreen({super.key});
@@ -36,7 +39,7 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
 
   String _productName(Map<String, dynamic> item) {
     final product = item['products'] as Map<String, dynamic>?;
-    return product?['name'] as String? ?? 'Unknown Product';
+    return product?['name'] as String? ?? AppLocalizations.of(context)!.unknownProduct;
   }
 
   String? _productImage(Map<String, dynamic> item) {
@@ -90,12 +93,12 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
       await ref.read(cartNotifierProvider.notifier).removeItem(cartItemId);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Item removed from cart'), backgroundColor: Colors.orange),
+        SnackBar(content: Text(AppLocalizations.of(context)!.itemRemovedFromCart, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.orange),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to remove item: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Failed to remove item: $e', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red),
       );
     }
   }
@@ -106,7 +109,7 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update quantity: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Failed to update quantity: $e', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red),
       );
     }
   }
@@ -115,27 +118,26 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Clear Cart'),
-        content: const Text('Are you sure you want to remove all items from your cart?'),
+        title: Text(AppLocalizations.of(context)!.clearCart, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Text(AppLocalizations.of(context)!.areYouSureYouWantTo5, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(context), child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis)),
           TextButton(
             onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
               Navigator.pop(context);
               try {
                 await ref.read(cartNotifierProvider.notifier).clearCart();
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Cart cleared')),
+                messenger.showSnackBar(
+                  SnackBar(content: Text(AppLocalizations.of(context)!.cartCleared, maxLines: 1, overflow: TextOverflow.ellipsis)),
                 );
               } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to clear cart: $e')),
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Failed to clear cart: $e', maxLines: 1, overflow: TextOverflow.ellipsis)),
                 );
               }
             },
-            child: const Text('Clear', style: TextStyle(color: Colors.red)),
+            child: Text(AppLocalizations.of(context)!.clear, style: TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -164,9 +166,9 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
     final unavailable = items.where((item) => !_isAvailable(item)).toList();
     if (unavailable.isNotEmpty) {
       showDialog(context: context, builder: (ctx) => AlertDialog(
-        title: const Text('Items Unavailable'),
-        content: const Text('Some items in your cart are currently unavailable. Please remove them first.'),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('OK'))],
+        title: Text(AppLocalizations.of(context)!.itemsUnavailable, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Text(AppLocalizations.of(context)!.someItemsInYourCartAre, maxLines: 1, overflow: TextOverflow.ellipsis),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(AppLocalizations.of(context)!.ok2, maxLines: 1, overflow: TextOverflow.ellipsis))],
       ));
       return;
     }
@@ -199,26 +201,26 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
         leading: _shouldShowBack
             ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => Navigator.pop(context))
             : null,
-        title: Text('Shopping Cart', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+        title: Text(AppLocalizations.of(context)!.shoppingCart2, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           cartState.maybeWhen(
             data: (items) => items.isNotEmpty
-                ? IconButton(icon: const Icon(Icons.delete_outline), tooltip: 'Clear cart', onPressed: _clearCart)
+                ? IconButton(icon: Icon(Icons.delete_outline), tooltip: AppLocalizations.of(context)!.clearCart2, onPressed: _clearCart)
                 : const SizedBox.shrink(),
             orElse: () => const SizedBox.shrink(),
           ),
         ],
       ),
       body: cartState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const ShimmerFullPage(),
         error: (e, _) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
           SizedBox(height: 2.h),
-          Text('Failed to load cart', style: theme.textTheme.titleMedium),
+          Text(AppLocalizations.of(context)!.failedToLoadCart, style: theme.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
-          Text(e.toString(), style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), textAlign: TextAlign.center),
+          Text(e.toString(), style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 2.h),
-          ElevatedButton(onPressed: () => ref.read(cartNotifierProvider.notifier).loadCart(), child: const Text('Retry')),
+          ElevatedButton(onPressed: () => ref.read(cartNotifierProvider.notifier).loadCart(), child: Text(AppLocalizations.of(context)!.retry, maxLines: 1, overflow: TextOverflow.ellipsis)),
         ])),
         data: (items) => _buildCartContent(theme, items),
       ),
@@ -227,13 +229,14 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
           if (items.isEmpty) return null;
           final subtotal = _calcSubtotal(items);
           final total = subtotal - _promoDiscount;
-          return SafeArea(
-            minimum: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-            child: SizedBox(width: double.infinity, height: 6.h, child: ElevatedButton(
+          return Padding(
+            padding: EdgeInsets.fromLTRB(4.w, 1.h, 4.w, 2.h),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(minimumSize: Size(double.infinity, 52)),
               onPressed: () => _proceedToCheckout(items),
               child: Text('Checkout • \$${total.toStringAsFixed(2)}',
-                  style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.w700)),
-            )),
+                  style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
           );
         },
         orElse: () => null,
@@ -247,12 +250,12 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
         mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.shopping_cart_outlined, size: 60, color: theme.colorScheme.onSurfaceVariant),
           SizedBox(height: 2.h),
-          Text('Your cart is empty', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+          Text(AppLocalizations.of(context)!.yourCartIsEmpty, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
-          Text('Browse items and add them to your cart.',
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant), textAlign: TextAlign.center),
+          Text(AppLocalizations.of(context)!.browseItemsAndAddThemTo,
+              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant), textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 3.h),
-          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => _goToTab(0), child: const Text('Start Shopping'))),
+          SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => _goToTab(0), child: Text(AppLocalizations.of(context)!.startShopping, maxLines: 1, overflow: TextOverflow.ellipsis))),
         ],
       )));
     }
@@ -272,11 +275,11 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
           child: Row(children: [
             Icon(Icons.shopping_cart, size: 20, color: theme.colorScheme.primary),
             SizedBox(width: 2.w),
-            Text('$totalItems item${totalItems != 1 ? 's' : ''} in cart',
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+            Flexible(child: Text('$totalItems item${totalItems != 1 ? 's' : ''} in cart',
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
             const Spacer(),
-            Text('\$${subtotal.toStringAsFixed(2)}',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: theme.colorScheme.primary)),
+            Flexible(child: Text('\$${subtotal.toStringAsFixed(2)}',
+                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: theme.colorScheme.primary), maxLines: 1, overflow: TextOverflow.ellipsis)),
           ]),
         ),
 
@@ -308,14 +311,14 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
         color: available ? theme.colorScheme.surface : theme.colorScheme.error.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: available ? theme.colorScheme.outline.withOpacity(0.15) : theme.colorScheme.error.withOpacity(0.3)),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(14),
           child: SizedBox(width: 20.w, height: 20.w, child: image != null && image.isNotEmpty
-              ? Image.network(image, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _imagePlaceholder(theme))
+              ? CachedNetworkImage(imageUrl: image, fit: BoxFit.cover, errorWidget: (_, __, ___) => _imagePlaceholder(theme))
               : _imagePlaceholder(theme)),
         ),
         SizedBox(width: 3.w),
@@ -324,35 +327,35 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
               maxLines: 2, overflow: TextOverflow.ellipsis),
           if (store != null) ...[
             SizedBox(height: 0.3.h),
-            Text(store, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            Text(store, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
           SizedBox(height: 0.5.h),
           Row(children: [
             if (origPrice != null) ...[
               Text('\$${origPrice.toStringAsFixed(2)}',
-                  style: theme.textTheme.bodySmall?.copyWith(decoration: TextDecoration.lineThrough, color: theme.colorScheme.onSurfaceVariant)),
+                  style: theme.textTheme.bodySmall?.copyWith(decoration: TextDecoration.lineThrough, color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(width: 1.w),
             ],
             Text('\$${price.toStringAsFixed(2)}',
                 style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700,
-                    color: origPrice != null ? Colors.red : theme.colorScheme.primary)),
+                    color: origPrice != null ? Colors.red : theme.colorScheme.primary), maxLines: 1, overflow: TextOverflow.ellipsis),
           ]),
           if (!available) ...[
             SizedBox(height: 0.5.h),
-            Text('Unavailable', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error, fontWeight: FontWeight.w600)),
+            Text(AppLocalizations.of(context)!.unavailable, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
           SizedBox(height: 1.h),
           Row(children: [
             _qtyButton(theme, Icons.remove, qty > 1 ? () => _updateQuantity(id, qty - 1) : null),
             Padding(padding: EdgeInsets.symmetric(horizontal: 3.w),
-              child: Text('$qty', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
+              child: Text('$qty', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
             _qtyButton(theme, Icons.add, () => _updateQuantity(id, qty + 1)),
             const Spacer(),
             Text('\$${(price * qty).toStringAsFixed(2)}',
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: theme.colorScheme.primary)),
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: theme.colorScheme.primary), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(width: 2.w),
             IconButton(icon: Icon(Icons.delete_outline, color: theme.colorScheme.error, size: 20),
-                onPressed: () => _removeCartItem(id), tooltip: 'Remove'),
+                onPressed: () => _removeCartItem(id), tooltip: AppLocalizations.of(context)!.remove),
           ]),
         ])),
       ]),
@@ -366,7 +369,7 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: onTap != null ? theme.colorScheme.primary : theme.colorScheme.outline.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Icon(icon, size: 16, color: onTap != null ? theme.colorScheme.onPrimary : theme.colorScheme.onSurfaceVariant),
       ),
@@ -382,29 +385,29 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 4.w),
       padding: EdgeInsets.all(4.w),
-      decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(12),
+      decoration: BoxDecoration(color: theme.colorScheme.surface, borderRadius: BorderRadius.circular(16),
         border: Border.all(color: theme.colorScheme.outline.withOpacity(0.15))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Order Summary', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+        Text(AppLocalizations.of(context)!.orderSummary, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 2.h),
-        _summaryRow(theme, 'Subtotal', '\$${subtotal.toStringAsFixed(2)}'),
+        _summaryRow(theme, AppLocalizations.of(context)!.subtotal, '\$${subtotal.toStringAsFixed(2)}'),
         if (_promoDiscount > 0)
           _summaryRow(theme, 'Discount ($_appliedPromoCode)', '-\$${_promoDiscount.toStringAsFixed(2)}', isDiscount: true),
         Divider(height: 3.h),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text('Total', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          Text('\$${total.toStringAsFixed(2)}', style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700, color: theme.colorScheme.primary)),
+          Flexible(child: Text(AppLocalizations.of(context)!.total, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Flexible(child: Text('\$${total.toStringAsFixed(2)}', style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700, color: theme.colorScheme.primary), maxLines: 1, overflow: TextOverflow.ellipsis)),
         ]),
         SizedBox(height: 1.h),
-        Text('Taxes and delivery fee calculated at checkout',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        Text(AppLocalizations.of(context)!.taxesAndDeliveryFeeCalculatedAt,
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 2.h),
         // Promo code input
         if (_appliedPromoCode == null)
           TextField(
             decoration: InputDecoration(
-              hintText: 'Promo code',
+              hintText: AppLocalizations.of(context)!.promoCode,
               border: const OutlineInputBorder(),
               isDense: true,
               suffixIcon: IconButton(icon: const Icon(Icons.check), onPressed: () {}),
@@ -417,9 +420,9 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
           Row(children: [
             const Icon(Icons.discount, color: Colors.green, size: 18),
             SizedBox(width: 1.w),
-            Text('$_appliedPromoCode applied', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.green, fontWeight: FontWeight.w600)),
+            Flexible(child: Text('$_appliedPromoCode applied', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.green, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
             const Spacer(),
-            TextButton(onPressed: _onPromoCodeRemoved, child: const Text('Remove', style: TextStyle(color: Colors.red))),
+            TextButton(onPressed: _onPromoCodeRemoved, child: Text(AppLocalizations.of(context)!.remove, style: TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis)),
           ]),
       ]),
     );
@@ -428,9 +431,9 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
   Widget _summaryRow(ThemeData theme, String label, String value, {bool isDiscount = false}) {
     return Padding(padding: EdgeInsets.only(bottom: 1.h), child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        Text(value, style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600, color: isDiscount ? Colors.green : null)),
+        Flexible(child: Text(label, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis)),
+        Flexible(child: Text(value, style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600, color: isDiscount ? Colors.green : null), maxLines: 1, overflow: TextOverflow.ellipsis)),
       ],
     ));
   }

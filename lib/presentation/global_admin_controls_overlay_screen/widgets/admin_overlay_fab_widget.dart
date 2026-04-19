@@ -139,7 +139,7 @@ class _AdminOverlayFabWidgetState extends State<AdminOverlayFabWidget>
                   // Icon
                   Icon(
                     widget.isActive ? Icons.edit_off : Icons.edit,
-                    color: Colors.white,
+                    color: theme.colorScheme.surface,
                     size: 6.w,
                   ),
                 ],

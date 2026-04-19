@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class InterpretedFiltersWidget extends StatelessWidget {
   final Map<String, dynamic> filters;
@@ -25,7 +26,7 @@ class InterpretedFiltersWidget extends StatelessWidget {
     if (filters['min_price'] != null || filters['max_price'] != null) {
       final minPrice = filters['min_price'];
       final maxPrice = filters['max_price'];
-      String priceText = 'Price: ';
+      String priceText = AppLocalizations.of(context)!.price3;
       if (minPrice != null && maxPrice != null) {
         priceText += '\$$minPrice - \$$maxPrice';
       } else if (minPrice != null) {
@@ -37,16 +38,16 @@ class InterpretedFiltersWidget extends StatelessWidget {
     }
 
     if (filters['open_now'] == true) {
-      chips.add(_buildChip('Open Now', Icons.access_time));
+      chips.add(_buildChip(AppLocalizations.of(context)!.openNow, Icons.access_time));
     }
 
     if (filters['sort_by'] != null && filters['sort_by'] != 'relevance') {
       final sortBy = filters['sort_by'];
-      String sortText = 'Sort: ';
+      String sortText = AppLocalizations.of(context)!.sort;
       if (sortBy == 'price_low') {
-        sortText += 'Price Low-High';
+        sortText += AppLocalizations.of(context)!.priceLowHigh;
       } else if (sortBy == 'price_high') {
-        sortText += 'Price High-Low';
+        sortText += AppLocalizations.of(context)!.priceHighLow;
       }
       chips.add(_buildChip(sortText, Icons.sort));
     }
@@ -67,25 +68,23 @@ class InterpretedFiltersWidget extends StatelessWidget {
                 size: 4.w,
               ),
               SizedBox(width: 1.w),
-              Text(
-                'AI Interpreted:',
+              Flexible(child: Text(
+                AppLocalizations.of(context)!.aiInterpreted,
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 11.sp,
                   fontWeight: FontWeight.w500,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
               const Spacer(),
               GestureDetector(
                 onTap: onClear,
                 child: Text(
-                  'Clear',
+                  AppLocalizations.of(context)!.clear,
                   style: TextStyle(
                     color: const Color(0xFFE50914),
                     fontSize: 11.sp,
                     fontWeight: FontWeight.w600,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
@@ -119,13 +118,12 @@ class InterpretedFiltersWidget extends StatelessWidget {
             size: 4.w,
           ),
           SizedBox(width: 1.w),
-          Text(
+          Flexible(child: Text(
             label,
             style: TextStyle(
               color: Colors.white,
               fontSize: 11.sp,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis)),
         ],
       ),
     );

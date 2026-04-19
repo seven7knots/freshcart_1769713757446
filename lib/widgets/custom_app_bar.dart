@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../l10n/generated/app_localizations.dart';
 
 
 /// Custom app bar widget implementing Contemporary Minimalist Commerce design
@@ -44,7 +45,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final colorScheme = theme.colorScheme;
 
     return AppBar(
-      title: title != null ? Text(title!) : null,
+      title: title != null ? Text(title!, maxLines: 1, overflow: TextOverflow.ellipsis) : null,
       leading: showLogo ? _buildLogoLeading(context) : leading,
       automaticallyImplyLeading: !showLogo && automaticallyImplyLeading,
       centerTitle: centerTitle,
@@ -70,7 +71,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           width: 40,
           height: 40,
           fit: BoxFit.cover,
-          semanticLabel: 'KJ Delivery Services logo with professional branding',
+          semanticLabel: AppLocalizations.of(context)!.kjDeliveryServicesLogoWithProfessional,
         ),
       ),
     );
@@ -85,7 +86,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         IconButton(
           icon: const Icon(Icons.search_rounded),
           onPressed: onSearchPressed ?? () => _navigateToSearch(context),
-          tooltip: 'Search products',
+          tooltip: AppLocalizations.of(context)!.searchProducts,
         ),
       );
     }
@@ -100,7 +101,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               IconButton(
                 icon: const Icon(Icons.shopping_cart_outlined),
                 onPressed: onCartPressed ?? () => _navigateToCart(context),
-                tooltip: 'Shopping cart',
+                tooltip: AppLocalizations.of(context)!.shoppingCart,
               ),
               if (cartItemCount != null && cartItemCount! > 0)
                 Positioned(
@@ -122,8 +123,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             color: Theme.of(context).colorScheme.onError,
                             fontWeight: FontWeight.w600,
                           ),
-                      textAlign: TextAlign.center,
-                    ),
+                      textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ),
             ],

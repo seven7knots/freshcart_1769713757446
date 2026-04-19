@@ -8,6 +8,7 @@ import './widgets/diet_preference_widget.dart';
 import './widgets/meal_calendar_widget.dart';
 import './widgets/grocery_list_widget.dart';
 import './widgets/budget_slider_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class AIMealPlanningScreen extends ConsumerStatefulWidget {
   const AIMealPlanningScreen({super.key});
@@ -34,29 +35,36 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
     'vegan',
     'paleo',
     'mediterranean',
+    'high-protein',
   ];
 
   final List<String> _cuisineOptions = [
-    'Italian',
-    'Mexican',
-    'Asian',
-    'American',
+    'Lebanese',
+    'Middle Eastern',
+    'Arabic',
+    'Turkish',
     'Mediterranean',
+    'Italian',
     'Indian',
+    'Asian',
+    'Mexican',
+    'American',
+    'French',
     'Thai',
     'Japanese',
+    'Korean',
+    'Greek',
   ];
 
-  Map<String, dynamic>? _generatedMealPlan;
+  Map<String, dynamic>? _mealPlanData;
   bool _isGenerating = false;
   bool _showGroceryList = false;
   bool _isAddingToCart = false;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-
-    // Track AI meal planning start
     AnalyticsService.logAIMealPlanningStart();
     AnalyticsService.logScreenView(screenName: 'ai_meal_planning_screen');
   }
@@ -64,84 +72,164 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
   Future<void> _generateMealPlan() async {
     setState(() {
       _isGenerating = true;
-      _generatedMealPlan = null;
+      _mealPlanData = null;
       _showGroceryList = false;
+      _errorMessage = null;
     });
 
     try {
-      final mealPlan = await _aiService.generateMealPlan(
+      final result = await _aiService.generateMealPlan(
         dietType: _selectedDiet,
         budget: _budget,
         householdSize: _householdSize,
         mealCount: _mealCount,
-        cuisinePreferences: _selectedCuisines,
+        cuisinePreferences:
+            _selectedCuisines.isEmpty ? null : _selectedCuisines,
       );
 
-      setState(() {
-        _generatedMealPlan = mealPlan;
-        _isGenerating = false;
-      });
+      if (!mounted) return;
+      if (result['success'] == true) {
+        // Handle no_compliant_items: show empty state with message
+        if (result['no_compliant_items'] == true) {
+          setState(() {
+            _isGenerating = false;
+            _mealPlanData = null;
+            _errorMessage = result['message'] as String? ??
+                'No items in the catalog match your diet requirements.';
+          });
+          return;
+        }
 
-      // Track meal plan generated
-      await AnalyticsService.logAIMealPlanGenerated(
-        dietType: _selectedDiet,
-        budget: _budget,
-        householdSize: _householdSize,
-      );
-    } catch (e) {
-      setState(() {
-        _isGenerating = false;
-      });
+        final mealPlan = result['meal_plan'] as Map<String, dynamic>?;
+        if (mealPlan != null) {
+          setState(() {
+            _mealPlanData = mealPlan;
+            _isGenerating = false;
+          });
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to generate meal plan: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+          await AnalyticsService.logAIMealPlanGenerated(
+            dietType: _selectedDiet,
+            budget: _budget,
+            householdSize: _householdSize,
+          );
+        } else {
+          if (!mounted) return;
+          setState(() {
+            _isGenerating = false;
+            _errorMessage = AppLocalizations.of(context)?.mealPlanWasEmptyPleaseTry
+                ?? 'Meal plan was empty. Please try again.';
+          });
+        }
+      } else {
+        setState(() {
+          _isGenerating = false;
+          _errorMessage = result['error']?.toString()
+              ?? AppLocalizations.of(context)?.failedToGenerateMealPlan
+              ?? 'Failed to generate meal plan.';
+        });
       }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isGenerating = false;
+        _errorMessage = 'Failed to generate meal plan: $e';
+      });
+    }
+
+    if (_errorMessage != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_errorMessage!, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red),
+      );
     }
   }
 
+  // ============================================================
+  // SESSION 29 FIX: Use getMatchedProductIds + CartNotifier.
+  //
+  // PREVIOUS BUG: Called _aiService.addMealPlanToCart() which used
+  // _supabaseClient.from('cart_items').insert() directly, bypassing
+  // CartNotifier. Also had a .catchError type mismatch crash.
+  //
+  // FIX: getMatchedProductIds() only returns product IDs.
+  // We then call cartNotifierProvider.notifier.addToCart() for each
+  // — proper RLS, deduplication, and state management.
+  // ============================================================
   Future<void> _addAllToCart() async {
-    if (_generatedMealPlan == null) return;
+    if (_mealPlanData == null) return;
 
     final confirmed = await _showConfirmationDialog();
     if (!confirmed) return;
 
-    setState(() {
-      _isAddingToCart = true;
-    });
+    setState(() => _isAddingToCart = true);
 
     try {
-      final result = await _aiService.addMealPlanToCart(
-        mealPlan: _generatedMealPlan!,
+      final result = await _aiService.getMatchedProductIds(
+        mealPlan: _mealPlanData!,
       );
 
-      if (result['success'] == true) {
-        final itemsAdded = result['items_added'] ?? 0;
-        final errors = result['errors'] as List? ?? [];
-
-        // Refresh cart
-        ref.read(cartNotifierProvider.notifier).loadCart();
-
-        if (errors.isEmpty) {
-          _showError('Added $itemsAdded items to cart!');
-        } else {
-          _showError(
-            'Added $itemsAdded items to cart. ${errors.length} items not found.',
+      if (result['success'] != true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['error'] ?? AppLocalizations.of(context)!.failedToMatchProducts, maxLines: 1, overflow: TextOverflow.ellipsis),
+              backgroundColor: Colors.red,
+            ),
           );
         }
-      } else {
-        _showError(result['error'] ?? 'Failed to add items to cart');
+        return;
+      }
+
+      final productIds = List<String>.from(result['product_ids'] ?? []);
+      final notFound = List<String>.from(result['not_found'] ?? []);
+
+      int addedCount = 0;
+      int failedCount = 0;
+
+      for (final productId in productIds) {
+        try {
+          await ref
+              .read(cartNotifierProvider.notifier)
+              .addToCart(productId: productId, quantity: 1);
+          addedCount++;
+        } catch (e) {
+          debugPrint('[MEAL_CART] Failed to add $productId: $e');
+          failedCount++;
+        }
+      }
+
+      if (mounted) {
+        if (notFound.isEmpty && failedCount == 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Added $addedCount items to cart!', maxLines: 1, overflow: TextOverflow.ellipsis),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          final notFoundMsg = notFound.isNotEmpty
+              ? ' ${notFound.length} items not available in stores.'
+              : '';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Added $addedCount items.$notFoundMsg', maxLines: 1, overflow: TextOverflow.ellipsis),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
       }
     } catch (e) {
-      _showError('Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isAddingToCart = false;
-      });
+      if (mounted) setState(() => _isAddingToCart = false);
     }
   }
 
@@ -150,42 +238,30 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
           context: context,
           builder: (context) => AlertDialog(
             backgroundColor: const Color(0xFF1A1A1A),
-            title: const Text(
-              'Add All to Cart?',
-              style: TextStyle(color: Colors.white),
-            ),
+            title: Text(
+              AppLocalizations.of(context)!.addAllToCart,
+              style: TextStyle(color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
             content: Text(
-              'This will add all grocery items from your meal plan to the cart. Continue?',
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 12.sp,
-              ),
-            ),
+              AppLocalizations.of(context)!.thisWillSearchForMatchingProducts,
+              style: TextStyle(color: Colors.white70, fontSize: 12.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
+                child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFE50914),
                 ),
-                child: const Text('Add to Cart'),
+                child: Text(
+                  AppLocalizations.of(context)!.addToCart,
+                  style: TextStyle(color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
         ) ??
         false;
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
   }
 
   @override
@@ -200,13 +276,12 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'AI Meal Planning',
+          AppLocalizations.of(context)!.aiMealPlanning,
           style: TextStyle(
             color: Colors.white,
             fontSize: 18.sp,
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -215,39 +290,26 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Plan Your Meals',
+                AppLocalizations.of(context)!.planYourMeals,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 20.sp,
                   fontWeight: FontWeight.bold,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 1.h),
               Text(
-                'Let AI create a personalized meal plan based on your preferences',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13.sp,
-                ),
-              ),
+                AppLocalizations.of(context)!.aiCreatesAPersonalizedMealPlan,
+                style: TextStyle(color: Colors.white70, fontSize: 13.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 3.h),
               DietPreferenceWidget(
                 dietTypes: _dietTypes,
                 selectedDiet: _selectedDiet,
-                onDietChanged: (diet) {
-                  setState(() {
-                    _selectedDiet = diet;
-                  });
-                },
+                onDietChanged: (diet) => setState(() => _selectedDiet = diet),
               ),
               SizedBox(height: 3.h),
               BudgetSliderWidget(
                 budget: _budget,
-                onBudgetChanged: (value) {
-                  setState(() {
-                    _budget = value;
-                  });
-                },
+                onBudgetChanged: (value) => setState(() => _budget = value),
               ),
               SizedBox(height: 3.h),
               _buildHouseholdSelector(),
@@ -270,16 +332,15 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
                   child: _isGenerating
                       ? const CircularProgressIndicator(color: Colors.white)
                       : Text(
-                          'Generate Meal Plan',
+                          AppLocalizations.of(context)!.generateMealPlan,
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 15.sp,
                             fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ),
-              if (_generatedMealPlan != null) ...[
+              if (_mealPlanData != null) ...[
                 SizedBox(height: 4.h),
                 _buildMealPlanResults(),
               ],
@@ -295,49 +356,43 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Household Size',
+          AppLocalizations.of(context)!.householdSize,
           style: TextStyle(
             color: Colors.white,
             fontSize: 15.sp,
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
-        Row(
+        Wrap(
+          spacing: 2.w,
+          runSpacing: 1.h,
           children: List.generate(6, (index) {
             final size = index + 1;
             final isSelected = _householdSize == size;
-            return Padding(
-              padding: EdgeInsets.only(right: 2.w),
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _householdSize = size;
-                  });
-                },
-                child: Container(
-                  width: 12.w,
-                  height: 12.w,
-                  decoration: BoxDecoration(
+            return GestureDetector(
+              onTap: () => setState(() => _householdSize = size),
+              child: Container(
+                width: 12.w,
+                height: 12.w,
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFFE50914)
+                      : const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(2.w),
+                  border: Border.all(
                     color: isSelected
                         ? const Color(0xFFE50914)
-                        : const Color(0xFF1A1A1A),
-                    borderRadius: BorderRadius.circular(2.w),
-                    border: Border.all(
-                      color:
-                          isSelected ? const Color(0xFFE50914) : Colors.white24,
-                    ),
+                        : Colors.white24,
                   ),
-                  child: Center(
-                    child: Text(
-                      '$size',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    '$size',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ),
             );
@@ -352,49 +407,40 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Number of Meals',
+          AppLocalizations.of(context)!.numberOfMeals,
           style: TextStyle(
             color: Colors.white,
             fontSize: 15.sp,
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
-        Row(
+        Wrap(
+          spacing: 2.w,
+          runSpacing: 1.h,
           children: [3, 5, 7, 14].map((count) {
             final isSelected = _mealCount == count;
-            return Padding(
-              padding: EdgeInsets.only(right: 2.w),
-              child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _mealCount = count;
-                  });
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 4.w,
-                    vertical: 1.h,
-                  ),
-                  decoration: BoxDecoration(
+            return GestureDetector(
+              onTap: () => setState(() => _mealCount = count),
+              child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? const Color(0xFFE50914)
+                      : const Color(0xFF1A1A1A),
+                  borderRadius: BorderRadius.circular(2.w),
+                  border: Border.all(
                     color: isSelected
                         ? const Color(0xFFE50914)
-                        : const Color(0xFF1A1A1A),
-                    borderRadius: BorderRadius.circular(2.w),
-                    border: Border.all(
-                      color:
-                          isSelected ? const Color(0xFFE50914) : Colors.white24,
-                    ),
-                  ),
-                  child: Text(
-                    '$count meals',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13.sp,
-                      fontWeight: FontWeight.w600,
-                    ),
+                        : Colors.white24,
                   ),
                 ),
+                child: Text(
+                  '$count meals',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w600,
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             );
           }).toList(),
@@ -408,13 +454,12 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Cuisine Preferences',
+          AppLocalizations.of(context)!.cuisinePreferences,
           style: TextStyle(
             color: Colors.white,
             fontSize: 15.sp,
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         Wrap(
           spacing: 2.w,
@@ -432,27 +477,21 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
                 });
               },
               child: Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: 4.w,
-                  vertical: 1.h,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? const Color(0xFFE50914)
                       : const Color(0xFF1A1A1A),
                   borderRadius: BorderRadius.circular(6.w),
                   border: Border.all(
-                    color:
-                        isSelected ? const Color(0xFFE50914) : Colors.white24,
+                    color: isSelected
+                        ? const Color(0xFFE50914)
+                        : Colors.white24,
                   ),
                 ),
                 child: Text(
                   cuisine,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12.sp,
-                  ),
-                ),
+                  style: TextStyle(color: Colors.white, fontSize: 12.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             );
           }).toList(),
@@ -462,10 +501,10 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
   }
 
   Widget _buildMealPlanResults() {
-    final meals = _generatedMealPlan?['meals'] as List? ?? [];
+    final meals = _mealPlanData?['meals'] as List? ?? [];
     final groceryList =
-        _generatedMealPlan?['grocery_list'] as Map<String, dynamic>? ?? {};
-    final totalCost = _generatedMealPlan?['total_estimated_cost'] ?? 0.0;
+        _mealPlanData?['grocery_list'] as Map<String, dynamic>? ?? {};
+    final totalCost = _mealPlanData?['total_estimated_cost'] ?? 0.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -473,22 +512,20 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Your Meal Plan',
+            Flexible(child: Text(
+              AppLocalizations.of(context)!.yourMealPlan,
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              'Est. \$${totalCost.toStringAsFixed(2)}',
+              ), maxLines: 1, overflow: TextOverflow.ellipsis)),
+            Flexible(child: Text(
+              'Est. \$${(totalCost is num ? totalCost : 0.0).toStringAsFixed(2)}',
               style: TextStyle(
                 color: const Color(0xFFE50914),
                 fontSize: 16.sp,
                 fontWeight: FontWeight.bold,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis)),
           ],
         ),
         SizedBox(height: 2.h),
@@ -496,51 +533,33 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
           children: [
             Expanded(
               child: ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _showGroceryList = false;
-                  });
-                },
+                onPressed: () => setState(() => _showGroceryList = false),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: !_showGroceryList
                       ? const Color(0xFFE50914)
                       : const Color(0xFF1A1A1A),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(2.w),
-                  ),
+                      borderRadius: BorderRadius.circular(2.w)),
                 ),
                 child: Text(
-                  'Meals',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13.sp,
-                  ),
-                ),
+                  AppLocalizations.of(context)!.meals,
+                  style: TextStyle(color: Colors.white, fontSize: 13.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ),
             SizedBox(width: 2.w),
             Expanded(
               child: ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _showGroceryList = true;
-                  });
-                },
+                onPressed: () => setState(() => _showGroceryList = true),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _showGroceryList
                       ? const Color(0xFFE50914)
                       : const Color(0xFF1A1A1A),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(2.w),
-                  ),
+                      borderRadius: BorderRadius.circular(2.w)),
                 ),
                 child: Text(
-                  'Grocery List',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13.sp,
-                  ),
-                ),
+                  AppLocalizations.of(context)!.groceryList,
+                  style: TextStyle(color: Colors.white, fontSize: 13.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ),
           ],
@@ -551,8 +570,55 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
         else
           GroceryListWidget(
             groceryList: groceryList,
-            totalCost: totalCost,
+            totalCost: totalCost is num ? totalCost.toDouble() : 0.0,
           ),
+        SizedBox(height: 3.h),
+        // Add to Cart button
+        SizedBox(
+          width: double.infinity,
+          height: 6.h,
+          child: ElevatedButton.icon(
+            onPressed: _isAddingToCart ? null : _addAllToCart,
+            icon: _isAddingToCart
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        color: Colors.white, strokeWidth: 2),
+                  )
+                : const Icon(Icons.shopping_cart, color: Colors.white),
+            label: Text(
+              _isAddingToCart ? AppLocalizations.of(context)!.addingToCart : AppLocalizations.of(context)!.addGroceryListToCart,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w600,
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade700,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(3.w)),
+            ),
+          ),
+        ),
+        SizedBox(height: 2.h),
+        SizedBox(
+          width: double.infinity,
+          height: 5.h,
+          child: OutlinedButton.icon(
+            onPressed: _isGenerating ? null : _generateMealPlan,
+            icon: const Icon(Icons.refresh, color: Colors.white70),
+            label: Text(
+              AppLocalizations.of(context)!.regeneratePlan,
+              style: TextStyle(color: Colors.white70, fontSize: 13.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.white24),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(3.w)),
+            ),
+          ),
+        ),
+        SizedBox(height: 4.h),
       ],
     );
   }

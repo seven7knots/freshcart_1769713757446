@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 
 import '../core/app_export.dart';
+import '../l10n/generated/app_localizations.dart';
 
 // custom_error_widget.dart
 
@@ -34,23 +35,21 @@ class CustomErrorWidget extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                "Something went wrong",
+                AppLocalizations.of(context)!.somethingWentWrong,
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF262626),
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 4),
               SizedBox(
-                child: const Text(
-                  'We encountered an unexpected error while processing your request.',
+                child: Text(
+                  AppLocalizations.of(context)!.weEncounteredAnUnexpectedErrorWhile,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,
                     color: Color(0xFF525252), // neutral-600
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
@@ -64,14 +63,14 @@ class CustomErrorWidget extends StatelessWidget {
                 },
                 icon:
                     const Icon(Icons.arrow_back, size: 18, color: Colors.white),
-                label: const Text('Back'),
+                label: Text(AppLocalizations.of(context)!.back, maxLines: 1, overflow: TextOverflow.ellipsis),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.lightTheme.primaryColor,
+                  backgroundColor: Theme.of(context).primaryColor,
                   foregroundColor: Colors.white,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
               ),

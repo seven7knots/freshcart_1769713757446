@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class OrderSummaryWidget extends StatelessWidget {
   final Map<String, dynamic> orderData;
@@ -25,29 +26,27 @@ class OrderSummaryWidget extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Order Summary',
-                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+              Flexible(child: Text(
+                AppLocalizations.of(context)!.orderSummary,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.lightTheme.colorScheme.onSurface,
-                ),
-              ),
-              Text(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              Flexible(child: Text(
                 'Order #${orderData['orderId']}',
-                style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                  color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                ),
-              ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
             ],
           ),
           SizedBox(height: 3.h),
           Container(
             padding: EdgeInsets.all(4.w),
             decoration: BoxDecoration(
-              color: AppTheme.lightTheme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: AppTheme.lightTheme.colorScheme.outline
+                color: Theme.of(context).colorScheme.outline
                     .withValues(alpha: 0.2),
               ),
             ),
@@ -58,14 +57,13 @@ class OrderSummaryWidget extends StatelessWidget {
                   SizedBox(height: 2.h),
                   Text(
                     '+${items.length - 3} more items',
-                    style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
                 SizedBox(height: 3.h),
                 Divider(
-                  color: AppTheme.lightTheme.colorScheme.outline
+                  color: Theme.of(context).colorScheme.outline
                       .withValues(alpha: 0.2),
                 ),
                 SizedBox(height: 2.h),
@@ -91,7 +89,7 @@ class OrderSummaryWidget extends StatelessWidget {
                 ),
                 SizedBox(height: 2.h),
                 Divider(
-                  color: AppTheme.lightTheme.colorScheme.outline
+                  color: Theme.of(context).colorScheme.outline
                       .withValues(alpha: 0.2),
                 ),
                 SizedBox(height: 2.h),
@@ -110,7 +108,7 @@ class OrderSummaryWidget extends StatelessWidget {
               width: double.infinity,
               child: OutlinedButton(
                 onPressed: onReorderPressed,
-                child: Text('Reorder Items'),
+                child: Text(AppLocalizations.of(context)!.reorderItems, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ),
           ],
@@ -128,14 +126,14 @@ class OrderSummaryWidget extends StatelessWidget {
             width: 12.w,
             height: 12.w,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: AppTheme.lightTheme.colorScheme.outline
+                color: Theme.of(context).colorScheme.outline
                     .withValues(alpha: 0.2),
               ),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(14),
               child: CustomImageWidget(
                 imageUrl: item['image'] as String,
                 width: 12.w,
@@ -152,9 +150,9 @@ class OrderSummaryWidget extends StatelessWidget {
               children: [
                 Text(
                   item['name'] as String,
-                  style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w500,
-                    color: AppTheme.lightTheme.colorScheme.onSurface,
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -162,20 +160,18 @@ class OrderSummaryWidget extends StatelessWidget {
                 SizedBox(height: 0.5.h),
                 Text(
                   '${item['quantity']}x ${item['price']}',
-                  style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                    color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
-          Text(
+          Flexible(child: Text(
             item['totalPrice'] as String,
-            style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              color: AppTheme.lightTheme.colorScheme.onSurface,
-            ),
-          ),
+              color: Theme.of(context).colorScheme.onSurface,
+            ), maxLines: 1, overflow: TextOverflow.ellipsis)),
         ],
       ),
     );
@@ -190,20 +186,18 @@ class OrderSummaryWidget extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
+        Flexible(child: Text(
           label,
-          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             fontWeight: isTotal ? FontWeight.w600 : FontWeight.w400,
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-          ),
-        ),
-        Text(
+            color: Theme.of(context).colorScheme.onSurface,
+          ), maxLines: 1, overflow: TextOverflow.ellipsis)),
+        Flexible(child: Text(
           value,
-          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             fontWeight: isTotal ? FontWeight.w600 : FontWeight.w500,
-            color: AppTheme.lightTheme.colorScheme.onSurface,
-          ),
-        ),
+            color: Theme.of(context).colorScheme.onSurface,
+          ), maxLines: 1, overflow: TextOverflow.ellipsis)),
       ],
     );
   }

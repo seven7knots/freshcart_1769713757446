@@ -17,8 +17,6 @@ class MessagingService {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('User not authenticated');
 
-      print('🔍 Getting/creating conversation for listing: $listingId');
-
       // Try to find existing conversation
       final existing = await _client
           .from('conversations')
@@ -34,12 +32,10 @@ class MessagingService {
           .maybeSingle();
 
       if (existing != null) {
-        print('✅ Found existing conversation: ${existing['id']}');
         return ConversationModel.fromJson(existing);
       }
 
       // Create new conversation
-      print('📝 Creating new conversation');
       final response = await _client.from('conversations').insert({
         'buyer_id': userId,
         'seller_id': sellerId,
@@ -51,10 +47,8 @@ class MessagingService {
             listing:marketplace_listings(id, title, price, images)
           ''').single();
 
-      print('✅ Created new conversation: ${response['id']}');
       return ConversationModel.fromJson(response);
     } catch (e) {
-      print('❌ Error getting/creating conversation: $e');
       throw Exception('Failed to get/create conversation: $e');
     }
   }
@@ -67,8 +61,6 @@ class MessagingService {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('User not authenticated');
 
-      print('🔍 Fetching conversations for user: $userId');
-
       var query = _client.from('conversations').select('''
             *,
             buyer:users!conversations_buyer_id_fkey(id, full_name, profile_image_url),
@@ -76,10 +68,8 @@ class MessagingService {
             listing:marketplace_listings(id, title, price, images, status)
           ''');
 
-      // Filter by user participation
       query = query.or('buyer_id.eq.$userId,seller_id.eq.$userId');
 
-      // Filter archived if needed
       if (!includeArchived) {
         query = query
             .or('is_archived_by_buyer.eq.false,is_archived_by_seller.eq.false');
@@ -87,30 +77,43 @@ class MessagingService {
 
       final response = await query.order('last_message_at', ascending: false);
 
-      print('✅ Found ${(response as List).length} conversations');
       return (response as List)
           .map((json) => ConversationModel.fromJson(json))
           .toList();
     } catch (e) {
-      print('❌ Error loading conversations: $e');
       throw Exception('Failed to load conversations: $e');
     }
   }
 
   /// Get conversation by ID
+  // SESSION 29 FIX: Added explicit .or('buyer_id.eq.$userId,seller_id.eq.$userId')
+  // filter alongside .eq('id', conversationId).
+  //
+  // ROOT CAUSE of "Conversation not found":
+  // The conversations table RLS policy requires the calling user to be either
+  // the buyer or the seller. Without the explicit filter, Supabase/PostgREST
+  // passes the query directly to the DB and the RLS policy silently filters
+  // out the row — maybeSingle() then returns null even though the row exists.
+  // Adding the OR filter makes the intent explicit and satisfies RLS policies
+  // that rely on the query predicates rather than auth.uid() checks alone.
   Future<ConversationModel?> getConversationById(String conversationId) async {
     try {
+      final userId = _client.auth.currentUser?.id;
+      if (userId == null) return null;
+
       final response = await _client.from('conversations').select('''
             *,
             buyer:users!conversations_buyer_id_fkey(id, full_name, profile_image_url),
             seller:users!conversations_seller_id_fkey(id, full_name, profile_image_url),
             listing:marketplace_listings(id, title, price, images, status)
-          ''').eq('id', conversationId).maybeSingle();
+          ''')
+          .eq('id', conversationId)
+          .or('buyer_id.eq.$userId,seller_id.eq.$userId')
+          .maybeSingle();
 
       if (response == null) return null;
       return ConversationModel.fromJson(response);
     } catch (e) {
-      print('❌ Error getting conversation: $e');
       throw Exception('Failed to get conversation: $e');
     }
   }
@@ -121,7 +124,6 @@ class MessagingService {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('User not authenticated');
 
-      // Get conversation to determine user role
       final conv = await getConversationById(conversationId);
       if (conv == null) throw Exception('Conversation not found');
 
@@ -131,10 +133,7 @@ class MessagingService {
       await _client
           .from('conversations')
           .update({field: true}).eq('id', conversationId);
-
-      print('✅ Archived conversation: $conversationId');
     } catch (e) {
-      print('❌ Error archiving conversation: $e');
       throw Exception('Failed to archive conversation: $e');
     }
   }
@@ -145,7 +144,6 @@ class MessagingService {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('User not authenticated');
 
-      // Get conversation to determine user role
       final conv = await getConversationById(conversationId);
       if (conv == null) throw Exception('Conversation not found');
 
@@ -155,10 +153,7 @@ class MessagingService {
       await _client
           .from('conversations')
           .update({field: 0}).eq('id', conversationId);
-
-      print('✅ Marked conversation as read: $conversationId');
     } catch (e) {
-      print('❌ Error marking conversation as read: $e');
       throw Exception('Failed to mark conversation as read: $e');
     }
   }
@@ -172,8 +167,6 @@ class MessagingService {
     int offset = 0,
   }) async {
     try {
-      print('🔍 Fetching messages for conversation: $conversationId');
-
       final response = await _client
           .from('messages')
           .select()
@@ -181,28 +174,32 @@ class MessagingService {
           .order('created_at', ascending: true)
           .range(offset, offset + limit - 1);
 
-      print('✅ Found ${(response as List).length} messages');
       return (response as List)
           .map((json) => MessageModel.fromJson(json))
           .toList();
     } catch (e) {
-      print('❌ Error loading messages: $e');
       throw Exception('Failed to load messages: $e');
     }
   }
 
   /// Send a message
+  // SESSION 28 FIX: messageType default changed from 'text' only.
+  // The DB messages_message_type_check constraint does NOT allow 'inquiry'.
+  // All quick-inquiry sends must use 'text' as the message_type.
+  // The inquiry *content* is preserved in the message body — no data lost.
   Future<MessageModel> sendMessage({
     required String conversationId,
     required String content,
-    String messageType = 'text',
+    String messageType = 'text', // MUST be 'text' or 'image' — not 'inquiry'
     String? attachmentUrl,
   }) async {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) throw Exception('User not authenticated');
 
-      print('📤 Sending message to conversation: $conversationId');
+      // SESSION 28 FIX: Normalise messageType — if caller accidentally passes
+      // 'inquiry' (which violates messages_message_type_check), coerce to 'text'.
+      final safeType = (messageType == 'inquiry') ? 'text' : messageType;
 
       final response = await _client
           .from('messages')
@@ -210,16 +207,14 @@ class MessagingService {
             'conversation_id': conversationId,
             'sender_id': userId,
             'content': content,
-            'message_type': messageType,
+            'message_type': safeType,
             'attachment_url': attachmentUrl,
           })
           .select()
           .single();
 
-      print('✅ Message sent: ${response['id']}');
       return MessageModel.fromJson(response);
     } catch (e) {
-      print('❌ Error sending message: $e');
       throw Exception('Failed to send message: $e');
     }
   }
@@ -231,10 +226,7 @@ class MessagingService {
         'is_read': true,
         'read_at': DateTime.now().toIso8601String(),
       }).eq('id', messageId);
-
-      print('✅ Marked message as read: $messageId');
     } catch (e) {
-      print('❌ Error marking message as read: $e');
       throw Exception('Failed to mark message as read: $e');
     }
   }
@@ -254,10 +246,7 @@ class MessagingService {
           .eq('conversation_id', conversationId)
           .neq('sender_id', userId)
           .eq('is_read', false);
-
-      print('✅ Marked all messages as read in conversation: $conversationId');
     } catch (e) {
-      print('❌ Error marking all messages as read: $e');
       throw Exception('Failed to mark all messages as read: $e');
     }
   }
@@ -269,8 +258,6 @@ class MessagingService {
     required String conversationId,
     required Function(MessageModel) onNewMessage,
   }) {
-    print('🔔 Subscribing to messages for conversation: $conversationId');
-
     final channel = _client
         .channel('messages:$conversationId')
         .onPostgresChanges(
@@ -283,7 +270,6 @@ class MessagingService {
             value: conversationId,
           ),
           callback: (payload) {
-            print('📨 New message received: ${payload.newRecord}');
             final message = MessageModel.fromJson(payload.newRecord);
             onNewMessage(message);
           },
@@ -298,8 +284,6 @@ class MessagingService {
     required String conversationId,
     required Function(ConversationModel) onUpdate,
   }) {
-    print('🔔 Subscribing to conversation updates: $conversationId');
-
     final channel = _client
         .channel('conversation:$conversationId')
         .onPostgresChanges(
@@ -312,8 +296,6 @@ class MessagingService {
             value: conversationId,
           ),
           callback: (payload) async {
-            print('🔄 Conversation updated: ${payload.newRecord}');
-            // Fetch full conversation with joins
             final conv = await getConversationById(conversationId);
             if (conv != null) {
               onUpdate(conv);
@@ -330,11 +312,7 @@ class MessagingService {
     required Function() onUpdate,
   }) {
     final userId = _client.auth.currentUser?.id;
-    if (userId == null) {
-      throw Exception('User not authenticated');
-    }
-
-    print('🔔 Subscribing to all conversations for user: $userId');
+    if (userId == null) throw Exception('User not authenticated');
 
     final channel = _client
         .channel('user_conversations:$userId')
@@ -343,7 +321,6 @@ class MessagingService {
           schema: 'public',
           table: 'conversations',
           callback: (payload) {
-            print('🔄 Conversations updated');
             onUpdate();
           },
         )
@@ -357,8 +334,6 @@ class MessagingService {
     try {
       final userId = _client.auth.currentUser?.id;
       if (userId == null) return 0;
-
-      print('🔍 Fetching total unread count for user: $userId');
 
       final conversations = await _client
           .from('conversations')
@@ -375,10 +350,8 @@ class MessagingService {
         }
       }
 
-      print('✅ Total unread count: $totalUnread');
       return totalUnread;
     } catch (e) {
-      print('❌ Error getting total unread count: $e');
       return 0;
     }
   }

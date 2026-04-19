@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../providers/marketplace_provider.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class ServiceListingScreen extends ConsumerWidget {
   const ServiceListingScreen({super.key});
@@ -19,8 +20,7 @@ class ServiceListingScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(
           serviceType.replaceAll('_', ' ').toUpperCase(),
-          style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600),
-        ),
+          style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
         elevation: 0,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -38,18 +38,16 @@ class ServiceListingScreen extends ConsumerWidget {
                       color: Theme.of(context).colorScheme.onSurfaceVariant),
                   SizedBox(height: 2.h),
                   Text(
-                    'No providers available',
+                    AppLocalizations.of(context)!.noProvidersAvailable,
                     style: TextStyle(
                         fontSize: 16.sp,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
-                  ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 1.h),
                   Text(
-                    'Check back later for service providers',
+                    AppLocalizations.of(context)!.checkBackLaterForServiceProviders,
                     style: TextStyle(
                         fontSize: 12.sp,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
-                  ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             );
@@ -106,8 +104,7 @@ class ServiceListingScreen extends ConsumerWidget {
                               style: TextStyle(
                                 fontSize: 14.sp,
                                 fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
                             SizedBox(height: 0.5.h),
                             if (service.description != null)
                               Text(
@@ -128,8 +125,7 @@ class ServiceListingScreen extends ConsumerWidget {
                                 SizedBox(width: 1.w),
                                 Text(
                                   '${service.rating.toStringAsFixed(1)} (${service.totalBookings} bookings)',
-                                  style: TextStyle(fontSize: 11.sp),
-                                ),
+                                  style: TextStyle(fontSize: 11.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
                               ],
                             ),
                             SizedBox(height: 0.5.h),
@@ -139,8 +135,7 @@ class ServiceListingScreen extends ConsumerWidget {
                                 fontSize: 13.sp,
                                 fontWeight: FontWeight.bold,
                                 color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           ],
                         ),
                       ),
@@ -162,27 +157,25 @@ class ServiceListingScreen extends ConsumerWidget {
                   size: 60, color: Theme.of(context).colorScheme.error),
               SizedBox(height: 2.h),
               Text(
-                'Error loading services',
+                AppLocalizations.of(context)!.errorLoadingServices,
                 style: TextStyle(
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w600,
                   color: Theme.of(context).colorScheme.error,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 1.h),
               Text(
                 error.toString(),
                 style: TextStyle(
                     fontSize: 12.sp,
                     color: Theme.of(context).colorScheme.onSurfaceVariant),
-                textAlign: TextAlign.center,
-              ),
+                textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 2.h),
               ElevatedButton.icon(
                 onPressed: () =>
                     ref.refresh(servicesByTypeProvider(serviceType)),
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text(AppLocalizations.of(context)!.retry, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),

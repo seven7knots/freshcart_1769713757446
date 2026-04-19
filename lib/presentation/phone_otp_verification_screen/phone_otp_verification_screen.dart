@@ -7,6 +7,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../services/supabase_service.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class PhoneOtpVerificationScreen extends StatefulWidget {
   const PhoneOtpVerificationScreen({super.key});
@@ -30,11 +31,8 @@ class _PhoneOtpVerificationScreenState
   String? _errorMessage;
   String _userPhone = '';
 
-  // Demo mode check
-  bool get _isDemoMode {
-    const demoMode = String.fromEnvironment('DEMO_MODE', defaultValue: 'false');
-    return !kReleaseMode || demoMode.toLowerCase() == 'true';
-  }
+  // Demo mode — debug builds only, no env override in release
+  bool get _isDemoMode => kDebugMode;
 
   @override
   void initState() {
@@ -96,7 +94,7 @@ class _PhoneOtpVerificationScreenState
 
     if (otp.length != 6) {
       setState(() {
-        _errorMessage = 'Please enter the complete 6-digit code';
+        _errorMessage = AppLocalizations.of(context)!.pleaseEnterTheComplete6Digit;
       });
       return;
     }
@@ -117,10 +115,9 @@ class _PhoneOtpVerificationScreenState
 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
+              SnackBar(
                 content: Text(
-                  '[DEMO MODE] Phone verified successfully! You can now access the app.',
-                ),
+                  AppLocalizations.of(context)!.demoModePhoneVerifiedSuccessfullyYou, maxLines: 1, overflow: TextOverflow.ellipsis),
                 backgroundColor: Colors.green,
               ),
             );
@@ -142,10 +139,9 @@ class _PhoneOtpVerificationScreenState
       if (response['success'] == true) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                'Phone verified successfully! You can now access the app.',
-              ),
+                AppLocalizations.of(context)!.phoneVerifiedSuccessfullyYouCanNow, maxLines: 1, overflow: TextOverflow.ellipsis),
               backgroundColor: Colors.green,
             ),
           );
@@ -156,12 +152,12 @@ class _PhoneOtpVerificationScreenState
         }
       } else {
         setState(() {
-          _errorMessage = response['message'] ?? 'Verification failed';
+          _errorMessage = response['message'] ?? AppLocalizations.of(context)!.verificationFailed;
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error verifying code. Please try again.';
+        _errorMessage = AppLocalizations.of(context)!.errorVerifyingCodePleaseTryAgain;
       });
       debugPrint('[PHONE_OTP] Verification error: $e');
     } finally {
@@ -200,25 +196,25 @@ class _PhoneOtpVerificationScreenState
           _startCooldown();
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Verification code sent to your phone'),
+              SnackBar(
+                content: Text(AppLocalizations.of(context)!.verificationCodeSentToYourPhone, maxLines: 1, overflow: TextOverflow.ellipsis),
                 backgroundColor: Colors.green,
               ),
             );
           }
         } else {
           setState(() {
-            _errorMessage = 'Failed to send SMS';
+            _errorMessage = AppLocalizations.of(context)!.failedToSendSms;
           });
         }
       } else {
         setState(() {
-          _errorMessage = response['message'] ?? 'Failed to send code';
+          _errorMessage = response['message'] ?? AppLocalizations.of(context)!.failedToSendCode;
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error sending code. Please try again.';
+        _errorMessage = AppLocalizations.of(context)!.errorSendingCodePleaseTryAgain;
       });
       debugPrint('[PHONE_OTP] Resend error: $e');
     } finally {
@@ -233,9 +229,9 @@ class _PhoneOtpVerificationScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -286,19 +282,17 @@ class _PhoneOtpVerificationScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Demo Mode Active',
-                  style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+                  AppLocalizations.of(context)!.demoModeActive,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: Colors.orange.shade800,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 0.5.h),
                 Text(
-                  'Use code: 123456 to verify',
-                  style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                  AppLocalizations.of(context)!.useCode123456ToVerify,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Colors.orange.shade700,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
@@ -314,7 +308,7 @@ class _PhoneOtpVerificationScreenState
           width: 20.w,
           height: 20.w,
           decoration: BoxDecoration(
-            color: AppTheme.lightTheme.colorScheme.primary.withValues(
+            color: Theme.of(context).colorScheme.primary.withValues(
               alpha: 0.1,
             ),
             shape: BoxShape.circle,
@@ -322,33 +316,30 @@ class _PhoneOtpVerificationScreenState
           child: Icon(
             Icons.phone_android,
             size: 10.w,
-            color: AppTheme.lightTheme.colorScheme.primary,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
         SizedBox(height: 3.h),
         Text(
-          'Verify Your Phone',
-          style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
+          AppLocalizations.of(context)!.verifyYourPhone,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.w700,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         Text(
-          'Enter the verification code sent to',
-          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+          AppLocalizations.of(context)!.enterTheVerificationCodeSentTo,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
-          textAlign: TextAlign.center,
-        ),
+          textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 0.5.h),
         Text(
           _userPhone,
-          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w600,
-            color: AppTheme.lightTheme.colorScheme.primary,
+            color: Theme.of(context).colorScheme.primary,
           ),
-          textAlign: TextAlign.center,
-        ),
+          textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
       ],
     );
   }
@@ -365,30 +356,30 @@ class _PhoneOtpVerificationScreenState
             textAlign: TextAlign.center,
             keyboardType: TextInputType.number,
             maxLength: 1,
-            style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w600,
             ),
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               counterText: '',
               filled: true,
-              fillColor: AppTheme.lightTheme.colorScheme.surface,
+              fillColor: Theme.of(context).colorScheme.surface,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12.0),
                 borderSide: BorderSide(
-                  color: AppTheme.lightTheme.colorScheme.outline,
+                  color: Theme.of(context).colorScheme.outline,
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12.0),
                 borderSide: BorderSide(
-                  color: AppTheme.lightTheme.colorScheme.outline,
+                  color: Theme.of(context).colorScheme.outline,
                 ),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12.0),
                 borderSide: BorderSide(
-                  color: AppTheme.lightTheme.colorScheme.primary,
+                  color: Theme.of(context).colorScheme.primary,
                   width: 2,
                 ),
               ),
@@ -424,10 +415,9 @@ class _PhoneOtpVerificationScreenState
           Expanded(
             child: Text(
               _errorMessage!,
-              style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.red,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -441,8 +431,8 @@ class _PhoneOtpVerificationScreenState
       child: ElevatedButton(
         onPressed: _isLoading ? null : _verifyOtp,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.lightTheme.colorScheme.primary,
-          foregroundColor: AppTheme.lightTheme.colorScheme.onPrimary,
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12.0),
           ),
@@ -454,17 +444,16 @@ class _PhoneOtpVerificationScreenState
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    AppTheme.lightTheme.colorScheme.onPrimary,
+                    Theme.of(context).colorScheme.onPrimary,
                   ),
                 ),
               )
             : Text(
-                'Verify Phone',
-                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+                AppLocalizations.of(context)!.verifyPhone,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppTheme.lightTheme.colorScheme.onPrimary,
-                ),
-              ),
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
     );
   }
@@ -473,11 +462,10 @@ class _PhoneOtpVerificationScreenState
     return Column(
       children: [
         Text(
-          'Did not receive the code?',
-          style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
-          ),
-        ),
+          AppLocalizations.of(context)!.didNotReceiveTheCode,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         TextButton(
           onPressed: _resendCooldown > 0 || _isResending ? null : _resendOtp,
@@ -488,21 +476,20 @@ class _PhoneOtpVerificationScreenState
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      AppTheme.lightTheme.colorScheme.primary,
+                      Theme.of(context).colorScheme.primary,
                     ),
                   ),
                 )
               : Text(
                   _resendCooldown > 0
                       ? 'Resend in ${_resendCooldown}s'
-                      : 'Resend Code',
-                  style: AppTheme.lightTheme.textTheme.titleSmall?.copyWith(
+                      : AppLocalizations.of(context)!.resendCode,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: _resendCooldown > 0
-                        ? AppTheme.lightTheme.colorScheme.onSurfaceVariant
-                        : AppTheme.lightTheme.colorScheme.primary,
-                  ),
-                ),
+                        ? Theme.of(context).colorScheme.onSurfaceVariant
+                        : Theme.of(context).colorScheme.primary,
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ],
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class MealCalendarWidget extends StatelessWidget {
   final List<dynamic> meals;
@@ -29,7 +30,7 @@ class MealCalendarWidget extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      mealData['name'] ?? 'Meal',
+                      mealData['name'] ?? AppLocalizations.of(context)!.meal,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 15.sp,
@@ -54,8 +55,7 @@ class MealCalendarWidget extends StatelessWidget {
                         color: const Color(0xFFE50914),
                         fontSize: 12.sp,
                         fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ],
               ),
@@ -68,13 +68,12 @@ class MealCalendarWidget extends StatelessWidget {
                     size: 4.w,
                   ),
                   SizedBox(width: 1.w),
-                  Text(
+                  Flexible(child: Text(
                     '${mealData['prep_time'] ?? 0} min',
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 12.sp,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                   SizedBox(width: 3.w),
                   Icon(
                     Icons.restaurant,
@@ -82,25 +81,23 @@ class MealCalendarWidget extends StatelessWidget {
                     size: 4.w,
                   ),
                   SizedBox(width: 1.w),
-                  Text(
-                    mealData['difficulty'] ?? 'Medium',
+                  Flexible(child: Text(
+                    mealData['difficulty'] ?? AppLocalizations.of(context)!.medium,
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 12.sp,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ],
               ),
               if (mealData['ingredients'] != null) ...[
                 SizedBox(height: 1.h),
                 Text(
-                  'Ingredients:',
+                  AppLocalizations.of(context)!.ingredients,
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w500,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 0.5.h),
                 Text(
                   (mealData['ingredients'] as List).join(', '),

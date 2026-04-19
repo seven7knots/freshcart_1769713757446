@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class NotificationPreferencesScreen extends StatefulWidget {
   const NotificationPreferencesScreen({super.key});
@@ -93,13 +94,13 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Preferences saved!'), backgroundColor: Colors.green),
+          SnackBar(content: Text(AppLocalizations.of(context)!.preferencesSaved, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Failed to save: $e', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red),
         );
       }
     }
@@ -111,11 +112,11 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notification Preferences'),
+        title: Text(AppLocalizations.of(context)!.notificationPreferences, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: _savePreferences,
-            child: const Text('Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            child: Text(AppLocalizations.of(context)!.save, style: TextStyle(color: theme.colorScheme.surface, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -126,34 +127,34 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
               children: [
                 _buildSection(
                   theme: theme,
-                  title: 'Order Notifications',
+                  title: AppLocalizations.of(context)!.orderNotifications,
                   icon: Icons.receipt_long,
                   children: [
-                    _buildToggle(theme, 'Order Updates', 'Status changes, confirmations', _orderUpdates, (v) => setState(() => _orderUpdates = v)),
-                    _buildToggle(theme, 'Delivery Alerts', 'Driver assigned, arriving soon', _deliveryAlerts, (v) => setState(() => _deliveryAlerts = v)),
+                    _buildToggle(theme, AppLocalizations.of(context)!.orderUpdates, AppLocalizations.of(context)!.statusChangesConfirmations, _orderUpdates, (v) => setState(() => _orderUpdates = v)),
+                    _buildToggle(theme, AppLocalizations.of(context)!.deliveryAlerts, AppLocalizations.of(context)!.driverAssignedArrivingSoon, _deliveryAlerts, (v) => setState(() => _deliveryAlerts = v)),
                   ],
                 ),
                 SizedBox(height: 2.h),
                 _buildSection(
                   theme: theme,
-                  title: 'Marketing',
+                  title: AppLocalizations.of(context)!.marketing,
                   icon: Icons.campaign,
                   children: [
-                    _buildToggle(theme, 'Promotions & Offers', 'Deals, coupons, flash sales', _promotions, (v) => setState(() => _promotions = v)),
-                    _buildToggle(theme, 'Price Drop Alerts', 'Items in your cart or favorites', _priceDrops, (v) => setState(() => _priceDrops = v)),
-                    _buildToggle(theme, 'New Products', 'From stores you follow', _newProducts, (v) => setState(() => _newProducts = v)),
-                    _buildToggle(theme, 'Weekly Digest', 'Summary of activity', _weeklyDigest, (v) => setState(() => _weeklyDigest = v)),
+                    _buildToggle(theme, AppLocalizations.of(context)!.promotionsOffers, AppLocalizations.of(context)!.dealsCouponsFlashSales, _promotions, (v) => setState(() => _promotions = v)),
+                    _buildToggle(theme, AppLocalizations.of(context)!.priceDropAlerts, AppLocalizations.of(context)!.itemsInYourCartOrFavorites, _priceDrops, (v) => setState(() => _priceDrops = v)),
+                    _buildToggle(theme, AppLocalizations.of(context)!.newProducts, AppLocalizations.of(context)!.fromStoresYouFollow, _newProducts, (v) => setState(() => _newProducts = v)),
+                    _buildToggle(theme, AppLocalizations.of(context)!.weeklyDigest, AppLocalizations.of(context)!.summaryOfActivity, _weeklyDigest, (v) => setState(() => _weeklyDigest = v)),
                   ],
                 ),
                 SizedBox(height: 2.h),
                 _buildSection(
                   theme: theme,
-                  title: 'Channels',
+                  title: AppLocalizations.of(context)!.channels,
                   icon: Icons.send,
                   children: [
-                    _buildToggle(theme, 'Push Notifications', 'On your device', _pushEnabled, (v) => setState(() => _pushEnabled = v)),
-                    _buildToggle(theme, 'Email Notifications', 'To your registered email', _emailEnabled, (v) => setState(() => _emailEnabled = v)),
-                    _buildToggle(theme, 'SMS Notifications', 'Text messages', _smsEnabled, (v) => setState(() => _smsEnabled = v)),
+                    _buildToggle(theme, AppLocalizations.of(context)!.pushNotifications, AppLocalizations.of(context)!.onYourDevice, _pushEnabled, (v) => setState(() => _pushEnabled = v)),
+                    _buildToggle(theme, AppLocalizations.of(context)!.emailNotifications, AppLocalizations.of(context)!.toYourRegisteredEmail, _emailEnabled, (v) => setState(() => _emailEnabled = v)),
+                    _buildToggle(theme, AppLocalizations.of(context)!.smsNotifications, AppLocalizations.of(context)!.textMessages, _smsEnabled, (v) => setState(() => _smsEnabled = v)),
                   ],
                 ),
                 SizedBox(height: 4.h),
@@ -165,9 +166,9 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.kjRed,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
-                    child: const Text('Save Preferences', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                    child: Text(AppLocalizations.of(context)!.savePreferences, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ),
                 SizedBox(height: 4.h),
@@ -189,7 +190,7 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
           child: Row(children: [
             Icon(icon, color: theme.colorScheme.primary, size: 20),
             SizedBox(width: 2.w),
-            Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            Flexible(child: Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
           ]),
         ),
         ...children,
@@ -200,8 +201,8 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
 
   Widget _buildToggle(ThemeData theme, String title, String subtitle, bool value, ValueChanged<bool> onChanged) {
     return SwitchListTile(
-      title: Text(title, style: TextStyle(fontWeight: FontWeight.w500, color: theme.colorScheme.onSurface)),
-      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
+      title: Text(title, style: TextStyle(fontWeight: FontWeight.w500, color: theme.colorScheme.onSurface), maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
       value: value,
       onChanged: onChanged,
       activeThumbColor: AppTheme.kjRed,

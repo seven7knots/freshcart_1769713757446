@@ -5,6 +5,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class BarcodeScannerWidget extends StatefulWidget {
   final Function(String)? onBarcodeScanned;
@@ -81,16 +82,14 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
   }
 
   void _processBarcode(String code) async {
-    // Simulate barcode processing
     await Future.delayed(const Duration(seconds: 1));
 
-    // Mock product lookup based on barcode
     final mockProducts = {
-      '123456789': 'Organic Bananas',
-      '987654321': 'Whole Milk 1L',
-      '456789123': 'Sourdough Bread',
-      '789123456': 'Greek Yogurt',
-      '321654987': 'Free Range Eggs',
+      '123456789': AppLocalizations.of(context)!.organicBananas,
+      '987654321': AppLocalizations.of(context)!.wholeMilk1l,
+      '456789123': AppLocalizations.of(context)!.sourdoughBread,
+      '789123456': AppLocalizations.of(context)!.greekYogurt,
+      '321654987': AppLocalizations.of(context)!.freeRangeEggs,
     };
 
     final productName = mockProducts[code] ?? 'Product not found';
@@ -106,9 +105,9 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
   void _showProductNotFound() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Product not found. Try searching manually.'),
+        content: Text(AppLocalizations.of(context)!.productNotFoundTrySearchingManually, maxLines: 1, overflow: TextOverflow.ellipsis),
         action: SnackBarAction(
-          label: 'OK',
+          label: AppLocalizations.of(context)!.ok2,
           onPressed: () => widget.onClose?.call(),
         ),
       ),
@@ -146,19 +145,12 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Camera preview
           MobileScanner(
             controller: _scannerController,
             onDetect: _onBarcodeDetected,
           ),
-
-          // Overlay
           _buildScannerOverlay(),
-
-          // Top controls
           _buildTopControls(),
-
-          // Bottom instructions
           _buildBottomInstructions(),
         ],
       ),
@@ -166,6 +158,8 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
   }
 
   Widget _buildScannerOverlay() {
+    final theme = Theme.of(context);
+
     return Container(
       width: double.infinity,
       height: double.infinity,
@@ -178,17 +172,14 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
           height: 60.w,
           decoration: BoxDecoration(
             border: Border.all(
-              color: AppTheme.lightTheme.colorScheme.primary,
+              color: theme.colorScheme.primary,
               width: 2,
             ),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Stack(
             children: [
-              // Corner indicators
               ...List.generate(4, (index) => _buildCornerIndicator(index)),
-
-              // Scanning line animation
               AnimatedBuilder(
                 animation: _animation,
                 builder: (context, child) {
@@ -202,7 +193,7 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
                         gradient: LinearGradient(
                           colors: [
                             Colors.transparent,
-                            AppTheme.lightTheme.colorScheme.primary,
+                            theme.colorScheme.primary,
                             Colors.transparent,
                           ],
                         ),
@@ -219,11 +210,12 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
   }
 
   Widget _buildCornerIndicator(int index) {
+    final theme = Theme.of(context);
     final positions = [
-      {'top': 0.0, 'left': 0.0}, // Top-left
-      {'top': 0.0, 'right': 0.0}, // Top-right
-      {'bottom': 0.0, 'left': 0.0}, // Bottom-left
-      {'bottom': 0.0, 'right': 0.0}, // Bottom-right
+      {'top': 0.0, 'left': 0.0},
+      {'top': 0.0, 'right': 0.0},
+      {'bottom': 0.0, 'left': 0.0},
+      {'bottom': 0.0, 'right': 0.0},
     ];
 
     final position = positions[index];
@@ -240,19 +232,19 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
           border: Border(
             top: index < 2
                 ? BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.primary, width: 4)
+                    color: theme.colorScheme.primary, width: 4)
                 : BorderSide.none,
             bottom: index >= 2
                 ? BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.primary, width: 4)
+                    color: theme.colorScheme.primary, width: 4)
                 : BorderSide.none,
             left: index % 2 == 0
                 ? BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.primary, width: 4)
+                    color: theme.colorScheme.primary, width: 4)
                 : BorderSide.none,
             right: index % 2 == 1
                 ? BorderSide(
-                    color: AppTheme.lightTheme.colorScheme.primary, width: 4)
+                    color: theme.colorScheme.primary, width: 4)
                 : BorderSide.none,
           ),
         ),
@@ -261,6 +253,8 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
   }
 
   Widget _buildTopControls() {
+    final theme = Theme.of(context);
+
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.all(4.w),
@@ -274,7 +268,7 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
               },
               icon: CustomIconWidget(
                 iconName: 'close',
-                color: Colors.white,
+                color: theme.colorScheme.surface,
                 size: 24,
               ),
             ),
@@ -284,7 +278,7 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
                 icon: CustomIconWidget(
                   iconName: _flashEnabled ? 'flash_on' : 'flash_off',
                   color: _flashEnabled
-                      ? AppTheme.lightTheme.colorScheme.primary
+                      ? theme.colorScheme.primary
                       : Colors.white,
                   size: 24,
                 ),
@@ -296,6 +290,8 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
   }
 
   Widget _buildBottomInstructions() {
+    final theme = Theme.of(context);
+
     return Positioned(
       bottom: 0,
       left: 0,
@@ -308,22 +304,20 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
             children: [
               Text(
                 _isScanning
-                    ? 'Position barcode within the frame'
-                    : 'Processing...',
-                style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
+                    ? AppLocalizations.of(context)!.positionBarcodeWithinTheFrame
+                    : AppLocalizations.of(context)!.processing2,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: theme.colorScheme.surface,
                   fontWeight: FontWeight.w600,
                 ),
-                textAlign: TextAlign.center,
-              ),
+                textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 1.h),
               Text(
-                'The barcode will be scanned automatically',
-                style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.8),
+                AppLocalizations.of(context)!.theBarcodeWillBeScannedAutomatically,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.surface.withValues(alpha: 0.8),
                 ),
-                textAlign: TextAlign.center,
-              ),
+                textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
@@ -332,40 +326,40 @@ class _BarcodeScannerWidgetState extends State<BarcodeScannerWidget>
   }
 
   Widget _buildWebFallback() {
+    final theme = Theme.of(context);
+
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: AppTheme.lightTheme.colorScheme.surface,
+      color: theme.colorScheme.surface,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           CustomIconWidget(
             iconName: 'qr_code_scanner',
-            color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+            color: theme.colorScheme.onSurfaceVariant,
             size: 64,
           ),
           SizedBox(height: 4.h),
           Text(
-            'Barcode Scanner',
-            style: AppTheme.lightTheme.textTheme.headlineSmall?.copyWith(
+            AppLocalizations.of(context)!.barcodeScanner,
+            style: theme.textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w600,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 2.h),
           Text(
             'Barcode scanning is not available on web.\nPlease use the mobile app for this feature.',
-            style: AppTheme.lightTheme.textTheme.bodyMedium?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.onSurfaceVariant,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
-            textAlign: TextAlign.center,
-          ),
+            textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 4.h),
           ElevatedButton(
             onPressed: () {
               HapticFeedback.lightImpact();
               widget.onClose?.call();
             },
-            child: Text('Close'),
+            child: Text(AppLocalizations.of(context)!.close, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),

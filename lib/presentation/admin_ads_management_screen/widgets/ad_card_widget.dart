@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class AdCardWidget extends StatelessWidget {
   final Map<String, dynamic> ad;
@@ -91,9 +92,9 @@ class AdCardWidget extends StatelessWidget {
                 // Analytics
                 Row(
                   children: [
-                    _buildMetric('Impressions', impressions.toString()),
+                    _buildMetric(AppLocalizations.of(context)!.impressions, impressions.toString()),
                     SizedBox(width: 4.w),
-                    _buildMetric('Clicks', clicks.toString()),
+                    _buildMetric(AppLocalizations.of(context)!.clicks, clicks.toString()),
                     SizedBox(width: 4.w),
                     _buildMetric('CTR', '$ctr%'),
                   ],
@@ -112,7 +113,7 @@ class AdCardWidget extends StatelessWidget {
                           iconName: 'edit',
                           size: 18,
                         ),
-                        label: const Text('Edit'),
+                        label: Text(AppLocalizations.of(context)!.edit, maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                     SizedBox(width: 2.w),
@@ -126,7 +127,7 @@ class AdCardWidget extends StatelessWidget {
                           iconName: 'swap_horiz',
                           size: 18,
                         ),
-                        label: const Text('Status'),
+                        label: Text(AppLocalizations.of(context)!.status, maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ),
                     SizedBox(width: 2.w),
@@ -182,8 +183,7 @@ class AdCardWidget extends StatelessWidget {
           color: color,
           fontSize: 10.sp,
           fontWeight: FontWeight.w600,
-        ),
-      ),
+        ), maxLines: 1, overflow: TextOverflow.ellipsis),
     );
   }
 
@@ -197,12 +197,10 @@ class AdCardWidget extends StatelessWidget {
             Text(
               label,
               style:
-                  TextStyle(fontSize: 10.sp, color: theme.colorScheme.outline),
-            ),
+                  TextStyle(fontSize: 10.sp, color: theme.colorScheme.outline), maxLines: 1, overflow: TextOverflow.ellipsis),
             Text(
               value,
-              style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w600),
-            ),
+              style: TextStyle(fontSize: 12.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         );
       },
@@ -219,17 +217,16 @@ class AdCardWidget extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Change Ad Status',
+              AppLocalizations.of(context)!.changeAdStatus,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 2.h),
-            _buildStatusOption(context, 'draft', 'Draft'),
-            _buildStatusOption(context, 'scheduled', 'Scheduled'),
+            _buildStatusOption(context, 'draft', AppLocalizations.of(context)!.draft),
+            _buildStatusOption(context, 'scheduled', AppLocalizations.of(context)!.scheduled),
             _buildStatusOption(context, 'active', 'Active'),
-            _buildStatusOption(context, 'paused', 'Paused'),
-            _buildStatusOption(context, 'expired', 'Expired'),
+            _buildStatusOption(context, 'paused', AppLocalizations.of(context)!.paused),
+            _buildStatusOption(context, 'expired', AppLocalizations.of(context)!.expired),
           ],
         ),
       ),
@@ -238,7 +235,7 @@ class AdCardWidget extends StatelessWidget {
 
   Widget _buildStatusOption(BuildContext context, String status, String label) {
     return ListTile(
-      title: Text(label),
+      title: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
       onTap: () {
         Navigator.pop(context);
         onStatusChange(status);

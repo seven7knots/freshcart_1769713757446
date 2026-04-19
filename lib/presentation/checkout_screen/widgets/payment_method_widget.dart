@@ -3,6 +3,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../widgets/custom_icon_widget.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class PaymentMethodWidget extends StatelessWidget {
   final List<Map<String, dynamic>> paymentMethods;
@@ -32,7 +33,7 @@ class PaymentMethodWidget extends StatelessWidget {
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: colorScheme.shadow.withValues(alpha: 0.1),
@@ -52,13 +53,12 @@ class PaymentMethodWidget extends StatelessWidget {
                 size: 24,
               ),
               SizedBox(width: 3.w),
-              Text(
-                'Payment Method',
+              Flexible(child: Text(
+                AppLocalizations.of(context)!.paymentMethod,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: colorScheme.onSurface,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
             ],
           ),
           SizedBox(height: 2.h),
@@ -103,8 +103,7 @@ class PaymentMethodWidget extends StatelessWidget {
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w500,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               Expanded(
                 child: Divider(
@@ -134,7 +133,7 @@ class PaymentMethodWidget extends StatelessWidget {
                     color: isSelected
                         ? colorScheme.primary.withValues(alpha: 0.1)
                         : colorScheme.surface,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: isSelected
                           ? colorScheme.primary
@@ -149,7 +148,7 @@ class PaymentMethodWidget extends StatelessWidget {
                         height: 8.h,
                         decoration: BoxDecoration(
                           color: _getCardColor(method['type'] as String),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(14),
                         ),
                         child: Center(
                           child: CustomIconWidget(
@@ -169,15 +168,13 @@ class PaymentMethodWidget extends StatelessWidget {
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: colorScheme.onSurface,
-                              ),
-                            ),
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
                             SizedBox(height: 0.5.h),
                             Text(
                               'Expires ${method['expiry']}',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           ],
                         ),
                       ),
@@ -203,7 +200,7 @@ class PaymentMethodWidget extends StatelessWidget {
               padding: EdgeInsets.all(3.w),
               decoration: BoxDecoration(
                 color: colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: colorScheme.primary.withValues(alpha: 0.3),
                   width: 1,
@@ -219,13 +216,12 @@ class PaymentMethodWidget extends StatelessWidget {
                     size: 20,
                   ),
                   SizedBox(width: 2.w),
-                  Text(
-                    'Add New Card',
+                  Flexible(child: Text(
+                    AppLocalizations.of(context)!.addNewCard,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: colorScheme.primary,
                       fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ],
               ),
             ),
@@ -246,7 +242,7 @@ class PaymentMethodWidget extends StatelessWidget {
         padding: EdgeInsets.symmetric(vertical: 2.h),
         decoration: BoxDecoration(
           color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: colorScheme.outline.withValues(alpha: 0.3),
             width: 1,
@@ -261,13 +257,12 @@ class PaymentMethodWidget extends StatelessWidget {
               size: 20,
             ),
             SizedBox(width: 2.w),
-            Text(
+            Flexible(child: Text(
               title,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w500,
                 color: colorScheme.onSurface,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis)),
           ],
         ),
       ),

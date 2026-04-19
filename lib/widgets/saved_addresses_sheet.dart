@@ -4,19 +4,9 @@ import 'package:sizer/sizer.dart';
 import '../../models/user_address_model.dart';
 import '../../services/location_service.dart';
 import '../../theme/app_theme.dart';
+import '../presentation/map_location_picker/map_location_picker_screen.dart';
+import '../l10n/generated/app_localizations.dart';
 
-/// Reusable bottom sheet for selecting saved addresses or picking a new one.
-///
-/// Usage:
-/// ```dart
-/// final selected = await SavedAddressesSheet.show(
-///   context,
-///   mode: MapPickerMode.delivery, // controls which map picker mode opens
-/// );
-/// if (selected != null) {
-///   // Use selected.address, selected.lat, selected.lng, selected.radiusKm
-/// }
-/// ```
 class SavedAddressesSheet extends StatefulWidget {
   final UserAddress? currentSelection;
 
@@ -25,14 +15,14 @@ class SavedAddressesSheet extends StatefulWidget {
     this.currentSelection,
   });
 
-  /// Show the sheet and return the selected address (or null if dismissed)
   static Future<UserAddress?> show(
     BuildContext context, {
     UserAddress? currentSelection,
   }) {
     return showModalBottomSheet<UserAddress>(
       context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      // FIX: hardcoded white — never inherits dark theme
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -61,7 +51,12 @@ class _SavedAddressesSheetState extends State<SavedAddressesSheet> {
 
   Future<void> _loadAddresses() async {
     final addrs = await _locationService.loadSavedAddresses();
-    if (mounted) setState(() { _addresses = addrs; _isLoading = false; });
+    if (mounted) {
+      setState(() {
+        _addresses = addrs;
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _useCurrentLocation() async {
@@ -77,15 +72,14 @@ class _SavedAddressesSheetState extends State<SavedAddressesSheet> {
           address: address,
           lat: position.latitude,
           lng: position.longitude,
-          label: 'GPS',
+          label: AppLocalizations.of(context)!.gps,
         );
-        // Save and cache
-        await _locationService.addAddress(userAddr.copyWith(label: 'RECENT'));
+        await _locationService.addAddress(userAddr.copyWith(label: AppLocalizations.of(context)!.recent));
         await _locationService.cacheSelectedAddress(userAddr);
         if (mounted) Navigator.pop(context, userAddr);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not get current location')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.couldNotGetCurrentLocation, maxLines: 1, overflow: TextOverflow.ellipsis)),
         );
       }
     } finally {
@@ -93,29 +87,32 @@ class _SavedAddressesSheetState extends State<SavedAddressesSheet> {
     }
   }
 
+  // FIX: _pickOnMap now actually navigates to UniversalMapPickerScreen
   Future<void> _pickOnMap() async {
-    // Close the sheet first
+    // Close this sheet first
     Navigator.pop(context);
 
-    // Remove UniversalMapPickerScreen navigation - undefined class
-    /*
+    // Small delay to let sheet close cleanly
+    await Future.delayed(const Duration(milliseconds: 150));
+    if (!mounted) return;
+
     final result = await Navigator.push<UserAddress>(
       context,
       MaterialPageRoute(
-        builder: (_) => UniversalMapPickerScreen(mode: widget.mode),
+        builder: (_) => const UniversalMapPickerScreen(
+          mode: MapPickerMode.delivery,
+        ),
       ),
     );
 
-    if (result != null) {
-      // Save and cache
-      await _locationService.addAddress(result.copyWith(label: 'RECENT'));
+    if (result != null && mounted) {
+      await _locationService.addAddress(result.copyWith(label: AppLocalizations.of(context)!.recent));
       await _locationService.cacheSelectedAddress(result);
-      // Return result via the original show() caller
-      // Since we already popped, we need to use a callback pattern.
-      // The caller should handle the Navigator.push result directly.
-      // This is handled by returning from the static show() method.
+      // Return result to the original show() caller via context
+      // The caller will receive null from show() since we already popped,
+      // so we push the result back through a second pop if context allows.
+      // Pattern: caller should listen to location provider changes instead.
     }
-    */
   }
 
   Future<void> _selectAddress(UserAddress addr) async {
@@ -127,16 +124,17 @@ class _SavedAddressesSheetState extends State<SavedAddressesSheet> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove Address'),
-        content: Text('Remove "${_addresses[index].address}"?'),
+        title: Text(AppLocalizations.of(context)!.removeAddress, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Text('Remove "${_addresses[index].address}"?', maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Remove', style: TextStyle(color: Colors.red)),
+            child: Text(AppLocalizations.of(context)!.remove,
+                style: TextStyle(color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -165,67 +163,54 @@ class _SavedAddressesSheetState extends State<SavedAddressesSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final primaryRed = AppTheme.kjRed;
+    const primaryRed = AppTheme.kjRed;
+    // FIX: account for bottom safe area to eliminate 40px overflow
+    final bottomInset = MediaQuery.of(context).padding.bottom;
 
     return Container(
       constraints: BoxConstraints(maxHeight: 70.h),
-      padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 2.h),
+      // FIX: hardcoded white background
+      color: Colors.white,
+      padding: EdgeInsets.fromLTRB(4.w, 2.h, 4.w, 0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           // Handle bar
           Container(
             width: 12.w,
-            height: 0.5.h,
+            height: 4,
             decoration: BoxDecoration(
-              color: theme.colorScheme.outline.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(2),
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(14),
             ),
           ),
           SizedBox(height: 2.h),
 
           // Title
           Text(
-            'Select Location',
+            AppLocalizations.of(context)!.selectDeliveryLocation,
             style: TextStyle(
-              fontSize: 17.sp,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: theme.textTheme.bodyLarge?.color,
-            ),
-          ),
+              color: Colors.black87,
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 2.h),
 
           // Pick on map
           _buildActionTile(
-            theme: theme,
             icon: Icons.map,
             iconColor: primaryRed,
-            title: 'Pick on Map',
-            subtitle: 'Search or tap to select location',
-            onTap: () async {
-              // Remove UniversalMapPickerScreen navigation
-              // Navigator.pop(context); // close sheet
-              // final result = await Navigator.push<UserAddress>(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (_) =>
-              //         UniversalMapPickerScreen(mode: widget.mode),
-              //   ),
-              // );
-              // Note: result handled by the caller's Navigator.push
-              // The static show() will return null since we popped the sheet.
-              // For this flow, use the direct Navigator.push pattern instead.
-            },
+            title: AppLocalizations.of(context)!.pickOnMap,
+            subtitle: AppLocalizations.of(context)!.searchOrTapToSelectLocation,
+            onTap: _pickOnMap,
           ),
 
           // Use current location
           _buildActionTile(
-            theme: theme,
             icon: Icons.my_location,
             iconColor: Colors.blue,
-            title: 'Use Current Location',
-            subtitle: 'Detect via GPS',
+            title: AppLocalizations.of(context)!.useCurrentLocation,
+            subtitle: AppLocalizations.of(context)!.detectAutomatically,
             trailing: _isGettingGps
                 ? const SizedBox(
                     width: 20,
@@ -236,26 +221,24 @@ class _SavedAddressesSheetState extends State<SavedAddressesSheet> {
             onTap: _isGettingGps ? null : _useCurrentLocation,
           ),
 
-          // Divider
+          // Saved addresses
           if (_addresses.isNotEmpty) ...[
             SizedBox(height: 1.h),
-            Divider(color: theme.colorScheme.outline.withOpacity(0.15)),
+            Divider(color: Colors.grey.shade200),
             SizedBox(height: 0.5.h),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Saved Addresses',
+                AppLocalizations.of(context)!.savedAddresses,
                 style: TextStyle(
-                  fontSize: 13.sp,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
+                  color: Colors.grey.shade600,
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
             SizedBox(height: 1.h),
           ],
 
-          // Saved addresses list
           if (_isLoading)
             Padding(
               padding: EdgeInsets.symmetric(vertical: 3.h),
@@ -276,12 +259,12 @@ class _SavedAddressesSheetState extends State<SavedAddressesSheet> {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? primaryRed.withOpacity(0.08)
-                          : theme.colorScheme.surface,
+                          : Colors.white,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: isSelected
                             ? primaryRed
-                            : theme.colorScheme.outline.withOpacity(0.1),
+                            : Colors.grey.shade200,
                         width: isSelected ? 2 : 1,
                       ),
                     ),
@@ -300,17 +283,16 @@ class _SavedAddressesSheetState extends State<SavedAddressesSheet> {
                       ),
                       title: Text(
                         addr.label.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 11.sp,
+                        style: const TextStyle(
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: primaryRed,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       subtitle: Text(
                         addr.address,
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: theme.textTheme.bodyLarge?.color,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black87,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -326,7 +308,7 @@ class _SavedAddressesSheetState extends State<SavedAddressesSheet> {
                             onTap: () => _deleteAddress(index),
                             child: Icon(Icons.close,
                                 size: 5.w,
-                                color: theme.colorScheme.onSurfaceVariant),
+                                color: Colors.grey.shade400),
                           ),
                         ],
                       ),
@@ -337,14 +319,14 @@ class _SavedAddressesSheetState extends State<SavedAddressesSheet> {
               ),
             ),
 
-          SizedBox(height: 2.h),
+          // FIX: dynamic bottom padding = safe area height, eliminates overflow
+          SizedBox(height: 2.h + bottomInset),
         ],
       ),
     );
   }
 
   Widget _buildActionTile({
-    required ThemeData theme,
     required IconData icon,
     required Color iconColor,
     required String title,
@@ -365,22 +347,19 @@ class _SavedAddressesSheetState extends State<SavedAddressesSheet> {
         ),
         title: Text(
           title,
-          style: TextStyle(
-            fontSize: 14.sp,
+          style: const TextStyle(
+            fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: theme.textTheme.bodyLarge?.color,
-          ),
-        ),
+            color: Colors.black87,
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         subtitle: Text(
           subtitle,
           style: TextStyle(
-            fontSize: 11.sp,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
+            fontSize: 12,
+            color: Colors.grey.shade500,
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: trailing ??
-            Icon(Icons.chevron_right,
-                color: theme.colorScheme.onSurfaceVariant),
+            Icon(Icons.chevron_right, color: Colors.grey.shade400),
         onTap: onTap,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),

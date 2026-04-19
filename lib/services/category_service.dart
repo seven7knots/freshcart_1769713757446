@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -7,7 +9,6 @@ import './supabase_service.dart';
 class CategoryService {
   static SupabaseClient get _client => SupabaseService.client;
 
-  // Safety default if callers pass null/empty (prevents DB NOT NULL)
   static const String _defaultType = 'product';
 
   static String _normalizeType(String? type) {
@@ -16,14 +17,79 @@ class CategoryService {
   }
 
   // ============================================================
+  // SESSION 24 FIX: In-memory cache with TTL
+  // SESSION 26 FIX (Bug #2): Added Completer-based in-flight dedup.
+  //
+  // SESSION 24 PROBLEM: getTopLevelCategories() was called 3× within
+  // 1.5s. Each call fired an independent Supabase query.
+  //
+  // SESSION 24 FIX: Static cache with 2-minute TTL. But this only
+  // helps when the first call has ALREADY RETURNED. If two calls
+  // fire 73ms apart, the first one hasn't returned yet, so the
+  // cache is empty for both → both hit Supabase.
+  //
+  // SESSION 26 FIX: Added Completer. If a fetch is already in-flight,
+  // subsequent callers await the SAME future instead of firing a new
+  // query. This mirrors the auth_provider dedup pattern.
+  //
+  // Flow:
+  //   Call 1 → cache miss → creates Completer → fires Supabase query
+  //   Call 2 (73ms later) → cache miss → sees Completer → awaits it
+  //   Query returns → Completer completes → both calls get same result
+  //   Call 3 (2 min later) → cache hit → returns instantly
+  // ============================================================
+
+  static List<Category>? _topLevelCache;
+  static DateTime? _topLevelCacheTime;
+  static List<Category>? _allCategoriesCache;
+  static DateTime? _allCategoriesCacheTime;
+  static const _cacheTTL = Duration(minutes: 2);
+
+  // SESSION 26 FIX (Bug #2): In-flight dedup Completers
+  static Completer<List<Category>>? _topLevelFetchCompleter;
+  static Completer<List<Category>>? _allCategoriesFetchCompleter;
+
+  static bool _isCacheValid(DateTime? cacheTime) {
+    return cacheTime != null &&
+        DateTime.now().difference(cacheTime) < _cacheTTL;
+  }
+
+  /// Clear all caches. Call on pull-to-refresh or after admin edits.
+  static void clearCache() {
+    _topLevelCache = null;
+    _topLevelCacheTime = null;
+    _allCategoriesCache = null;
+    _allCategoriesCacheTime = null;
+    // NOTE: Do NOT null out the Completers here. If a fetch is in-flight
+    // when the user pulls to refresh, let it finish. The next call after
+    // it completes will see the cleared cache and fetch fresh data.
+    debugPrint('[CATEGORY] Cache cleared');
+  }
+
+  // ============================================================
   // READ OPERATIONS
   // ============================================================
 
-  /// Get all top-level categories (parent_id is null)
   static Future<List<Category>> getTopLevelCategories({
     bool activeOnly = true,
     bool excludeDemo = true,
   }) async {
+    // SESSION 24: Return cached data if valid
+    if (_isCacheValid(_topLevelCacheTime) && _topLevelCache != null) {
+      debugPrint('[CATEGORY] Returning ${_topLevelCache!.length} top-level categories from cache');
+      return _topLevelCache!;
+    }
+
+    // SESSION 26 FIX (Bug #2): If a fetch is already in-flight, await it
+    // instead of firing a duplicate Supabase query.
+    if (_topLevelFetchCompleter != null && !_topLevelFetchCompleter!.isCompleted) {
+      debugPrint('[CATEGORY] getTopLevelCategories DEDUPED (awaiting in-flight fetch)');
+      return _topLevelFetchCompleter!.future;
+    }
+
+    // No cache, no in-flight fetch → start a new one
+    _topLevelFetchCompleter = Completer<List<Category>>();
+
     try {
       debugPrint('[CATEGORY] Fetching top-level categories...');
 
@@ -38,7 +104,6 @@ class CategoryService {
         query = query.eq('is_demo', false);
       }
 
-      // Only get global categories (no store_id), not in-store categories
       query = query.isFilter('store_id', null);
 
       final response = await query.order('sort_order', ascending: true);
@@ -47,19 +112,40 @@ class CategoryService {
           .map((c) => Category.fromMap(c as Map<String, dynamic>))
           .toList();
 
+      // SESSION 24: Update cache
+      _topLevelCache = categories;
+      _topLevelCacheTime = DateTime.now();
+
       debugPrint('[CATEGORY] Loaded ${categories.length} top-level categories');
+
+      // SESSION 26: Complete the Completer so deduped callers get the result
+      _topLevelFetchCompleter!.complete(categories);
       return categories;
     } catch (e) {
       debugPrint('[CATEGORY] Error fetching top-level categories: $e');
+      _topLevelFetchCompleter!.completeError(e);
       rethrow;
     }
   }
 
-  /// Get all categories (both top-level and subcategories)
   static Future<List<Category>> getAllCategories({
     bool activeOnly = true,
     bool excludeDemo = true,
   }) async {
+    // SESSION 24: Return cached data if valid
+    if (_isCacheValid(_allCategoriesCacheTime) && _allCategoriesCache != null) {
+      debugPrint('[CATEGORY] Returning ${_allCategoriesCache!.length} categories from cache');
+      return _allCategoriesCache!;
+    }
+
+    // SESSION 26 FIX (Bug #2): In-flight dedup
+    if (_allCategoriesFetchCompleter != null && !_allCategoriesFetchCompleter!.isCompleted) {
+      debugPrint('[CATEGORY] getAllCategories DEDUPED (awaiting in-flight fetch)');
+      return _allCategoriesFetchCompleter!.future;
+    }
+
+    _allCategoriesFetchCompleter = Completer<List<Category>>();
+
     try {
       debugPrint('[CATEGORY] Fetching all categories...');
 
@@ -79,15 +165,22 @@ class CategoryService {
           .map((c) => Category.fromMap(c as Map<String, dynamic>))
           .toList();
 
+      // SESSION 24: Update cache
+      _allCategoriesCache = categories;
+      _allCategoriesCacheTime = DateTime.now();
+
       debugPrint('[CATEGORY] Loaded ${categories.length} total categories');
+
+      // SESSION 26: Complete the Completer
+      _allCategoriesFetchCompleter!.complete(categories);
       return categories;
     } catch (e) {
       debugPrint('[CATEGORY] Error fetching all categories: $e');
+      _allCategoriesFetchCompleter!.completeError(e);
       rethrow;
     }
   }
 
-  /// Get subcategories for a parent category
   static Future<List<Category>> getSubcategories(
     String parentId, {
     bool activeOnly = true,
@@ -120,7 +213,6 @@ class CategoryService {
     }
   }
 
-  /// Get a single category by ID
   static Future<Category?> getCategoryById(String id) async {
     try {
       debugPrint('[CATEGORY] Fetching category: $id');
@@ -140,7 +232,6 @@ class CategoryService {
     }
   }
 
-  /// Get categories with their subcategories nested
   static Future<List<Category>> getCategoriesWithSubcategories({
     bool activeOnly = true,
     bool excludeDemo = true,
@@ -161,8 +252,7 @@ class CategoryService {
         return parent.copyWith(subcategories: children);
       }).toList();
 
-      debugPrint(
-          '[CATEGORY] Loaded ${result.length} categories with subcategories');
+      debugPrint('[CATEGORY] Loaded ${result.length} categories with subcategories');
       return result;
     } catch (e) {
       debugPrint('[CATEGORY] Error fetching categories with subcategories: $e');
@@ -170,7 +260,6 @@ class CategoryService {
     }
   }
 
-  /// Get categories by type
   static Future<List<Category>> getCategoriesByType(
     String type, {
     bool activeOnly = true,
@@ -195,8 +284,7 @@ class CategoryService {
           .map((c) => Category.fromMap(c as Map<String, dynamic>))
           .toList();
 
-      debugPrint(
-          '[CATEGORY] Loaded ${categories.length} categories of type $type');
+      debugPrint('[CATEGORY] Loaded ${categories.length} categories of type $type');
       return categories;
     } catch (e) {
       debugPrint('[CATEGORY] Error fetching categories by type: $e');
@@ -204,7 +292,6 @@ class CategoryService {
     }
   }
 
-  /// Get categories specific to a store (merchant-created categories)
   static Future<List<Category>> getStoreCategories(
     String storeId, {
     bool activeOnly = true,
@@ -212,10 +299,7 @@ class CategoryService {
     try {
       debugPrint('[CATEGORY] Fetching categories for store: $storeId');
 
-      var query = _client
-          .from('categories')
-          .select()
-          .eq('store_id', storeId);
+      var query = _client.from('categories').select().eq('store_id', storeId);
 
       if (activeOnly) {
         query = query.eq('is_active', true);
@@ -227,17 +311,14 @@ class CategoryService {
           .map((c) => Category.fromMap(c as Map<String, dynamic>))
           .toList();
 
-      debugPrint(
-          '[CATEGORY] Loaded ${categories.length} store-specific categories');
+      debugPrint('[CATEGORY] Loaded ${categories.length} store-specific categories');
       return categories;
     } catch (e) {
       debugPrint('[CATEGORY] Error fetching store categories: $e');
 
-      // If store_id column doesn't exist yet, return empty list
       if (e.toString().contains('column') &&
           e.toString().contains('store_id')) {
-        debugPrint(
-            '[CATEGORY] ⚠️ store_id column not found. Run migration first.');
+        debugPrint('[CATEGORY] ⚠️ store_id column not found. Run migration first.');
         return [];
       }
 
@@ -245,7 +326,6 @@ class CategoryService {
     }
   }
 
-  /// Check if a category has subcategories
   static Future<bool> hasSubcategories(String categoryId) async {
     try {
       final response = await _client
@@ -266,10 +346,6 @@ class CategoryService {
   // CREATE OPERATIONS
   // ============================================================
 
-  /// Create a new category
-  ///
-  /// FIX: Removed 'is_marketplace' field that doesn't exist in DB schema.
-  /// Only sends columns that actually exist in the categories table.
   static Future<Category> createCategory({
     required String name,
     String? nameAr,
@@ -302,18 +378,18 @@ class CategoryService {
         'is_demo': false,
       };
 
-      // Only include store_id if provided (avoids issues if column doesn't exist)
       if (storeId != null && storeId.isNotEmpty) {
         data['store_id'] = storeId;
       }
-
-      // NOTE: 'is_marketplace' column does NOT exist in the database.
-      // Do NOT add it here. The old code had this bug.
 
       final response =
           await _client.from('categories').insert(data).select().single();
 
       final category = Category.fromMap(response);
+
+      // SESSION 24: Invalidate cache after create
+      clearCache();
+
       debugPrint('[CATEGORY] Category created: ${category.id}');
       return category;
     } catch (e) {
@@ -322,7 +398,6 @@ class CategoryService {
     }
   }
 
-  /// Create a subcategory
   static Future<Category> createSubcategory({
     required String parentId,
     required String name,
@@ -355,7 +430,6 @@ class CategoryService {
   // UPDATE OPERATIONS
   // ============================================================
 
-  /// Update a category
   static Future<Category> updateCategory(
     String id,
     Map<String, dynamic> updates,
@@ -367,9 +441,7 @@ class CategoryService {
         updates['type'] = _normalizeType(updates['type'] as String?);
       }
 
-      // Remove fields that don't exist in DB to prevent errors
       updates.remove('is_marketplace');
-
       updates['updated_at'] = DateTime.now().toIso8601String();
 
       final response = await _client
@@ -380,6 +452,10 @@ class CategoryService {
           .single();
 
       final category = Category.fromMap(response);
+
+      // SESSION 24: Invalidate cache after update
+      clearCache();
+
       debugPrint('[CATEGORY] Category updated: ${category.id}');
       return category;
     } catch (e) {
@@ -388,12 +464,10 @@ class CategoryService {
     }
   }
 
-  /// Toggle category active status
   static Future<void> toggleCategoryStatus(String id, bool isActive) async {
     await updateCategory(id, {'is_active': isActive});
   }
 
-  /// Update category sort order
   static Future<void> updateSortOrder(String id, int sortOrder) async {
     await updateCategory(id, {'sort_order': sortOrder});
   }
@@ -402,16 +476,15 @@ class CategoryService {
   // DELETE OPERATIONS
   // ============================================================
 
-  /// Delete a category (and its subcategories)
   static Future<void> deleteCategory(String id) async {
     try {
       debugPrint('[CATEGORY] Deleting category: $id');
 
-      // First, delete all subcategories
       await _client.from('categories').delete().eq('parent_id', id);
-
-      // Then delete the category itself
       await _client.from('categories').delete().eq('id', id);
+
+      // SESSION 24: Invalidate cache after delete
+      clearCache();
 
       debugPrint('[CATEGORY] Category deleted: $id');
     } catch (e) {
@@ -420,7 +493,6 @@ class CategoryService {
     }
   }
 
-  /// Soft delete (set is_active to false)
   static Future<void> softDeleteCategory(String id) async {
     await toggleCategoryStatus(id, false);
   }
@@ -429,7 +501,6 @@ class CategoryService {
   // UTILITY METHODS
   // ============================================================
 
-  /// Search categories by name
   static Future<List<Category>> searchCategories(
     String query, {
     bool activeOnly = true,
@@ -460,7 +531,6 @@ class CategoryService {
     }
   }
 
-  /// Get category path (for breadcrumbs)
   static Future<List<Category>> getCategoryPath(String categoryId) async {
     try {
       final path = <Category>[];
@@ -479,5 +549,38 @@ class CategoryService {
       debugPrint('[CATEGORY] Error getting category path: $e');
       rethrow;
     }
+  }
+
+  // ============================================================
+  // REORDER OPERATIONS
+  // ============================================================
+
+  /// Batch-update sort_order for a list of categories.
+  /// [updates] is a list of maps with 'id' and 'sort_order' keys.
+  static Future<void> reorderCategoriesStatic(
+    List<Map<String, dynamic>> updates,
+  ) async {
+    try {
+      debugPrint('[CATEGORY] Reordering ${updates.length} categories...');
+
+      for (final entry in updates) {
+        await _client
+            .from('categories')
+            .update({'sort_order': entry['sort_order']})
+            .eq('id', entry['id'] as String);
+      }
+
+      clearCache();
+      debugPrint('[CATEGORY] Reorder complete');
+    } catch (e) {
+      debugPrint('[CATEGORY] Error reordering categories: $e');
+      rethrow;
+    }
+  }
+
+  /// Instance-method forwarder so callers using `CategoryService().reorderCategories()`
+  /// work without changing call-sites.
+  Future<void> reorderCategories(List<Map<String, dynamic>> updates) {
+    return reorderCategoriesStatic(updates);
   }
 }

@@ -3,11 +3,15 @@ import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/animated_press_button.dart';
+import '../l10n/generated/app_localizations.dart';
 
 /// Custom bottom navigation bar
 /// Light mode: Red background, white icons/text
 /// Dark mode: Dark surface background, red selected / grey unselected
 /// AI Mate icon: auto_awesome (sparkle) instead of smart_toy
+///
+/// UPDATED: Wrapped in Material so the parent Scaffold can properly measure
+/// the bar height and inset the body content above it (fixes 46px overflow).
 class CustomBottomBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int>? onTap;
@@ -25,60 +29,65 @@ class CustomBottomBar extends StatelessWidget {
     final theme = Theme.of(context);
     final isLight = theme.brightness == Brightness.light;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isLight ? AppTheme.kjRed : AppTheme.surfaceDark,
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.shadow.withOpacity(0.10),
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(
-                context: context,
-                index: 0,
-                icon: Icons.home_outlined,
-                activeIcon: Icons.home_rounded,
-                label: 'Home',
-                tooltip: 'Browse products',
-              ),
-              _buildNavItem(
-                context: context,
-                index: 1,
-                icon: Icons.search_outlined,
-                activeIcon: Icons.search_rounded,
-                label: 'Search',
-                tooltip: 'Search products',
-              ),
-              _buildAiMateNavItem(
-                context: context,
-                index: 2,
-              ),
-              _buildNavItem(
-                context: context,
-                index: 3,
-                icon: Icons.store_outlined,
-                activeIcon: Icons.store_rounded,
-                label: 'Stores',
-                tooltip: 'Browse all stores',
-              ),
-              _buildNavItem(
-                context: context,
-                index: 4,
-                icon: Icons.person_outline_rounded,
-                activeIcon: Icons.person_rounded,
-                label: 'Profile',
-                tooltip: 'User profile',
-              ),
-            ],
+    return Material(
+      elevation: 8,
+      color: isLight ? AppTheme.kjRed : AppTheme.surfaceDark,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isLight ? AppTheme.kjRed : AppTheme.surfaceDark,
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.shadow.withOpacity(0.10),
+              blurRadius: 8,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 60,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildNavItem(
+                  context: context,
+                  index: 0,
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home_rounded,
+                  label: AppLocalizations.of(context)!.home,
+                  tooltip: AppLocalizations.of(context)!.browseProducts,
+                ),
+                _buildNavItem(
+                  context: context,
+                  index: 1,
+                  icon: Icons.search_outlined,
+                  activeIcon: Icons.search_rounded,
+                  label: AppLocalizations.of(context)!.search,
+                  tooltip: AppLocalizations.of(context)!.searchProducts,
+                ),
+                _buildAiMateNavItem(
+                  context: context,
+                  index: 2,
+                ),
+                _buildNavItem(
+                  context: context,
+                  index: 3,
+                  icon: Icons.store_outlined,
+                  activeIcon: Icons.store_rounded,
+                  label: AppLocalizations.of(context)!.stores,
+                  tooltip: AppLocalizations.of(context)!.browseAllStores,
+                ),
+                _buildNavItem(
+                  context: context,
+                  index: 4,
+                  icon: Icons.person_outline_rounded,
+                  activeIcon: Icons.person_rounded,
+                  label: AppLocalizations.of(context)!.profile,
+                  tooltip: AppLocalizations.of(context)!.userProfile,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -115,7 +124,7 @@ class CustomBottomBar extends StatelessWidget {
           onTap?.call(index);
         },
         child: Tooltip(
-          message: 'AI Mate – Your smart assistant',
+          message: AppLocalizations.of(context)!.aiMateYourSmartAssistant,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -136,13 +145,12 @@ class CustomBottomBar extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                'AI Mate',
+                AppLocalizations.of(context)!.aiMate,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                   color: isSelected ? selectedColor : unselectedColor,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
@@ -200,8 +208,7 @@ class CustomBottomBar extends StatelessWidget {
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   color: isSelected ? selectedColor : unselectedColor,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
         ),

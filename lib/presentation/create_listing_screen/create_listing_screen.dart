@@ -11,6 +11,7 @@ import '../../services/marketplace_category_service.dart';
 import '../../services/marketplace_service.dart';
 import '../../theme/app_theme.dart';
 import '../map_location_picker/map_location_picker_screen.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class CreateListingScreen extends StatefulWidget {
   const CreateListingScreen({super.key});
@@ -86,7 +87,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed to pick images: $e')));
+            .showSnackBar(SnackBar(content: Text('Failed to pick images: $e', maxLines: 1, overflow: TextOverflow.ellipsis)));
       }
     }
   }
@@ -133,19 +134,19 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please add at least one image')));
+          SnackBar(content: Text(AppLocalizations.of(context)!.pleaseAddAtLeastOneImage, maxLines: 1, overflow: TextOverflow.ellipsis)));
       return;
     }
     if (_selectedCategory == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a category')));
+          SnackBar(content: Text(AppLocalizations.of(context)!.pleaseSelectACategory, maxLines: 1, overflow: TextOverflow.ellipsis)));
       return;
     }
 
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please sign in to create a listing')));
+          SnackBar(content: Text(AppLocalizations.of(context)!.pleaseSignInToCreateA, maxLines: 1, overflow: TextOverflow.ellipsis)));
       return;
     }
 
@@ -168,14 +169,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Listing created successfully!'), backgroundColor: Colors.green),
+          SnackBar(content: Text(AppLocalizations.of(context)!.listingCreatedSuccessfully, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.green),
         );
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed to create listing: $e')));
+            .showSnackBar(SnackBar(content: Text('Failed to create listing: $e', maxLines: 1, overflow: TextOverflow.ellipsis)));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -193,7 +194,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       appBar: AppBar(
         backgroundColor: theme.scaffoldBackgroundColor, elevation: 0,
         leading: IconButton(icon: Icon(Icons.close, color: theme.iconTheme.color), onPressed: () => Navigator.pop(context)),
-        title: Text('Create Listing', style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600, color: theme.textTheme.bodyLarge?.color)),
+        title: Text(AppLocalizations.of(context)!.createListing, style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600, color: theme.textTheme.bodyLarge?.color), maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
       ),
       body: _isLoadingCategories
@@ -204,7 +205,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                 padding: EdgeInsets.all(4.w),
                 children: [
                   // Photos
-                  _buildLabel('Photos', theme),
+                  _buildLabel(AppLocalizations.of(context)!.photos, theme),
                   SizedBox(height: 1.h),
                   SizedBox(
                     height: 25.w,
@@ -214,14 +215,14 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                         child: Container(
                           width: 25.w, height: 25.w, margin: EdgeInsets.only(right: 2.w),
                           decoration: BoxDecoration(
-                            color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.grey[100],
+                            color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(3.w),
                             border: Border.all(color: theme.colorScheme.outline.withOpacity(0.3), width: 1.5),
                           ),
                           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                             Icon(Icons.add_a_photo, size: 8.w, color: theme.colorScheme.onSurfaceVariant),
                             SizedBox(height: 0.5.h),
-                            Text('Add', style: TextStyle(fontSize: 10.sp, color: theme.colorScheme.onSurfaceVariant)),
+                            Text(AppLocalizations.of(context)!.add, style: TextStyle(fontSize: 10.sp, color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
                           ]),
                         ),
                       ),
@@ -234,7 +235,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                               ClipRRect(borderRadius: BorderRadius.circular(3.w),
                                 child: snapshot.hasData
                                     ? Image.memory(snapshot.data!, width: 25.w, height: 25.w, fit: BoxFit.cover)
-                                    : Container(width: 25.w, height: 25.w, color: Colors.grey[300],
+                                    : Container(width: 25.w, height: 25.w, color: theme.colorScheme.outlineVariant,
                                         child: const Center(child: CircularProgressIndicator(strokeWidth: 2)))),
                               Positioned(top: 1.w, right: 1.w, child: GestureDetector(
                                 onTap: () => _removeImage(entry.key),
@@ -249,19 +250,19 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     ]),
                   ),
                   SizedBox(height: 1.h),
-                  Text('${_selectedImages.length} / 10 photos', style: TextStyle(fontSize: 11.sp, color: theme.colorScheme.onSurfaceVariant)),
+                  Text('${_selectedImages.length} / 10 photos', style: TextStyle(fontSize: 11.sp, color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
 
                   SizedBox(height: 3.h),
-                  _buildLabel('Title', theme), SizedBox(height: 0.5.h),
+                  _buildLabel(AppLocalizations.of(context)!.title, theme), SizedBox(height: 0.5.h),
                   TextFormField(controller: _titleController, style: TextStyle(color: theme.textTheme.bodyLarge?.color),
-                    decoration: _inputDeco('What are you selling?', theme, isDark),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Title is required' : null),
+                    decoration: _inputDeco(AppLocalizations.of(context)!.whatAreYouSelling, theme, isDark),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? AppLocalizations.of(context)!.titleIsRequired : null),
 
                   SizedBox(height: 2.h),
-                  _buildLabel('Description', theme), SizedBox(height: 0.5.h),
+                  _buildLabel(AppLocalizations.of(context)!.description, theme), SizedBox(height: 0.5.h),
                   TextFormField(controller: _descriptionController, style: TextStyle(color: theme.textTheme.bodyLarge?.color),
-                    maxLines: 4, decoration: _inputDeco('Describe your item in detail...', theme, isDark),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Description is required' : null),
+                    maxLines: 4, decoration: _inputDeco(AppLocalizations.of(context)!.describeYourItemInDetail, theme, isDark),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? AppLocalizations.of(context)!.descriptionIsRequired : null),
 
                   SizedBox(height: 2.h),
                   _buildLabel('Price (USD)', theme), SizedBox(height: 0.5.h),
@@ -269,42 +270,42 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: _inputDeco('0.00', theme, isDark),
                     validator: (v) {
-                      if (v == null || v.trim().isEmpty) return 'Price is required';
+                      if (v == null || v.trim().isEmpty) return AppLocalizations.of(context)!.priceIsRequired2;
                       final price = double.tryParse(v.trim());
-                      if (price == null || price < 0) return 'Enter a valid price';
+                      if (price == null || price < 0) return AppLocalizations.of(context)!.enterAValidPrice;
                       return null;
                     }),
 
                   SizedBox(height: 2.h),
-                  _buildLabel('Category', theme), SizedBox(height: 0.5.h),
+                  _buildLabel(AppLocalizations.of(context)!.category2, theme), SizedBox(height: 0.5.h),
                   DropdownButtonFormField<String>(initialValue: _selectedCategory, dropdownColor: theme.colorScheme.surface,
                     style: TextStyle(color: theme.textTheme.bodyLarge?.color), decoration: _inputDeco('', theme, isDark),
-                    items: _categories.map((cat) => DropdownMenuItem(value: cat.id, child: Text(cat.name))).toList(),
+                    items: _categories.map((cat) => DropdownMenuItem(value: cat.id, child: Text(cat.name, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
                     onChanged: (v) { if (v != null) setState(() => _selectedCategory = v); }),
 
                   SizedBox(height: 2.h),
-                  _buildLabel('Condition', theme), SizedBox(height: 0.5.h),
+                  _buildLabel(AppLocalizations.of(context)!.condition, theme), SizedBox(height: 0.5.h),
                   DropdownButtonFormField<String>(initialValue: _selectedCondition, dropdownColor: theme.colorScheme.surface,
                     style: TextStyle(color: theme.textTheme.bodyLarge?.color), decoration: _inputDeco('', theme, isDark),
-                    items: _conditions.map((c) => DropdownMenuItem(value: c['id'], child: Text(c['name']!))).toList(),
+                    items: _conditions.map((c) => DropdownMenuItem(value: c['id'], child: Text(c['name']!, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
                     onChanged: (v) { if (v != null) setState(() => _selectedCondition = v); }),
 
                   SizedBox(height: 2.h),
                   // ── Location (Universal Map Picker) ──
-                  _buildLabel('Location', theme), SizedBox(height: 0.5.h),
+                  _buildLabel(AppLocalizations.of(context)!.location, theme), SizedBox(height: 0.5.h),
                   GestureDetector(
                     onTap: _openMapPicker,
                     child: Container(
                       padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.8.h),
                       decoration: BoxDecoration(
-                        color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.grey[100],
+                        color: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(2.w)),
                       child: Row(children: [
                         Icon(_pickedLocation != null ? Icons.location_on : Icons.add_location_alt,
                             color: _pickedLocation != null ? primaryRed : theme.colorScheme.onSurfaceVariant, size: 6.w),
                         SizedBox(width: 3.w),
                         Expanded(child: Text(
-                          _pickedLocation?.address ?? 'Tap to pick location on map',
+                          _pickedLocation?.address ?? AppLocalizations.of(context)!.tapToPickLocationOnMap,
                           style: TextStyle(fontSize: 13.sp,
                               color: _pickedLocation != null ? theme.textTheme.bodyLarge?.color : theme.colorScheme.onSurfaceVariant),
                           maxLines: 2, overflow: TextOverflow.ellipsis)),
@@ -316,12 +317,12 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     SizedBox(height: 0.5.h),
                     GestureDetector(
                       onTap: () => setState(() => _pickedLocation = null),
-                      child: Text('Clear location', style: TextStyle(fontSize: 11.sp, color: Colors.red)),
+                      child: Text(AppLocalizations.of(context)!.clearLocation, style: TextStyle(fontSize: 11.sp, color: Colors.red), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ],
 
                   SizedBox(height: 2.h),
-                  SwitchListTile(title: Text('Price is negotiable', style: TextStyle(fontSize: 14.sp, color: theme.textTheme.bodyLarge?.color)),
+                  SwitchListTile(title: Text(AppLocalizations.of(context)!.priceIsNegotiable, style: TextStyle(fontSize: 14.sp, color: theme.textTheme.bodyLarge?.color), maxLines: 1, overflow: TextOverflow.ellipsis),
                     value: _isNegotiable, activeThumbColor: primaryRed, onChanged: (v) => setState(() => _isNegotiable = v)),
 
                   SizedBox(height: 3.h),
@@ -331,7 +332,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(3.w))),
                     child: _isSubmitting
                         ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text('Post Listing', style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600)),
+                        : Text(AppLocalizations.of(context)!.postListing, style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                   )),
                   SizedBox(height: 4.h),
                 ],
@@ -341,11 +342,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   }
 
   Widget _buildLabel(String text, ThemeData theme) => Text(text,
-      style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600, color: theme.textTheme.bodyLarge?.color));
+      style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600, color: theme.textTheme.bodyLarge?.color), maxLines: 1, overflow: TextOverflow.ellipsis);
 
   InputDecoration _inputDeco(String hint, ThemeData theme, bool isDark) => InputDecoration(
     hintText: hint, hintStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-    filled: true, fillColor: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.grey[100],
+    filled: true, fillColor: isDark ? theme.colorScheme.surfaceContainerHighest : Colors.grey.shade100,
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(2.w), borderSide: BorderSide.none),
     contentPadding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h));
 }

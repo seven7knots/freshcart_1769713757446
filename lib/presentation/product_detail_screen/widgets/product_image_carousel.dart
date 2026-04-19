@@ -29,6 +29,8 @@ class _ProductImageCarouselState extends State<ProductImageCarousel> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return SizedBox(
       height: 45.h,
       width: double.infinity,
@@ -74,10 +76,10 @@ class _ProductImageCarouselState extends State<ProductImageCarousel> {
                     height: 1.h,
                     decoration: BoxDecoration(
                       color: _currentIndex == index
-                          ? AppTheme.lightTheme.colorScheme.primary
-                          : AppTheme.lightTheme.colorScheme.primary
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.primary
                               .withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                 ),
@@ -135,6 +137,8 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -143,17 +147,16 @@ class _FullScreenImageViewerState extends State<_FullScreenImageViewer> {
         leading: IconButton(
           icon: CustomIconWidget(
             iconName: 'close',
-            color: Colors.white,
+            color: theme.colorScheme.surface,
             size: 24,
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           '${_currentIndex + 1} of ${widget.images.length}',
-          style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
-            color: Colors.white,
-          ),
-        ),
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: theme.colorScheme.surface,
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
       ),
       body: PageView.builder(

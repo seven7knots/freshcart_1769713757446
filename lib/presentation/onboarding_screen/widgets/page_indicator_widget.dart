@@ -27,7 +27,7 @@ class PageIndicatorWidget extends StatelessWidget {
             color: currentIndex == index
                 ? theme.colorScheme.primary
                 : theme.colorScheme.outline.withValues(alpha: 0.3),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(14),
           ),
         ),
       ),

@@ -6,9 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_export.dart';
 import '../../services/location_service.dart';
 import '../../services/supabase_service.dart';
-import './widgets/delivery_stats_widget.dart';
-import './widgets/earnings_card_widget.dart';
 import './widgets/online_toggle_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   const DriverHomeScreen({super.key});
@@ -17,12 +16,10 @@ class DriverHomeScreen extends StatefulWidget {
   State<DriverHomeScreen> createState() => _DriverHomeScreenState();
 }
 
-class _DriverHomeScreenState extends State<DriverHomeScreen> {
+class _DriverHomeScreenState extends State<DriverHomeScreen> with WidgetsBindingObserver {
   bool _isOnline = false;
   bool _isLoading = true;
   String _driverName = 'Driver';
-  double _todayEarnings = 0.0;
-  int _completedDeliveries = 0;
   List<Map<String, dynamic>> _assignedOrders = [];
   bool _isUpdatingOrder = false;
 
@@ -31,6 +28,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadDriverData();
   }
 
@@ -55,65 +53,43 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           .eq('user_id', userId)
           .maybeSingle();
 
-      if (driverData == null) {
+      final assignedOrders = await SupabaseService.client
+          .from('orders')
+          .select('*, stores:store_id (name, address, lat, lng), users:customer_id (full_name, email, phone)')
+          .eq('driver_id', userId)
+          .inFilter('status', ['assigned', 'picked_up'])
+          .order('created_at', ascending: false);
+
+      if (mounted) {
         setState(() {
-          _driverName = userData['full_name'] ?? 'Driver';
+          _driverName = userData['full_name'] ?? AppLocalizations.of(context)!.driver2;
+          _isOnline = driverData?['is_online'] ?? false;
+          _assignedOrders = List<Map<String, dynamic>>.from(assignedOrders);
           _isLoading = false;
         });
-        return;
       }
-
-      final driverId = driverData['id'];
-      final now = DateTime.now();
-      final startOfDay = DateTime(now.year, now.month, now.day);
-
-      final earningsData = await SupabaseService.client
-          .from('deliveries')
-          .select('driver_earnings')
-          .eq('driver_id', driverId)
-          .eq('status', 'delivered')
-          .gte('delivery_time', startOfDay.toIso8601String());
-
-      double totalEarnings = 0.0;
-      for (var d in earningsData) {
-        totalEarnings += (d['driver_earnings'] as num?)?.toDouble() ?? 0.0;
-      }
-
-      final completedCount = await SupabaseService.client
-          .from('deliveries')
-          .select('id')
-          .eq('driver_id', driverId)
-          .eq('status', 'delivered')
-          .gte('delivery_time', startOfDay.toIso8601String());
-
-      final assignedOrders =
-          await SupabaseService.client.from('orders').select('''
-            *, stores:store_id (name, address, phone, lat, lng),
-            users:customer_id (full_name, email, phone)
-          ''').eq('driver_id', userId).inFilter(
-              'status', ['assigned', 'picked_up']).order('created_at',
-              ascending: false);
-
-      setState(() {
-        _driverName = userData['full_name'] ?? 'Driver';
-        _isOnline = driverData['is_online'] ?? false;
-        _todayEarnings = totalEarnings;
-        _completedDeliveries = completedCount.length;
-        _assignedOrders = List<Map<String, dynamic>>.from(assignedOrders);
-        _isLoading = false;
-      });
     } catch (e) {
       debugPrint('Error loading driver data: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+            SnackBar(content: Text('Error: $e', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red));
+        setState(() => _isLoading = false);
       }
-      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      final uid = SupabaseService.client.auth.currentUser?.id;
+      if (uid != null) {
+        SupabaseService.client.from('drivers').update({'is_online': false}).eq('user_id', uid).then((_) {}).catchError((_) {});
+      }
     }
   }
 
   void _navigateToLogin() =>
-      Navigator.of(context).pushReplacementNamed(AppRoutes.driverLogin);
+      Navigator.of(context).pushReplacementNamed(AppRoutes.authentication);
 
   Future<void> _toggleOnlineStatus() async {
     HapticFeedback.mediumImpact();
@@ -127,11 +103,10 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       setState(() => _isOnline = newStatus);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content:
-                Text(newStatus ? 'You are now online' : 'You are now offline'),
+            content: Text(newStatus ? AppLocalizations.of(context)!.youAreNowOnline : AppLocalizations.of(context)!.youAreNowOffline, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: newStatus ? Colors.green : Colors.grey));
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('[DRIVER_HOME_SCREEN] Silent error: $e'); }
   }
 
   Future<void> _updateOrderStatus(String orderId, String newStatus) async {
@@ -150,6 +125,7 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           .update(updates)
           .eq('id', orderId);
 
+      // Update deliveries table if exists
       try {
         if (newStatus == 'picked_up') {
           await SupabaseService.client.from('deliveries').update({
@@ -162,30 +138,41 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
             'delivery_time': DateTime.now().toIso8601String()
           }).eq('order_id', orderId);
         }
-      } catch (_) {}
+      } catch (e) { debugPrint('[DRIVER_HOME_SCREEN] Silent error: $e'); }
+
+      // SESSION 32 FIX: auto go online after delivery completes
+      if (newStatus == 'delivered') {
+        final uid = SupabaseService.client.auth.currentUser?.id;
+        if (uid != null) {
+          try {
+            await SupabaseService.client
+                .from('drivers')
+                .update({'is_online': true}).eq('user_id', uid);
+            if (mounted) setState(() => _isOnline = true);
+          } catch (e) { debugPrint('[DRIVER_HOME_SCREEN] Silent error: $e'); }
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Order ${newStatus.replaceAll('_', ' ')}'),
+            content: Text('Order $newStatus', maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.green));
       }
       await _loadDriverData();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed: $e'), backgroundColor: Colors.red));
+            SnackBar(content: Text('Failed: $e', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red));
       }
     } finally {
-      setState(() => _isUpdatingOrder = false);
+      if (mounted) setState(() => _isUpdatingOrder = false);
     }
   }
 
-  /// Navigate to a location — uses real coordinates, falls back to geocoding address
   Future<void> _openNavigation(String address, double? lat, double? lng) async {
     double targetLat = lat ?? 0;
     double targetLng = lng ?? 0;
 
-    // If no coordinates, try geocoding the address
     if (targetLat == 0 || targetLng == 0) {
       final coords = await _locationService.forwardGeocode(address);
       if (coords != null) {
@@ -193,8 +180,8 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         targetLng = coords['lng']!;
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Could not determine location coordinates')));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(AppLocalizations.of(context)!.couldNotDetermineLocationCoordinates, maxLines: 1, overflow: TextOverflow.ellipsis)));
         }
         return;
       }
@@ -209,35 +196,76 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
 
   Future<void> _callCustomer(String? phone) async {
     if (phone == null || phone.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No phone number available')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(AppLocalizations.of(context)!.noPhoneNumberAvailable, maxLines: 1, overflow: TextOverflow.ellipsis)));
+      }
       return;
     }
     final url = Uri.parse('tel:$phone');
     if (await canLaunchUrl(url)) await launchUrl(url);
   }
 
+  void _browseAsCustomer() {
+    Navigator.pushNamed(context, '/main-layout');
+  }
+
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-              title: const Text('Logout'),
-              content: const Text('Are you sure?'),
+              title: Text(AppLocalizations.of(context)!.logout, maxLines: 1, overflow: TextOverflow.ellipsis),
+              content: Text(AppLocalizations.of(context)!.areYouSure, maxLines: 1, overflow: TextOverflow.ellipsis),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text('Cancel')),
+                    child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis)),
                 TextButton(
                     onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('Logout')),
+                    child: Text(AppLocalizations.of(context)!.logout, maxLines: 1, overflow: TextOverflow.ellipsis)),
               ],
             ));
     if (confirm == true) {
+      final uid = SupabaseService.client.auth.currentUser?.id;
+      if (uid != null) {
+        try { await SupabaseService.client.from('drivers').update({'is_online': false}).eq('user_id', uid); } catch (e) { debugPrint('[DRIVER_HOME_SCREEN] Silent error: $e'); }
+      }
       await SupabaseService.client.auth.signOut();
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed(AppRoutes.driverLogin);
+        Navigator.of(context).pushReplacementNamed(AppRoutes.authentication);
       }
     }
+  }
+
+  Future<void> _confirmDelivery(
+      String orderId, double total, String paymentMethod) async {
+    if (paymentMethod == 'cash_on_delivery' || paymentMethod == 'cash') {
+      final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+                title: Text('Cash on Delivery', maxLines: 1, overflow: TextOverflow.ellipsis),
+                content: Text(
+                    'Confirm you collected \$${total.toStringAsFixed(2)} in cash from the customer.', maxLines: 1, overflow: TextOverflow.ellipsis),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: Text('Cancel', maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    child: Text('Confirm Cash Collected', maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ));
+      if (confirm != true) return;
+      try {
+        await SupabaseService.client.from('orders').update({
+          'cash_collected_amount': total,
+          'cash_collected_at': DateTime.now().toIso8601String(),
+        }).eq('id', orderId);
+      } catch (e) { debugPrint('[DRIVER_HOME_SCREEN] Silent error: $e'); }
+    }
+    await _updateOrderStatus(orderId, 'delivered');
   }
 
   @override
@@ -246,14 +274,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Hello, $_driverName'),
+        title: Text('Hello, $_driverName', maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           IconButton(
-              icon: const Icon(Icons.analytics_outlined),
-              onPressed: () => Navigator.pushNamed(
-                  context, AppRoutes.driverPerformanceDashboard)),
-          IconButton(
-              icon: const Icon(Icons.logout), onPressed: _handleLogout),
+            icon: const Icon(Icons.storefront_outlined),
+            tooltip: AppLocalizations.of(context)!.browseApp,
+            onPressed: _browseAsCustomer,
+          ),
+          IconButton(icon: const Icon(Icons.logout), onPressed: _handleLogout),
         ],
       ),
       body: _isLoading
@@ -269,17 +297,6 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                       OnlineToggleWidget(
                           isOnline: _isOnline, onToggle: _toggleOnlineStatus),
                       SizedBox(height: 3.h),
-                      EarningsCardWidget(
-                          todayEarnings: _todayEarnings,
-                          completedDeliveries: _completedDeliveries),
-                      SizedBox(height: 3.h),
-                      DeliveryStatsWidget(
-                          completedToday: _completedDeliveries,
-                          activeHours: 0,
-                          averagePerDelivery: _completedDeliveries > 0
-                              ? _todayEarnings / _completedDeliveries
-                              : 0.0),
-                      SizedBox(height: 3.h),
                       _buildAssignedOrdersSection(theme),
                       SizedBox(height: 3.h),
                     ]),
@@ -293,15 +310,15 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Text('Assigned Orders',
+            Flexible(child: Text(AppLocalizations.of(context)!.assignedOrders,
                 style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+                    ?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
             const Spacer(),
             if (_assignedOrders.isNotEmpty)
               Text('${_assignedOrders.length}',
                   style: theme.textTheme.titleSmall?.copyWith(
                       color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w700)),
+                      fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
           ]),
           SizedBox(height: 2.h),
           if (_assignedOrders.isEmpty)
@@ -319,19 +336,19 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       padding: EdgeInsets.all(6.w),
       decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12)),
+          borderRadius: BorderRadius.circular(16)),
       child: Column(children: [
         Icon(Icons.inbox_outlined,
             size: 48, color: theme.colorScheme.onSurfaceVariant),
         SizedBox(height: 2.h),
-        Text('No Assigned Orders',
+        Text(AppLocalizations.of(context)!.noAssignedOrders,
             style: theme.textTheme.titleSmall
-                ?.copyWith(fontWeight: FontWeight.w600)),
+                ?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 0.5.h),
-        Text('New orders will appear here when assigned to you',
+        Text(AppLocalizations.of(context)!.newOrdersWillAppearHereWhen,
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            textAlign: TextAlign.center),
+            textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
       ]),
     );
   }
@@ -342,22 +359,27 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
         order['order_number'] as String? ?? orderId.substring(0, 8);
     final status = order['status'] as String;
     final total = (order['total'] as num?)?.toDouble() ?? 0.0;
-    final deliveryAddress = order['delivery_address'] as String? ?? 'N/A';
+    final deliveryAddress = order['delivery_address'] as String? ?? AppLocalizations.of(context)!.nA;
     final deliveryLat = (order['delivery_lat'] as num?)?.toDouble();
     final deliveryLng = (order['delivery_lng'] as num?)?.toDouble();
-    final paymentMethod = order['payment_method'] as String? ?? 'N/A';
-    final createdAt =
-        DateTime.tryParse(order['created_at'] as String? ?? '');
+    final paymentMethod = order['payment_method'] as String? ?? AppLocalizations.of(context)!.nA;
+    final createdAt = DateTime.tryParse(order['created_at'] as String? ?? '');
 
     final store = order['stores'] as Map<String, dynamic>?;
-    final storeName = store?['name'] as String? ?? 'Store';
+    final storeName = store?['name'] as String? ?? AppLocalizations.of(context)!.store2;
     final storeAddress = store?['address'] as String? ?? '';
     final storeLat = (store?['lat'] as num?)?.toDouble();
     final storeLng = (store?['lng'] as num?)?.toDouble();
 
     final customer = order['users'] as Map<String, dynamic>?;
-    final customerName = customer?['full_name'] as String? ?? 'Customer';
+    final customerName = customer?['full_name'] as String? ?? AppLocalizations.of(context)!.customer2;
     final customerPhone = customer?['phone'] as String?;
+
+    // SESSION 39: Delivery instructions for driver
+    final deliveryInstructions = order['delivery_instructions'] as String?
+        ?? order['instructions'] as String?
+        ?? '';
+    final specialInstructions = order['special_instructions'] as String? ?? '';
 
     final isAssigned = status == 'assigned';
     final isPickedUp = status == 'picked_up';
@@ -373,140 +395,165 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
             Row(children: [
               Container(
                 padding:
                     EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
                 decoration: BoxDecoration(
                     color: statusColor,
-                    borderRadius: BorderRadius.circular(6)),
-                child: Text(
-                    status.replaceAll('_', ' ').toUpperCase(),
+                    borderRadius: BorderRadius.circular(16)),
+                child: Text(status.replaceAll('_', ' ').toUpperCase(),
                     style: TextStyle(
                         color: Colors.white,
                         fontSize: 10.sp,
-                        fontWeight: FontWeight.w700)),
+                        fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               const Spacer(),
-              Text('\$${total.toStringAsFixed(2)}',
+              Flexible(child: Text('\$${total.toStringAsFixed(2)}',
                   style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: theme.colorScheme.primary)),
+                      color: theme.colorScheme.primary), maxLines: 1, overflow: TextOverflow.ellipsis)),
             ]),
             SizedBox(height: 1.5.h),
-
             Text('Order #$orderNumber',
                 style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+                    ?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 1.h),
-
-            // Payment method
             Row(children: [
               Icon(Icons.payment,
-                  size: 15, color: theme.colorScheme.onSurfaceVariant),
+                  size: 15, color: Colors.grey),
               SizedBox(width: 1.w),
-              Text(
-                  paymentMethod == 'cash_on_delivery'
-                      ? '💵 Cash on Delivery'
+              Flexible(child: Text(
+                  paymentMethod == 'cash_on_delivery' || paymentMethod == 'cash'
+                      ? AppLocalizations.of(context)!.cashOnDelivery2
                       : paymentMethod == 'whish_money'
-                          ? '📱 Whish Money'
+                          ? AppLocalizations.of(context)!.whishMoney2
                           : paymentMethod,
                   style: theme.textTheme.bodySmall
-                      ?.copyWith(fontWeight: FontWeight.w600)),
+                      ?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
             ]),
             SizedBox(height: 1.h),
-
-            // Store info (pickup)
             Container(
               padding: EdgeInsets.all(2.5.w),
               decoration: BoxDecoration(
                   color: Colors.blue.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(8)),
+                  borderRadius: BorderRadius.circular(14)),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
                       const Icon(Icons.store, size: 16, color: Colors.blue),
                       SizedBox(width: 1.w),
-                      Text('PICKUP',
+                      Flexible(child: Text('PICKUP',
                           style: TextStyle(
                               fontSize: 9.sp,
                               fontWeight: FontWeight.w700,
-                              color: Colors.blue)),
+                              color: Colors.blue), maxLines: 1, overflow: TextOverflow.ellipsis)),
                       const Spacer(),
                       if (storeLat != null)
-                        Icon(Icons.gps_fixed,
-                            size: 12, color: Colors.green),
+                        const Icon(Icons.gps_fixed, size: 12, color: Colors.green),
                     ]),
                     SizedBox(height: 0.5.h),
                     Text(storeName,
                         style: theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600)),
+                            ?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                     if (storeAddress.isNotEmpty)
                       Text(storeAddress,
                           style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant)),
+                              color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ]),
             ),
             SizedBox(height: 1.h),
-
-            // Customer info (delivery)
             Container(
               padding: EdgeInsets.all(2.5.w),
               decoration: BoxDecoration(
                   color: Colors.green.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(8)),
+                  borderRadius: BorderRadius.circular(14)),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
-                      const Icon(Icons.location_on,
-                          size: 16, color: Colors.green),
+                      const Icon(Icons.location_on, size: 16, color: Colors.green),
                       SizedBox(width: 1.w),
-                      Text('DELIVER TO',
+                      Flexible(child: Text(AppLocalizations.of(context)!.deliverTo,
                           style: TextStyle(
                               fontSize: 9.sp,
                               fontWeight: FontWeight.w700,
-                              color: Colors.green)),
+                              color: Colors.green), maxLines: 1, overflow: TextOverflow.ellipsis)),
                       const Spacer(),
                       if (deliveryLat != null)
-                        Icon(Icons.gps_fixed,
-                            size: 12, color: Colors.green),
+                        const Icon(Icons.gps_fixed, size: 12, color: Colors.green),
                     ]),
                     SizedBox(height: 0.5.h),
                     Text(customerName,
                         style: theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600)),
+                            ?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                     Text(deliveryAddress,
                         style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant),
+                            color: Colors.grey),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis),
                   ]),
             ),
-            SizedBox(height: 1.5.h),
+            // SESSION 39: Show delivery instructions if present
+            if (deliveryInstructions.isNotEmpty || specialInstructions.isNotEmpty) ...[
+              SizedBox(height: 1.h),
+              Container(
+                padding: EdgeInsets.all(2.5.w),
+                decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3))),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(children: [
+                        const Icon(Icons.note_alt_outlined, size: 16, color: Colors.orange),
+                        SizedBox(width: 1.w),
+                        Flexible(
+                          child: Text(AppLocalizations.of(context)!.deliveryInstructions2,
+                              style: TextStyle(
+                                  fontSize: 9.sp,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.orange),
+                              overflow: TextOverflow.ellipsis),
+                        ),
+                      ]),
+                      SizedBox(height: 0.5.h),
+                      if (deliveryInstructions.isNotEmpty)
+                        Text(deliveryInstructions,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w500),
+                            maxLines: 5,
+                            overflow: TextOverflow.ellipsis),
+                      if (specialInstructions.isNotEmpty) ...[
+                        SizedBox(height: 0.3.h),
+                        Text('Handling: $specialInstructions',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.grey,
+                                fontStyle: FontStyle.italic),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis),
+                      ],
+                    ]),
+              ),
+            ],
 
-            // Quick action buttons
+            SizedBox(height: 1.5.h),
             Row(children: [
               Expanded(
                   child: OutlinedButton.icon(
                 onPressed: () {
                   if (isAssigned) {
-                    // Navigate to store
                     _openNavigation(storeAddress, storeLat, storeLng);
                   } else {
-                    // Navigate to customer
-                    _openNavigation(
-                        deliveryAddress, deliveryLat, deliveryLng);
+                    _openNavigation(deliveryAddress, deliveryLat, deliveryLng);
                   }
                 },
                 icon: const Icon(Icons.navigation, size: 16),
                 label: Text(
-                    isAssigned
-                        ? 'Navigate to Store'
-                        : 'Navigate to Customer',
-                    style: TextStyle(fontSize: 10.sp)),
+                    isAssigned ? AppLocalizations.of(context)!.navigateToStore : AppLocalizations.of(context)!.navigateToCustomer,
+                    style: TextStyle(fontSize: 10.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
                 style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.symmetric(vertical: 1.h)),
               )),
@@ -517,15 +564,12 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                       color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8)),
-                  child: const Icon(Icons.phone,
-                      color: Colors.green, size: 18),
+                      borderRadius: BorderRadius.circular(14)),
+                  child: const Icon(Icons.phone, color: Colors.green, size: 18),
                 ),
               ),
             ]),
             SizedBox(height: 1.5.h),
-
-            // Main action button
             if (isAssigned)
               SizedBox(
                   width: double.infinity,
@@ -535,12 +579,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                         : () => _updateOrderStatus(orderId, 'picked_up'),
                     icon: _isUpdatingOrder
                         ? const SizedBox(
-                            width: 16,
-                            height: 16,
+                            width: 16, height: 16,
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.check_circle),
-                    label: const Text('Mark Picked Up'),
+                    label: Text(AppLocalizations.of(context)!.markPickedUp, maxLines: 1, overflow: TextOverflow.ellipsis),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
@@ -555,16 +598,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   child: ElevatedButton.icon(
                     onPressed: _isUpdatingOrder
                         ? null
-                        : () => _confirmDelivery(
-                            orderId, total, paymentMethod),
+                        : () => _confirmDelivery(orderId, total, paymentMethod),
                     icon: _isUpdatingOrder
                         ? const SizedBox(
-                            width: 16,
-                            height: 16,
+                            width: 16, height: 16,
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.done_all),
-                    label: const Text('Mark Delivered'),
+                    label: Text(AppLocalizations.of(context)!.markDelivered, maxLines: 1, overflow: TextOverflow.ellipsis),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
@@ -573,50 +614,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                           borderRadius: BorderRadius.circular(10)),
                     ),
                   )),
-
             if (createdAt != null) ...[
               SizedBox(height: 1.h),
               Text(
-                  'Ordered: ${createdAt.day}/${createdAt.month} at ${createdAt.hour}:${createdAt.minute.toString().padLeft(2, '0')}',
+                  'Ordered: ${createdAt.toLocal().day}/${createdAt.toLocal().month} at ${createdAt.toLocal().hour}:${createdAt.toLocal().minute.toString().padLeft(2, '0')}',
                   style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant)),
+                      color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ]),
     );
-  }
-
-  /// Confirm delivery — if COD, confirm cash collected first
-  Future<void> _confirmDelivery(
-      String orderId, double total, String paymentMethod) async {
-    if (paymentMethod == 'cash_on_delivery') {
-      final confirm = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-                title: const Text('Cash on Delivery'),
-                content: Text(
-                    'Confirm you collected \$${total.toStringAsFixed(2)} in cash from the customer.'),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel')),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green),
-                    child: const Text('Confirm Cash Collected'),
-                  ),
-                ],
-              ));
-      if (confirm != true) return;
-
-      try {
-        await SupabaseService.client.from('orders').update({
-          'cash_collected_amount': total,
-          'cash_collected_at': DateTime.now().toIso8601String(),
-        }).eq('id', orderId);
-      } catch (_) {}
-    }
-
-    await _updateOrderStatus(orderId, 'delivered');
   }
 }

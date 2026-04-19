@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class AISearchBarWidget extends StatelessWidget {
   final TextEditingController controller;
@@ -33,7 +34,7 @@ class AISearchBarWidget extends StatelessWidget {
                   fontSize: 13.sp,
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Ask AI: "cheap Italian food open now"',
+                  hintText: AppLocalizations.of(context)!.askAiCheapItalianFoodOpen,
                   hintStyle: TextStyle(
                     color: Colors.white38,
                     fontSize: 12.sp,

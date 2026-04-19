@@ -13,6 +13,7 @@ import 'package:sizer/sizer.dart';
 import '../../../core/app_export.dart';
 import '../../../providers/marketplace_provider.dart';
 import './marketplace_location_picker.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 // Define missing location providers
 final marketplaceLocationAddressProvider = StateProvider<String>((ref) => 'All Lebanon');
@@ -57,12 +58,12 @@ class ProductListingsWidget extends ConsumerWidget {
           margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
           child: InkWell(
             onTap: () => _openLocationPicker(context, ref),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             child: Container(
               padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: theme.colorScheme.outline.withOpacity(0.2)),
               ),
               child: Row(
@@ -86,14 +87,14 @@ class ProductListingsWidget extends ConsumerWidget {
                     padding: EdgeInsets.symmetric(horizontal: 2.5.w, vertical: 0.5.h),
                     decoration: BoxDecoration(
                       color: AppTheme.kjRed.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.map_outlined, color: AppTheme.kjRed, size: 16),
                         SizedBox(width: 1.w),
-                        Text('Map', style: TextStyle(fontSize: 11.sp, color: AppTheme.kjRed, fontWeight: FontWeight.w600)),
+                        Text(AppLocalizations.of(context)!.map, style: TextStyle(fontSize: 11.sp, color: AppTheme.kjRed, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   ),
@@ -111,7 +112,7 @@ class ProductListingsWidget extends ConsumerWidget {
                       child: Container(
                         padding: EdgeInsets.all(1.w),
                         decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.2),
+                          color: theme.colorScheme.onSurfaceVariant.withOpacity(0.2),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(Icons.close, size: 14, color: theme.colorScheme.onSurfaceVariant),
@@ -150,10 +151,9 @@ class ProductListingsWidget extends ConsumerWidget {
                         category[0].toUpperCase() + category.substring(1),
                         style: TextStyle(
                           fontSize: 12.sp,
-                          color: isSelected ? Colors.white : theme.colorScheme.onSurface,
+                          color: isSelected ? Colors.white : Colors.black87,
                           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                 ),
@@ -169,7 +169,7 @@ class ProductListingsWidget extends ConsumerWidget {
           child: ElevatedButton.icon(
             onPressed: () => Navigator.pushNamed(context, AppRoutes.createListingScreen),
             icon: const Icon(Icons.add),
-            label: const Text('Create Listing'),
+            label: Text(AppLocalizations.of(context)!.createListing, maxLines: 1, overflow: TextOverflow.ellipsis),
             style: ElevatedButton.styleFrom(
               minimumSize: Size(double.infinity, 5.h),
               backgroundColor: AppTheme.kjRed,
@@ -188,20 +188,19 @@ class ProductListingsWidget extends ConsumerWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.shopping_bag_outlined, size: 60, color: Colors.grey[400]),
+                      Icon(Icons.shopping_bag_outlined, size: 60, color: Colors.grey.shade400),
                       SizedBox(height: 2.h),
-                      Text('No listings found',
-                          style: TextStyle(fontSize: 16.sp, color: Colors.grey[600])),
+                      Text(AppLocalizations.of(context)!.noListingsFound,
+                          style: TextStyle(fontSize: 16.sp, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(height: 1.h),
                       Text(
                         ref.watch(marketplaceLocationCityProvider) != null
-                            ? 'Try expanding your search area or clearing the location filter'
+                            ? AppLocalizations.of(context)!.tryExpandingYourSearchAreaOr
                             : selectedCategory != null
-                                ? 'Try selecting a different category'
-                                : 'Be the first to create a listing!',
-                        style: TextStyle(fontSize: 12.sp, color: Colors.grey[500]),
-                        textAlign: TextAlign.center,
-                      ),
+                                ? AppLocalizations.of(context)!.trySelectingADifferentCategory
+                                : AppLocalizations.of(context)!.beTheFirstToCreateA,
+                        style: TextStyle(fontSize: 12.sp, color: Colors.grey.shade500),
+                        textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                       if (ref.watch(marketplaceLocationCityProvider) != null) ...[
                         SizedBox(height: 2.h),
                         TextButton.icon(
@@ -212,7 +211,7 @@ class ProductListingsWidget extends ConsumerWidget {
                             ref.read(marketplaceLocationAddressProvider.notifier).state = 'All Lebanon';
                           },
                           icon: const Icon(Icons.clear),
-                          label: const Text('Show all locations'),
+                          label: Text(AppLocalizations.of(context)!.showAllLocations, maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ],
                     ],
@@ -243,7 +242,7 @@ class ProductListingsWidget extends ConsumerWidget {
                     ),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(12.0),
                         boxShadow: [
                           BoxShadow(
@@ -278,10 +277,10 @@ class ProductListingsWidget extends ConsumerWidget {
                                     padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.3.h),
                                     decoration: BoxDecoration(
                                       color: Colors.green,
-                                      borderRadius: BorderRadius.circular(6),
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
-                                    child: Text('Negotiable',
-                                        style: TextStyle(color: Colors.white, fontSize: 9.sp, fontWeight: FontWeight.bold)),
+                                    child: Text(AppLocalizations.of(context)!.negotiable,
+                                        style: TextStyle(color: Colors.white, fontSize: 9.sp, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                                   ),
                                 ),
                               // Location text
@@ -292,20 +291,19 @@ class ProductListingsWidget extends ConsumerWidget {
                                   child: Container(
                                     padding: EdgeInsets.symmetric(horizontal: 1.5.w, vertical: 0.3.h),
                                     decoration: BoxDecoration(
-                                      color: Colors.black54,
-                                      borderRadius: BorderRadius.circular(4),
+                                      color: Colors.grey,
+                                      borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         const Icon(Icons.location_on, color: Colors.white, size: 10),
                                         SizedBox(width: 0.5.w),
-                                        Text(
+                                        Flexible(child: Text(
                                           listing.locationText!.length > 15
                                               ? '${listing.locationText!.substring(0, 15)}...'
                                               : listing.locationText!,
-                                          style: TextStyle(color: Colors.white, fontSize: 8.sp),
-                                        ),
+                                          style: TextStyle(color: Colors.white, fontSize: 8.sp), maxLines: 1, overflow: TextOverflow.ellipsis)),
                                       ],
                                     ),
                                   ),
@@ -319,15 +317,14 @@ class ProductListingsWidget extends ConsumerWidget {
                               children: [
                                 Text(
                                   listing.title,
-                                  style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
+                                  style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600, color: Colors.black87),
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 SizedBox(height: 0.5.h),
                                 Text(
                                   '\$${listing.price.toStringAsFixed(2)}',
-                                  style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold, color: AppTheme.kjRed),
-                                ),
+                                  style: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.bold, color: AppTheme.kjRed), maxLines: 1, overflow: TextOverflow.ellipsis),
                                 SizedBox(height: 1.h),
                                 if (!isOwnListing)
                                   SizedBox(
@@ -340,7 +337,7 @@ class ProductListingsWidget extends ConsumerWidget {
                                         });
                                       },
                                       icon: Icon(Icons.chat, size: 3.w),
-                                      label: Text('Contact', style: TextStyle(fontSize: 10.sp)),
+                                      label: Text(AppLocalizations.of(context)!.contact, style: TextStyle(fontSize: 10.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: AppTheme.kjRed,
                                         foregroundColor: Colors.white,
@@ -369,17 +366,17 @@ class ProductListingsWidget extends ConsumerWidget {
                     children: [
                       Icon(Icons.error_outline, size: 60, color: Colors.red[300]),
                       SizedBox(height: 2.h),
-                      Text('Error loading listings',
-                          style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600, color: Colors.red[700])),
+                      Text(AppLocalizations.of(context)!.errorLoadingListings,
+                          style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600, color: Colors.red[700]), maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(height: 1.h),
                       Text(error.toString(),
-                          style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
-                          textAlign: TextAlign.center),
+                          style: TextStyle(fontSize: 12.sp, color: Colors.grey),
+                          textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(height: 2.h),
                       ElevatedButton.icon(
                         onPressed: () => ref.refresh(listingsProvider(filters)),
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Retry'),
+                        label: Text(AppLocalizations.of(context)!.retry, maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ),

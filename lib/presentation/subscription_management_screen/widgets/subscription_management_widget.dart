@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class SubscriptionManagementWidget extends StatelessWidget {
   final Map<String, dynamic> subscription;
@@ -44,35 +45,34 @@ class SubscriptionManagementWidget extends StatelessWidget {
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 4.w),
               child: Text(
-                'Manage Subscription',
+                AppLocalizations.of(context)!.manageSubscription,
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: theme.colorScheme.onSurface,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
             SizedBox(height: 2.h),
             if (!isPaused)
               _buildManagementOption(
                 context,
                 icon: Icons.pause_circle_outline,
-                title: 'Pause Subscription',
-                subtitle: 'Temporarily pause your subscription',
+                title: AppLocalizations.of(context)!.pauseSubscription,
+                subtitle: AppLocalizations.of(context)!.temporarilyPauseYourSubscription,
                 onTap: onPause,
               ),
             if (isPaused)
               _buildManagementOption(
                 context,
                 icon: Icons.play_circle_outline,
-                title: 'Resume Subscription',
-                subtitle: 'Resume your paused subscription',
+                title: AppLocalizations.of(context)!.resumeSubscription,
+                subtitle: AppLocalizations.of(context)!.resumeYourPausedSubscription,
                 onTap: onResume,
               ),
             _buildManagementOption(
               context,
               icon: Icons.cancel_outlined,
-              title: 'Cancel Subscription',
-              subtitle: 'Cancel your subscription permanently',
+              title: AppLocalizations.of(context)!.cancelSubscription,
+              subtitle: AppLocalizations.of(context)!.cancelYourSubscriptionPermanently,
               onTap: onCancel,
               isDestructive: true,
             ),
@@ -127,14 +127,12 @@ class SubscriptionManagementWidget extends StatelessWidget {
                       color: subscription['status'] == 'cancelled'
                           ? theme.colorScheme.error
                           : theme.colorScheme.onSurface,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   Text(
                     subtitle,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),

@@ -5,6 +5,7 @@ import 'package:sizer/sizer.dart';
 import '../providers/auth_provider.dart';
 import '../routes/app_routes.dart';
 import './floating_ai_chatbox.dart';
+import '../l10n/generated/app_localizations.dart';
 
 /// Admin-specific layout wrapper with sidebar navigation
 /// Replaces customer bottom nav with admin drawer/sidebar
@@ -71,7 +72,7 @@ class _AdminLayoutWrapperState extends State<AdminLayoutWrapper> {
                         Container(
                           padding: EdgeInsets.all(2.w),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: theme.colorScheme.surface,
                             borderRadius: BorderRadius.circular(12.0),
                           ),
                           child: Icon(
@@ -86,19 +87,18 @@ class _AdminLayoutWrapperState extends State<AdminLayoutWrapper> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Admin Panel',
+                                AppLocalizations.of(context)!.adminPanel,
                                 style: TextStyle(
                                   fontSize: 18.sp,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
+                                  color: theme.colorScheme.surface,
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis),
                               Text(
                                 authProvider.currentUser?.email ??
                                     'admin@app.com',
                                 style: TextStyle(
                                   fontSize: 12.sp,
-                                  color: Colors.white.withValues(alpha: 0.9),
+                                  color: theme.colorScheme.surface.withValues(alpha: 0.9),
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -119,7 +119,7 @@ class _AdminLayoutWrapperState extends State<AdminLayoutWrapper> {
                     _buildDrawerItem(
                       context,
                       icon: Icons.dashboard,
-                      title: 'Dashboard',
+                      title: AppLocalizations.of(context)!.dashboard,
                       route: AppRoutes.adminLandingDashboard,
                       isSelected: widget.currentRoute ==
                           AppRoutes.adminLandingDashboard,
@@ -127,7 +127,7 @@ class _AdminLayoutWrapperState extends State<AdminLayoutWrapper> {
                     _buildDrawerItem(
                       context,
                       icon: Icons.people,
-                      title: 'User Management',
+                      title: AppLocalizations.of(context)!.userManagement,
                       route: AppRoutes.adminUsersManagement,
                       isSelected:
                           widget.currentRoute == AppRoutes.adminUsersManagement,
@@ -135,7 +135,7 @@ class _AdminLayoutWrapperState extends State<AdminLayoutWrapper> {
                     _buildDrawerItem(
                       context,
                       icon: Icons.shopping_bag,
-                      title: 'Order Management',
+                      title: AppLocalizations.of(context)!.orderManagement,
                       route: AppRoutes.enhancedOrderManagement,
                       isSelected: widget.currentRoute ==
                           AppRoutes.enhancedOrderManagement,
@@ -143,7 +143,7 @@ class _AdminLayoutWrapperState extends State<AdminLayoutWrapper> {
                     _buildDrawerItem(
                       context,
                       icon: Icons.campaign,
-                      title: 'Ads Management',
+                      title: AppLocalizations.of(context)!.adsManagement,
                       route: AppRoutes.adminAdsManagement,
                       isSelected:
                           widget.currentRoute == AppRoutes.adminAdsManagement,
@@ -152,7 +152,7 @@ class _AdminLayoutWrapperState extends State<AdminLayoutWrapper> {
                     _buildDrawerItem(
                       context,
                       icon: Icons.edit,
-                      title: 'Edit Overlay System',
+                      title: AppLocalizations.of(context)!.editOverlaySystem,
                       route: AppRoutes.adminEditOverlaySystem,
                       isSelected: widget.currentRoute ==
                           AppRoutes.adminEditOverlaySystem,
@@ -160,7 +160,7 @@ class _AdminLayoutWrapperState extends State<AdminLayoutWrapper> {
                     _buildDrawerItem(
                       context,
                       icon: Icons.store,
-                      title: 'View Marketplace',
+                      title: AppLocalizations.of(context)!.viewMarketplace,
                       route: AppRoutes.marketplaceScreen,
                       isSelected:
                           widget.currentRoute == AppRoutes.marketplaceScreen,
@@ -168,7 +168,7 @@ class _AdminLayoutWrapperState extends State<AdminLayoutWrapper> {
                     _buildDrawerItem(
                       context,
                       icon: Icons.home,
-                      title: 'View Customer Home',
+                      title: AppLocalizations.of(context)!.viewCustomerHome,
                       route: AppRoutes.home,
                       isSelected: widget.currentRoute == AppRoutes.home,
                     ),
@@ -189,7 +189,7 @@ class _AdminLayoutWrapperState extends State<AdminLayoutWrapper> {
                     }
                   },
                   icon: const Icon(Icons.logout),
-                  label: const Text('Logout'),
+                  label: Text(AppLocalizations.of(context)!.logout, maxLines: 1, overflow: TextOverflow.ellipsis),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
@@ -227,16 +227,15 @@ class _AdminLayoutWrapperState extends State<AdminLayoutWrapper> {
       child: ListTile(
         leading: Icon(
           icon,
-          color: isSelected ? theme.primaryColor : Colors.grey[700],
+          color: isSelected ? theme.primaryColor : theme.colorScheme.onSurfaceVariant,
         ),
         title: Text(
           title,
           style: TextStyle(
             fontSize: 14.sp,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? theme.primaryColor : Colors.grey[800],
-          ),
-        ),
+            color: isSelected ? theme.primaryColor : Colors.grey.shade800,
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         onTap: () {
           Navigator.of(context).pop(); // Close drawer
           if (widget.currentRoute != route) {

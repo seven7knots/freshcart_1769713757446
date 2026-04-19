@@ -4,6 +4,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../providers/marketplace_provider.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class ServiceDetailScreen extends ConsumerWidget {
   const ServiceDetailScreen({super.key});
@@ -16,8 +17,8 @@ class ServiceDetailScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Service Details',
-            style: Theme.of(context).textTheme.titleLarge),
+        title: Text(AppLocalizations.of(context)!.serviceDetails,
+            style: Theme.of(context).textTheme.titleLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
         elevation: 0,
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -25,7 +26,7 @@ class ServiceDetailScreen extends ConsumerWidget {
       body: serviceAsync.when(
         data: (service) {
           if (service == null) {
-            return const Center(child: Text('Service not found'));
+            return Center(child: Text(AppLocalizations.of(context)!.serviceNotFound, maxLines: 1, overflow: TextOverflow.ellipsis));
           }
           return SingleChildScrollView(
             child: Column(
@@ -46,40 +47,40 @@ class ServiceDetailScreen extends ConsumerWidget {
                     children: [
                       Text(service.name,
                           style: TextStyle(
-                              fontSize: 20.sp, fontWeight: FontWeight.bold)),
+                              fontSize: 20.sp, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(height: 1.h),
                       Row(
                         children: [
                           Icon(Icons.star, size: 20, color: Colors.amber),
                           SizedBox(width: 1.w),
-                          Text(
+                          Flexible(child: Text(
                               '${service.rating.toStringAsFixed(1)} (${service.totalBookings} bookings)',
-                              style: TextStyle(fontSize: 13.sp)),
+                              style: TextStyle(fontSize: 13.sp), maxLines: 1, overflow: TextOverflow.ellipsis)),
                         ],
                       ),
                       SizedBox(height: 2.h),
-                      Text('Description',
+                      Text(AppLocalizations.of(context)!.description,
                           style: TextStyle(
-                              fontSize: 16.sp, fontWeight: FontWeight.w600)),
+                              fontSize: 16.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(height: 1.h),
-                      Text(service.description ?? 'No description available',
+                      Text(service.description ?? AppLocalizations.of(context)!.noDescriptionAvailable,
                           style: TextStyle(
                               fontSize: 13.sp,
                               color: Theme.of(context)
                                   .colorScheme
-                                  .onSurfaceVariant)),
+                                  .onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(height: 2.h),
-                      Text('Pricing',
+                      Text(AppLocalizations.of(context)!.pricing,
                           style: TextStyle(
-                              fontSize: 16.sp, fontWeight: FontWeight.w600)),
+                              fontSize: 16.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(height: 1.h),
-                      _buildPricingRow('Base Price',
+                      _buildPricingRow(AppLocalizations.of(context)!.basePrice,
                           '\$${service.basePrice.toStringAsFixed(2)}'),
                       if (service.pricePerKm != null)
-                        _buildPricingRow('Per Kilometer',
+                        _buildPricingRow(AppLocalizations.of(context)!.perKilometer,
                             '\$${service.pricePerKm!.toStringAsFixed(2)}'),
                       if (service.pricePerHour != null)
-                        _buildPricingRow('Per Hour',
+                        _buildPricingRow(AppLocalizations.of(context)!.perHour,
                             '\$${service.pricePerHour!.toStringAsFixed(2)}'),
                       if (service.pricePerUnit != null)
                         _buildPricingRow('Per ${service.unitName ?? "Unit"}',
@@ -91,7 +92,7 @@ class ServiceDetailScreen extends ConsumerWidget {
                             arguments: service.id),
                         style: ElevatedButton.styleFrom(
                             minimumSize: Size(double.infinity, 6.h)),
-                        child: const Text('Book Now'),
+                        child: Text(AppLocalizations.of(context)!.bookNow, maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ),
@@ -105,7 +106,7 @@ class ServiceDetailScreen extends ConsumerWidget {
             child: Text('Error: ${error.toString()}',
                 style: TextStyle(
                     color: Theme.of(context).colorScheme.error,
-                    fontSize: 12.sp))),
+                    fontSize: 12.sp), maxLines: 1, overflow: TextOverflow.ellipsis)),
       ),
     );
   }
@@ -116,9 +117,9 @@ class ServiceDetailScreen extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 13.sp)),
-          Text(value,
-              style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600)),
+          Flexible(child: Text(label, style: TextStyle(fontSize: 13.sp), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          Flexible(child: Text(value,
+              style: TextStyle(fontSize: 13.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
         ],
       ),
     );

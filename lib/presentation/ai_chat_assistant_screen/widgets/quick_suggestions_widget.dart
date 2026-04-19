@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class QuickSuggestionsWidget extends StatelessWidget {
   final Function(String) onSuggestionTap;
@@ -27,13 +28,12 @@ class QuickSuggestionsWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Quick suggestions:',
+            AppLocalizations.of(context)!.quickSuggestions,
             style: TextStyle(
               color: Colors.white70,
               fontSize: 12.sp,
               fontWeight: FontWeight.w500,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
           Wrap(
             spacing: 2.w,
@@ -59,8 +59,7 @@ class QuickSuggestionsWidget extends StatelessWidget {
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 12.sp,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               );
             }).toList(),

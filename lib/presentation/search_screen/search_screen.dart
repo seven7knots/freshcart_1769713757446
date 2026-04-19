@@ -2,28 +2,34 @@ import 'dart:async';
 
 import 'package:flutter/material.dart' hide FilterChip;
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/app_export.dart';
 import '../../models/product_model.dart';
+import '../../providers/cart_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../services/category_service.dart';
 import '../../services/product_service.dart';
+import '../../services/supabase_service.dart';
 import '../../widgets/main_layout_wrapper.dart';
 import './widgets/filter_bottom_sheet_widget.dart';
 import './widgets/filter_chips_widget.dart';
 import './widgets/product_grid_widget.dart';
 import './widgets/search_bar_widget.dart';
 import './widgets/search_suggestions_widget.dart';
+import './widgets/store_results_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
-class SearchScreen extends StatefulWidget {
+class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  State<SearchScreen> createState() => _SearchScreenState();
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
 
@@ -31,7 +37,11 @@ class _SearchScreenState extends State<SearchScreen> {
   final List<String> _trendingProducts = [];
   List<String> _categories = [];
 
+  // SESSION 19: Three result types
   List<Product> _searchResults = [];
+  List<StoreResultCard> _storeResults = [];
+  List<CategoryResultCard> _categoryResults = [];
+
   List<FilterChip> _activeFilters = [];
   Map<String, dynamic> _currentFilters = {};
 
@@ -42,6 +52,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
   final bool _showVoiceSearch = false;
   final bool _showBarcodeScanner = false;
+
+  static SupabaseClient get _supabase => SupabaseService.client;
 
   @override
   void initState() {
@@ -65,6 +77,7 @@ class _SearchScreenState extends State<SearchScreen> {
           _categories = categories.map((c) => c.name).toList();
           _categoriesLoaded = true;
         });
+        debugPrint('[SEARCH] Loaded ${_categories.length} categories');
       }
     } catch (e) {
       debugPrint('[SEARCH] Error loading categories: $e');
@@ -80,24 +93,25 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Load some initial products to display
       final products = await ProductService.getAllProducts(
         availableOnly: true,
         excludeDemo: true,
       );
 
+      debugPrint('[SEARCH] Initial products loaded: ${products.length}');
+
       if (mounted) {
         setState(() {
           _searchResults = products.take(20).toList();
+          _storeResults = [];
+          _categoryResults = [];
           _isLoading = false;
         });
       }
     } catch (e) {
       debugPrint('[SEARCH] Error loading initial products: $e');
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -105,9 +119,10 @@ class _SearchScreenState extends State<SearchScreen> {
   bool get _shouldShowBack =>
       Navigator.of(context).canPop() && MainLayoutWrapper.of(context) == null;
 
-  void _goToTab(int index) {
-    AppRoutes.switchToTab(context, index);
-  }
+  bool get _hasSuggestions =>
+      _recentSearches.isNotEmpty ||
+      _trendingProducts.isNotEmpty ||
+      _categories.isNotEmpty;
 
   void _handleSearchChange(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
@@ -121,12 +136,93 @@ class _SearchScreenState extends State<SearchScreen> {
     _performSearch(query);
   }
 
+  // ============================================================
+  // Smart suggestion tap — detect category vs text search
+  // ============================================================
+
+  void _handleSuggestionTap(String suggestion) {
+    final isCategoryTap = _categories
+        .any((cat) => cat.toLowerCase() == suggestion.toLowerCase());
+
+    if (isCategoryTap) {
+      debugPrint(
+          '[SEARCH] Category tapped: $suggestion — filtering by category');
+      _searchController.text = suggestion;
+      _performSearch(suggestion);
+    } else {
+      debugPrint(
+          '[SEARCH] Suggestion tapped: $suggestion — performing text search');
+      _searchController.text = suggestion;
+      _performSearch(suggestion);
+    }
+  }
+
+  // ============================================================
+  // SESSION 20 FIX (Bug 1): min_order → minimum_order
+  // ============================================================
+
+  Future<List<StoreResultCard>> _searchStores(String query) async {
+    try {
+      final results = await _supabase
+          .from('stores')
+          .select(
+              'id, name, description, category, rating, is_active, image_url, delivery_fee, minimum_order')
+          .eq('is_active', true)
+          .or('name.ilike.%$query%,description.ilike.%$query%,category.ilike.%$query%')
+          .order('rating', ascending: false)
+          .limit(10);
+
+      final stores = (results as List)
+          .map((s) => StoreResultCard.fromMap(s as Map<String, dynamic>))
+          .toList();
+
+      debugPrint('[SEARCH] Found ${stores.length} stores for "$query"');
+      return stores;
+    } catch (e) {
+      debugPrint('[SEARCH] Store search error: $e');
+      return [];
+    }
+  }
+
+  // ============================================================
+  // SESSION 19: Search categories/subcategories from Supabase
+  // ============================================================
+
+  Future<List<CategoryResultCard>> _searchCategories(String query) async {
+    try {
+      final results = await _supabase
+          .from('categories')
+          .select('id, name, name_ar, type, icon, image_url, parent_id')
+          .eq('is_active', true)
+          .eq('is_demo', false)
+          .or('name.ilike.%$query%,name_ar.ilike.%$query%')
+          .order('sort_order', ascending: true)
+          .limit(10);
+
+      final categories = (results as List)
+          .map((c) => CategoryResultCard.fromMap(c as Map<String, dynamic>))
+          .toList();
+
+      debugPrint('[SEARCH] Found ${categories.length} categories for "$query"');
+      return categories;
+    } catch (e) {
+      debugPrint('[SEARCH] Category search error: $e');
+      return [];
+    }
+  }
+
+  // ============================================================
+  // SESSION 19: Unified search — categories + stores + products
+  // ============================================================
+
   Future<void> _performSearch(String query) async {
     if (query.isEmpty) {
       await _loadInitialProducts();
       setState(() {
         _showSuggestions = true;
         _isSearching = false;
+        _storeResults = [];
+        _categoryResults = [];
       });
       return;
     }
@@ -146,16 +242,27 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     try {
-      // Search products from database
-      final results = await ProductService.searchProducts(
-        query,
-        availableOnly: true,
-      );
+      // Search categories, stores, and products IN PARALLEL
+      final results = await Future.wait([
+        _searchCategories(query),
+        _searchStores(query),
+        ProductService.searchProducts(query, availableOnly: true),
+      ]);
+
+      final categoryResults = results[0] as List<CategoryResultCard>;
+      final storeResults = results[1] as List<StoreResultCard>;
+      final productResults = results[2] as List<Product>;
+
+      debugPrint(
+          '[SEARCH] Unified "$query": ${categoryResults.length} categories, '
+          '${storeResults.length} stores, ${productResults.length} products');
 
       if (mounted) {
-        final filteredResults = _applyFilters(results);
+        final filteredProducts = _applyFilters(productResults);
         setState(() {
-          _searchResults = filteredResults;
+          _categoryResults = categoryResults;
+          _storeResults = storeResults;
+          _searchResults = filteredProducts;
           _isLoading = false;
         });
       }
@@ -164,11 +271,13 @@ class _SearchScreenState extends State<SearchScreen> {
       if (mounted) {
         setState(() {
           _searchResults = [];
+          _storeResults = [];
+          _categoryResults = [];
           _isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Search failed: ${e.toString()}'),
+            content: Text('Search failed: ${e.toString()}', maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -179,7 +288,6 @@ class _SearchScreenState extends State<SearchScreen> {
   List<Product> _applyFilters(List<Product> products) {
     List<Product> filtered = List.from(products);
 
-    // Filter by categories
     final selectedCategories = _currentFilters['categories'] as List<String>?;
     if (selectedCategories?.isNotEmpty == true) {
       filtered = filtered.where((product) {
@@ -187,7 +295,6 @@ class _SearchScreenState extends State<SearchScreen> {
       }).toList();
     }
 
-    // Filter by price range
     final minPrice = _currentFilters['minPrice'] as double?;
     final maxPrice = _currentFilters['maxPrice'] as double?;
     if (minPrice != null || maxPrice != null) {
@@ -198,7 +305,6 @@ class _SearchScreenState extends State<SearchScreen> {
       }).toList();
     }
 
-    // Filter by brands (store names in this case)
     final selectedBrands = _currentFilters['brands'] as List<String>?;
     if (selectedBrands?.isNotEmpty == true) {
       filtered = filtered.where((product) {
@@ -206,9 +312,6 @@ class _SearchScreenState extends State<SearchScreen> {
             selectedBrands!.contains(product.storeName);
       }).toList();
     }
-
-    // Note: Dietary filters would require adding dietary info to Product model
-    // Skipping for now
 
     return filtered;
   }
@@ -248,15 +351,14 @@ class _SearchScreenState extends State<SearchScreen> {
       }
     }
 
-    setState(() {
-      _activeFilters = chips;
-    });
+    setState(() => _activeFilters = chips);
   }
 
   void _removeFilter(String filterId) {
     if (filterId.startsWith('category_')) {
       final category = filterId.replaceFirst('category_', '');
-      final categories = (_currentFilters['categories'] as List<String>?) ?? [];
+      final categories =
+          (_currentFilters['categories'] as List<String>?) ?? [];
       categories.remove(category);
       if (categories.isEmpty) {
         _currentFilters.remove('categories');
@@ -315,6 +417,10 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  // ============================================================
+  // SESSION 19: Navigation handlers
+  // ============================================================
+
   void _onProductTap(Product product) {
     Navigator.pushNamed(
       context,
@@ -323,25 +429,68 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  void _onAddToCart(Product product) {
-    HapticFeedback.mediumImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${product.name} added to cart'),
-        duration: const Duration(seconds: 2),
-        action: SnackBarAction(
-          label: 'View Cart',
-          onPressed: () => _goToTab(2),
-        ),
-      ),
+  void _onStoreTap(StoreResultCard store) {
+    Navigator.pushNamed(
+      context,
+      AppRoutes.storeDetail,
+      arguments: {'storeId': store.id},
     );
+  }
+
+  void _onCategoryTap(CategoryResultCard category) {
+    Navigator.pushNamed(
+      context,
+      AppRoutes.categoryStoresScreen,
+      arguments: {
+        'categoryId': category.id,
+        'categoryName': category.name,
+      },
+    );
+  }
+
+  // ============================================================
+  // SESSION 33 FIX #1: Actually add to cart via CartNotifier
+  // Previously this was only showing a snackbar and never
+  // calling CartNotifier — so 0 items were ever added.
+  // ============================================================
+
+  Future<void> _onAddToCart(Product product) async {
+    HapticFeedback.mediumImpact();
+    try {
+      await ref.read(cartNotifierProvider.notifier).addToCart(
+            productId: product.id,
+            quantity: 1,
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${product.name} added to cart', maxLines: 1, overflow: TextOverflow.ellipsis),
+            duration: const Duration(seconds: 2),
+            action: SnackBarAction(
+              label: AppLocalizations.of(context)!.viewCart,
+              onPressed: () => AppRoutes.openCart(context),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[SEARCH] ❌ Error adding to cart: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add to cart: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
   }
 
   void _onAddToWishlist(Product product) {
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${product.name} added to wishlist'),
+        content: Text('${product.name} added to wishlist', maxLines: 1, overflow: TextOverflow.ellipsis),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -351,11 +500,15 @@ class _SearchScreenState extends State<SearchScreen> {
     HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Sharing ${product.name}'),
+        content: Text('Sharing ${product.name}', maxLines: 1, overflow: TextOverflow.ellipsis),
         duration: const Duration(seconds: 2),
       ),
     );
   }
+
+  // ============================================================
+  // BUILD
+  // ============================================================
 
   @override
   Widget build(BuildContext context) {
@@ -387,8 +540,8 @@ class _SearchScreenState extends State<SearchScreen> {
                 actions: [
                   IconButton(
                     icon: const Icon(Icons.shopping_cart_outlined),
-                    onPressed: () => _goToTab(2),
-                    tooltip: 'Shopping cart',
+                    onPressed: () => AppRoutes.openCart(context),
+                    tooltip: AppLocalizations.of(context)!.shoppingCart,
                   ),
                 ],
               ),
@@ -409,45 +562,38 @@ class _SearchScreenState extends State<SearchScreen> {
               handle: NestedScrollView.sliverOverlapAbsorberHandleFor(context),
             ),
             SliverFillRemaining(
-              hasScrollBody: false,
-              child: Padding(
-                padding: EdgeInsets.only(bottom: 10.h),
-                child: Column(
-                  children: [
-                    SearchBarWidget(
-                      controller: _searchController,
-                      onChanged: _handleSearchChange,
-                      onSubmitted: _handleSearchSubmit,
-                      onVoicePressed: _showVoiceSearch ? () {} : null,
-                      onBarcodePressed: _showBarcodeScanner ? () {} : null,
-                      onAIPressed: () =>
-                          AppRoutes.switchToTab(context, 2),
-                      isLoading: _isLoading,
+              hasScrollBody: true,
+              child: Column(
+                children: [
+                  SearchBarWidget(
+                    controller: _searchController,
+                    onChanged: _handleSearchChange,
+                    onSubmitted: _handleSearchSubmit,
+                    onVoicePressed: _showVoiceSearch ? () {} : null,
+                    onBarcodePressed: _showBarcodeScanner ? () {} : null,
+                    onAIPressed: () => AppRoutes.switchToTab(context, 2),
+                    isLoading: _isLoading,
+                  ),
+                  if (_activeFilters.isNotEmpty)
+                    FilterChipsWidget(
+                      activeFilters: _activeFilters,
+                      onFilterPressed: _showFilterBottomSheet,
+                      onRemoveFilter: _removeFilter,
                     ),
-                    if (_activeFilters.isNotEmpty)
-                      FilterChipsWidget(
-                        activeFilters: _activeFilters,
-                        onFilterPressed: _showFilterBottomSheet,
-                        onRemoveFilter: _removeFilter,
-                      ),
-                    Expanded(
-                      child: _showSuggestions && !_isSearching
-                          ? SearchSuggestionsWidget(
-                              recentSearches: _recentSearches,
-                              trendingProducts: _trendingProducts,
-                              categories: _categories,
-                              onSuggestionTap: (suggestion) {
-                                _searchController.text = suggestion;
-                                _performSearch(suggestion);
-                              },
-                              onClearRecentSearches: () {
-                                setState(() => _recentSearches.clear());
-                              },
-                            )
-                          : _buildProductGrid(),
-                    ),
-                  ],
-                ),
+                  Expanded(
+                    child: _showSuggestions && !_isSearching && _hasSuggestions
+                        ? SearchSuggestionsWidget(
+                            recentSearches: _recentSearches,
+                            trendingProducts: _trendingProducts,
+                            categories: _categories,
+                            onSuggestionTap: _handleSuggestionTap,
+                            onClearRecentSearches: () {
+                              setState(() => _recentSearches.clear());
+                            },
+                          )
+                        : _buildResultsView(),
+                  ),
+                ],
               ),
             ),
           ],
@@ -456,14 +602,131 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildProductGrid() {
-    return ProductGridWidget(
-      products: _searchResults,
-      isLoading: _isLoading,
-      onProductTap: _onProductTap,
-      onAddToCart: _onAddToCart,
-      onAddToWishlist: _onAddToWishlist,
-      onShare: _onShare,
+  // ============================================================
+  // SESSION 19: Unified results — categories → stores → products
+  // ============================================================
+
+  Widget _buildResultsView() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final hasCategories = _categoryResults.isNotEmpty;
+    final hasStores = _storeResults.isNotEmpty;
+    final hasProducts = _searchResults.isNotEmpty;
+
+    if (!hasCategories && !hasStores && !hasProducts && _isSearching) {
+      return _buildEmptyState();
+    }
+
+    // ── Single ListView — no nested scroll views ──────────────
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        // Categories section
+        if (hasCategories)
+          CategoryResultsWidget(
+            categories: _categoryResults,
+            onCategoryTap: _onCategoryTap,
+          ),
+
+        // Stores section
+        if (hasStores)
+          StoreResultsWidget(
+            stores: _storeResults,
+            onStoreTap: _onStoreTap,
+          ),
+
+        // Divider + products header
+        if ((hasCategories || hasStores) && hasProducts)
+          Padding(
+            padding: EdgeInsets.fromLTRB(4.w, 0.5.h, 4.w, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Divider(
+                  color: Theme.of(context).colorScheme.outline.withOpacity(0.15),
+                  height: 1,
+                ),
+                SizedBox(height: 1.h),
+                Row(
+                  children: [
+                    Icon(Icons.inventory_2_rounded,
+                        size: 18,
+                        color: Theme.of(context).colorScheme.primary),
+                    SizedBox(width: 2.w),
+                    Flexible(child: Text(
+                      'Products (${_searchResults.length})',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  ],
+                ),
+                SizedBox(height: 0.5.h),
+              ],
+            ),
+          ),
+
+        // Products grid — inline, not in a separate scroll view
+        if (hasProducts)
+          ProductGridWidget(
+            products: _searchResults,
+            isLoading: false,
+            onProductTap: _onProductTap,
+            onAddToCart: _onAddToCart,
+            onRemoveFromCart: (_) {},
+            onAddToWishlist: _onAddToWishlist,
+            onShare: _onShare,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+          ),
+
+        // No products but has other results
+        if (!hasProducts && (hasCategories || hasStores))
+          Padding(
+            padding: EdgeInsets.all(6.w),
+            child: Text(
+              AppLocalizations.of(context)!.noProductsFoundForThisSearch,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+              textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+
+        SizedBox(height: 4.h),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState() {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(8.w),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_off_rounded,
+              size: 48,
+              color: theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              AppLocalizations.of(context)!.noResultsFound,
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 8),
+            Text(
+              AppLocalizations.of(context)!.tryADifferentSearchTermOr,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ),
+      ),
     );
   }
 }

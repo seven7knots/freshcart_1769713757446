@@ -8,6 +8,7 @@ import '../../theme/app_theme.dart';
 import '../../routes/app_routes.dart';
 import './widgets/conversation_card_widget.dart';
 import './widgets/empty_chat_state_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
@@ -56,7 +57,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load conversations: $e')),
+          SnackBar(content: Text('Failed to load conversations: $e', maxLines: 1, overflow: TextOverflow.ellipsis)),
         );
       }
     }
@@ -67,7 +68,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
     setState(() {
       _filteredConversations = _conversations.where((conv) {
-        // Apply search filter
         if (query.isNotEmpty) {
           final otherParticipant =
               conv.getOtherParticipantProfile(currentUserId);
@@ -83,7 +83,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           }
         }
 
-        // Apply role filter
         if (_selectedFilter == 'Buying') {
           return conv.buyerId == currentUserId;
         } else if (_selectedFilter == 'Selling') {
@@ -108,14 +107,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       await _loadConversations();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Conversation archived')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.conversationArchived, maxLines: 1, overflow: TextOverflow.ellipsis)),
         );
       }
     } catch (e) {
       print('❌ Error archiving conversation: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to archive: $e')),
+          SnackBar(content: Text('Failed to archive: $e', maxLines: 1, overflow: TextOverflow.ellipsis)),
         );
       }
     }
@@ -123,20 +122,20 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         title: Text(
-          'Messages',
+          AppLocalizations.of(context)!.messages,
           style: TextStyle(
             fontSize: 18.sp,
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
       ),
       body: Column(
@@ -148,11 +147,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
               controller: _searchController,
               onChanged: _filterConversations,
               decoration: InputDecoration(
-                hintText: 'Search conversations...',
-                hintStyle: TextStyle(fontSize: 12.sp, color: Colors.grey),
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                hintText: AppLocalizations.of(context)!.searchConversations,
+                hintStyle: TextStyle(fontSize: 12.sp, color: theme.colorScheme.onSurfaceVariant),
+                prefixIcon: Icon(Icons.search, color: theme.colorScheme.onSurfaceVariant),
                 filled: true,
-                fillColor: Colors.grey[200],
+                fillColor: Colors.grey.shade200,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(3.w),
                   borderSide: BorderSide.none,
@@ -169,11 +168,11 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             padding: EdgeInsets.symmetric(horizontal: 4.w),
             child: Row(
               children: [
-                _buildFilterChip('All'),
+                _buildFilterChip(AppLocalizations.of(context)!.all2),
                 SizedBox(width: 2.w),
-                _buildFilterChip('Buying'),
+                _buildFilterChip(AppLocalizations.of(context)!.buying),
                 SizedBox(width: 2.w),
-                _buildFilterChip('Selling'),
+                _buildFilterChip(AppLocalizations.of(context)!.selling),
               ],
             ),
           ),
@@ -229,7 +228,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE50914) : Colors.grey[200],
+          color: isSelected ? const Color(0xFFE50914) : Colors.grey.shade200,
           borderRadius: BorderRadius.circular(5.w),
         ),
         child: Text(
@@ -237,9 +236,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           style: TextStyle(
             fontSize: 12.sp,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            color: isSelected ? Colors.white : Colors.black,
-          ),
-        ),
+            color: isSelected ? Colors.white : Colors.black87,
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
     );
   }

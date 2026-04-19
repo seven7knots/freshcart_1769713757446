@@ -3,6 +3,7 @@ import 'package:sizer/sizer.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../widgets/custom_image_widget.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 /// Marketplace ad banner — content loaded from `app_config` table.
 /// Keys: marketplace_ad_image_url, marketplace_ad_title, marketplace_ad_subtitle
@@ -136,14 +137,12 @@ class _MarketplaceAdBoxWidgetState extends State<MarketplaceAdBoxWidget> {
                       style: TextStyle(
                         fontSize: 15.sp,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                        color: theme.colorScheme.surface,
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 0.5.h),
                     Text(
                       _subtitle,
-                      style: TextStyle(fontSize: 12.sp, color: Colors.white),
-                    ),
+                      style: TextStyle(fontSize: 12.sp, color: theme.colorScheme.surface), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),

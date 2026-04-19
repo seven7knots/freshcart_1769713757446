@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -42,6 +43,36 @@ class StoreService {
   }
 
   // ============================================================
+  // SESSION 26 FIX (Bug #6): In-flight dedup + cache for getAllStores
+  //
+  // Problem: getAllStores() was called 2× within ~2.5s because:
+  //   1. StoresScreen (IndexedStack index 3) builds eagerly and
+  //      triggers allStoresProvider
+  //   2. TopStoresWidget on HomeScreen triggers it again
+  //
+  // Fix: Same Completer pattern as category_service. If a fetch is
+  // already in-flight, second caller awaits the same future.
+  // Also added a 2-minute TTL cache so subsequent reads are instant.
+  // ============================================================
+
+  static List<Store>? _allStoresCache;
+  static DateTime? _allStoresCacheTime;
+  static const _cacheTTL = Duration(minutes: 2);
+  static Completer<List<Store>>? _allStoresFetchCompleter;
+
+  static bool _isCacheValid() {
+    return _allStoresCacheTime != null &&
+        DateTime.now().difference(_allStoresCacheTime!) < _cacheTTL;
+  }
+
+  /// Clear cache. Call on pull-to-refresh or after admin edits.
+  static void clearCache() {
+    _allStoresCache = null;
+    _allStoresCacheTime = null;
+    debugPrint('[STORE] Cache cleared');
+  }
+
+  // ============================================================
   // READ OPERATIONS
   // ============================================================
 
@@ -49,6 +80,20 @@ class StoreService {
     bool activeOnly = true,
     bool excludeDemo = true,
   }) async {
+    // SESSION 26: Return cached data if valid
+    if (_isCacheValid() && _allStoresCache != null) {
+      debugPrint('[STORE] Returning ${_allStoresCache!.length} stores from cache');
+      return _allStoresCache!;
+    }
+
+    // SESSION 26: If a fetch is already in-flight, await it
+    if (_allStoresFetchCompleter != null && !_allStoresFetchCompleter!.isCompleted) {
+      debugPrint('[STORE] getAllStores DEDUPED (awaiting in-flight fetch)');
+      return _allStoresFetchCompleter!.future;
+    }
+
+    _allStoresFetchCompleter = Completer<List<Store>>();
+
     try {
       debugPrint('[STORE] Fetching all stores...');
       var query = _client.from('stores').select();
@@ -56,10 +101,20 @@ class StoreService {
       // Only exclude stores explicitly marked as demo (NULL is treated as non-demo)
       if (excludeDemo) query = query.neq('is_demo', true);
       final response = await query.order('created_at', ascending: false);
-      debugPrint('[STORE] Fetched ${(response as List).length} stores');
-      return response.map((s) => Store.fromMap(s)).toList();
+
+      final stores = (response as List).map((s) => Store.fromMap(s)).toList();
+
+      // SESSION 26: Update cache
+      _allStoresCache = stores;
+      _allStoresCacheTime = DateTime.now();
+
+      debugPrint('[STORE] Fetched ${stores.length} stores');
+
+      _allStoresFetchCompleter!.complete(stores);
+      return stores;
     } catch (e) {
       debugPrint('[STORE] Error fetching stores: $e');
+      _allStoresFetchCompleter!.completeError(e);
       rethrow;
     }
   }
@@ -278,6 +333,10 @@ class StoreService {
       final response = await _client.from('stores').insert(data).select().single();
 
       final store = Store.fromMap(response);
+
+      // SESSION 26: Invalidate cache after create
+      clearCache();
+
       debugPrint('[STORE] Store created: ${store.id}');
       return store;
     } catch (e) {
@@ -306,6 +365,10 @@ class StoreService {
 
       final response = await _client.from('stores').update(updates).eq('id', id).select().single();
       final store = Store.fromMap(response);
+
+      // SESSION 26: Invalidate cache after update
+      clearCache();
+
       debugPrint('[STORE] Store updated: ${store.id}');
       return store;
     } catch (e) {
@@ -334,6 +397,10 @@ class StoreService {
     try {
       debugPrint('[STORE] Deleting store: $id');
       await _client.from('stores').delete().eq('id', id);
+
+      // SESSION 26: Invalidate cache after delete
+      clearCache();
+
       debugPrint('[STORE] Store deleted: $id');
     } catch (e) {
       debugPrint('[STORE] Error deleting store: $e');

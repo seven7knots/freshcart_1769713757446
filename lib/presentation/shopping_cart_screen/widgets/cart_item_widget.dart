@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class CartItemWidget extends StatefulWidget {
   final Map<String, dynamic> item;
@@ -75,7 +76,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
           padding: EdgeInsets.only(right: 4.w),
           decoration: BoxDecoration(
             color: theme.colorScheme.error,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -87,12 +88,11 @@ class _CartItemWidgetState extends State<CartItemWidget> {
               ),
               SizedBox(height: 0.5.h),
               Text(
-                'Remove',
+                AppLocalizations.of(context)!.remove,
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onError,
                   fontWeight: FontWeight.w500,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
@@ -101,7 +101,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
           padding: EdgeInsets.all(3.w),
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isOutOfStock
                   ? theme.colorScheme.error.withValues(alpha: 0.3)
@@ -123,20 +123,20 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                 width: 20.w,
                 height: 20.w,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(14),
                   color: theme.colorScheme.surface,
                 ),
                 child: Stack(
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(14),
                       child: CustomImageWidget(
                         imageUrl: widget.item['image'] ?? '',
                         width: 20.w,
                         height: 20.w,
                         fit: BoxFit.cover,
                         semanticLabel:
-                            widget.item['semanticLabel'] ?? 'Product image',
+                            widget.item['semanticLabel'] ?? AppLocalizations.of(context)!.productImage,
                       ),
                     ),
                     if (isOutOfStock)
@@ -144,7 +144,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                         width: 20.w,
                         height: 20.w,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(14),
                           color:
                               theme.colorScheme.surface.withValues(alpha: 0.8),
                         ),
@@ -155,8 +155,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: theme.colorScheme.error,
                               fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ),
                   ],
@@ -172,12 +171,12 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                   children: [
                     // Product Name and Brand
                     Text(
-                      widget.item['name'] ?? 'Product Name',
+                      widget.item['name'] ?? AppLocalizations.of(context)!.productName2,
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: isOutOfStock
-                            ? theme.colorScheme.onSurface.withValues(alpha: 0.6)
-                            : theme.colorScheme.onSurface,
+                            ? Colors.black87.withValues(alpha: 0.6)
+                            : Colors.black87,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -188,9 +187,8 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                       Text(
                         widget.item['brand'],
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                          color: Colors.grey,
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
 
                     if (widget.item['weight'] != null) ...[
@@ -198,9 +196,8 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                       Text(
                         widget.item['weight'],
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                          color: Colors.grey,
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
 
                     SizedBox(height: 1.h),
@@ -213,32 +210,29 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: theme.colorScheme.primary,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         if (originalPrice != null && discount != null) ...[
                           SizedBox(width: 2.w),
                           Text(
                             '\$${originalPrice.toStringAsFixed(2)}',
                             style: theme.textTheme.bodySmall?.copyWith(
                               decoration: TextDecoration.lineThrough,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
+                              color: Colors.grey,
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           SizedBox(width: 2.w),
                           Container(
                             padding: EdgeInsets.symmetric(
                                 horizontal: 2.w, vertical: 0.5.h),
                             decoration: BoxDecoration(
                               color: theme.colorScheme.secondary,
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
                               '$discount% OFF',
                               style: theme.textTheme.labelSmall?.copyWith(
                                 color: theme.colorScheme.onSecondary,
                                 fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           ),
                         ],
                       ],
@@ -253,10 +247,10 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                         Container(
                           decoration: BoxDecoration(
                             border: Border.all(
-                              color: theme.colorScheme.outline
+                              color: Colors.grey.shade400
                                   .withValues(alpha: 0.3),
                             ),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -271,9 +265,9 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                                     iconName: 'remove',
                                     size: 16,
                                     color: isOutOfStock
-                                        ? theme.colorScheme.onSurface
+                                        ? Colors.black87
                                             .withValues(alpha: 0.3)
-                                        : theme.colorScheme.onSurface,
+                                        : Colors.black87,
                                   ),
                                 ),
                               ),
@@ -284,11 +278,10 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                                   style: theme.textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.w600,
                                     color: isOutOfStock
-                                        ? theme.colorScheme.onSurface
+                                        ? Colors.black87
                                             .withValues(alpha: 0.6)
-                                        : theme.colorScheme.onSurface,
-                                  ),
-                                ),
+                                        : Colors.black87,
+                                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                               ),
                               GestureDetector(
                                 onTap: isOutOfStock
@@ -300,7 +293,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                                     iconName: 'add',
                                     size: 16,
                                     color: isOutOfStock
-                                        ? theme.colorScheme.onSurface
+                                        ? Colors.black87
                                             .withValues(alpha: 0.3)
                                         : theme.colorScheme.primary,
                                   ),
@@ -323,15 +316,14 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                                 CustomIconWidget(
                                   iconName: 'favorite_border',
                                   size: 16,
-                                  color: theme.colorScheme.onSurfaceVariant,
+                                  color: Colors.grey,
                                 ),
                                 SizedBox(width: 1.w),
                                 Text(
-                                  'Save',
+                                  AppLocalizations.of(context)!.save2,
                                   style: theme.textTheme.labelSmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
+                                    color: Colors.grey,
+                                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                               ],
                             ),
                           ),
@@ -347,7 +339,7 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                             horizontal: 2.w, vertical: 1.h),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.error.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
                           children: [
@@ -359,11 +351,10 @@ class _CartItemWidgetState extends State<CartItemWidget> {
                             SizedBox(width: 2.w),
                             Expanded(
                               child: Text(
-                                'This item is currently out of stock',
+                                AppLocalizations.of(context)!.thisItemIsCurrentlyOutOf,
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: theme.colorScheme.error,
-                                ),
-                              ),
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
                           ],
                         ),

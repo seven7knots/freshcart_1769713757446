@@ -6,6 +6,8 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../services/ads_service.dart';
+import '../../../services/supabase_service.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class AdCreationWizardWidget extends StatefulWidget {
   final Map<String, dynamic>? existingAd;
@@ -40,6 +42,13 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
   DateTime? _endDate;
   String _selectedTargetType = 'global_home';
   String? _targetId;
+  List<Map<String, dynamic>> _stores = [];
+  List<Map<String, dynamic>> _categories = [];
+  List<Map<String, dynamic>> _products = [];
+  bool _isLoadingOptions = false;
+
+  // Toggle to send push notification to all users
+  bool _sendNotification = true;
 
   @override
   void initState() {
@@ -47,6 +56,35 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
     if (widget.existingAd != null) {
       _loadExistingAd();
     }
+    _loadLinkOptions();
+  }
+
+  Future<void> _loadLinkOptions() async {
+    setState(() => _isLoadingOptions = true);
+    try {
+      final storesResult = await SupabaseService.client
+          .from('stores')
+          .select('id, name')
+          .order('name');
+      _stores = List<Map<String, dynamic>>.from(storesResult);
+
+      final catsResult = await SupabaseService.client
+          .from('categories')
+          .select('id, name')
+          .order('name');
+      _categories = List<Map<String, dynamic>>.from(catsResult);
+
+      final prodsResult = await SupabaseService.client
+          .from('products')
+          .select('id, name')
+          .eq('is_available', true)
+          .order('name')
+          .limit(50);
+      _products = List<Map<String, dynamic>>.from(prodsResult);
+    } catch (e) {
+      debugPrint('[AD_WIZARD] Failed to load options: $e');
+    }
+    if (mounted) setState(() => _isLoadingOptions = false);
   }
 
   void _loadExistingAd() {
@@ -135,6 +173,26 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
           targetType: _selectedTargetType,
           targetId: _targetId,
         );
+
+        // Send push notification to all customers if toggled on
+        if (_sendNotification) {
+          final count = await _adsService.notifyCustomersAboutAd(
+            adId: ad['id'],
+            title: _titleController.text,
+            description: _descriptionController.text.isNotEmpty
+                ? _descriptionController.text
+                : null,
+          );
+          if (mounted && count > 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Notification sent to $count users', maxLines: 1, overflow: TextOverflow.ellipsis),
+                backgroundColor: Colors.blue,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        }
       }
 
       widget.onAdCreated();
@@ -142,7 +200,7 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to save ad: $e')));
+        ).showSnackBar(SnackBar(content: Text('Failed to save ad: $e', maxLines: 1, overflow: TextOverflow.ellipsis)));
       }
     } finally {
       setState(() => _isLoading = false);
@@ -158,7 +216,7 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
       maxChildSize: 0.95,
       builder: (context, scrollController) => Container(
         decoration: BoxDecoration(
-          color: theme.scaffoldBackgroundColor,
+          color: Color(0xFFF5F5F5),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20.0)),
         ),
         child: Column(
@@ -168,18 +226,17 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
               height: 4,
               margin: EdgeInsets.symmetric(vertical: 2.h),
               decoration: BoxDecoration(
-                color: theme.colorScheme.outline,
+                color: Colors.grey.shade400,
                 borderRadius: BorderRadius.circular(2.0),
               ),
             ),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 4.w),
               child: Text(
-                widget.existingAd != null ? 'Edit Ad' : 'Create New Ad',
+                widget.existingAd != null ? AppLocalizations.of(context)!.editAd : AppLocalizations.of(context)!.createNewAd,
                 style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.w600,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
             SizedBox(height: 2.h),
             Expanded(
@@ -212,13 +269,13 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : Text(_currentStep == 3 ? 'Save' : 'Continue'),
+                              : Text(_currentStep == 3 ? AppLocalizations.of(context)!.save2 : AppLocalizations.of(context)!.continueText, maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                         SizedBox(width: 2.w),
                         if (_currentStep > 0)
                           TextButton(
                             onPressed: details.onStepCancel,
-                            child: const Text('Back'),
+                            child: Text(AppLocalizations.of(context)!.back, maxLines: 1, overflow: TextOverflow.ellipsis),
                           ),
                       ],
                     ),
@@ -226,22 +283,22 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
                 },
                 steps: [
                   Step(
-                    title: const Text('Format & Content'),
+                    title: Text(AppLocalizations.of(context)!.formatContent, maxLines: 1, overflow: TextOverflow.ellipsis),
                     content: _buildFormatStep(context),
                     isActive: _currentStep >= 0,
                   ),
                   Step(
-                    title: const Text('Image Upload'),
+                    title: Text(AppLocalizations.of(context)!.imageUpload, maxLines: 1, overflow: TextOverflow.ellipsis),
                     content: _buildImageStep(context),
                     isActive: _currentStep >= 1,
                   ),
                   Step(
-                    title: const Text('Deep Linking'),
+                    title: Text(AppLocalizations.of(context)!.deepLinking, maxLines: 1, overflow: TextOverflow.ellipsis),
                     content: _buildLinkingStep(context),
                     isActive: _currentStep >= 2,
                   ),
                   Step(
-                    title: const Text('Targeting & Schedule'),
+                    title: Text(AppLocalizations.of(context)!.targetingSchedule, maxLines: 1, overflow: TextOverflow.ellipsis),
                     content: _buildTargetingStep(context),
                     isActive: _currentStep >= 3,
                   ),
@@ -261,27 +318,27 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Select Ad Format', style: theme.textTheme.titleSmall),
+          Text(AppLocalizations.of(context)!.selectAdFormat, style: theme.textTheme.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
           Wrap(
             spacing: 2.w,
             children: [
               ChoiceChip(
-                label: const Text('Carousel'),
+                label: Text(AppLocalizations.of(context)!.carousel, maxLines: 1, overflow: TextOverflow.ellipsis),
                 selected: _selectedFormat == 'carousel',
                 onSelected: (selected) {
                   setState(() => _selectedFormat = 'carousel');
                 },
               ),
               ChoiceChip(
-                label: const Text('Rotating Banner'),
+                label: Text(AppLocalizations.of(context)!.rotatingBanner, maxLines: 1, overflow: TextOverflow.ellipsis),
                 selected: _selectedFormat == 'rotating_banner',
                 onSelected: (selected) {
                   setState(() => _selectedFormat = 'rotating_banner');
                 },
               ),
               ChoiceChip(
-                label: const Text('Fixed Banner'),
+                label: Text(AppLocalizations.of(context)!.fixedBanner, maxLines: 1, overflow: TextOverflow.ellipsis),
                 selected: _selectedFormat == 'fixed_banner',
                 onSelected: (selected) {
                   setState(() => _selectedFormat = 'fixed_banner');
@@ -292,13 +349,13 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
           SizedBox(height: 2.h),
           TextFormField(
             controller: _titleController,
-            decoration: const InputDecoration(
-              labelText: 'Ad Title',
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.adTitle,
               border: OutlineInputBorder(),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Title is required';
+                return AppLocalizations.of(context)!.titleIsRequired;
               }
               return null;
             },
@@ -306,8 +363,8 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
           SizedBox(height: 2.h),
           TextFormField(
             controller: _descriptionController,
-            decoration: const InputDecoration(
-              labelText: 'Description',
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.description,
               border: OutlineInputBorder(),
             ),
             maxLines: 3,
@@ -322,7 +379,7 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Upload Ad Image', style: theme.textTheme.titleSmall),
+        Text(AppLocalizations.of(context)!.uploadAdImage, style: theme.textTheme.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 2.h),
         if (_selectedImage != null || _uploadedImageUrl != null)
           Container(
@@ -330,7 +387,7 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
             width: double.infinity,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12.0),
-              border: Border.all(color: theme.colorScheme.outline),
+              border: Border.all(color: Colors.grey.shade400),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12.0),
@@ -339,7 +396,7 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
                   : CustomImageWidget(
                       imageUrl: _uploadedImageUrl!,
                       fit: BoxFit.cover,
-                      semanticLabel: 'Ad preview image',
+                      semanticLabel: AppLocalizations.of(context)!.adPreviewImage,
                     ),
             ),
           ),
@@ -349,9 +406,8 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
           icon: const CustomIconWidget(iconName: 'upload', size: 20),
           label: Text(
             _selectedImage != null || _uploadedImageUrl != null
-                ? 'Change Image'
-                : 'Select Image',
-          ),
+                ? AppLocalizations.of(context)!.changeImage
+                : AppLocalizations.of(context)!.selectImage, maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ],
     );
@@ -362,22 +418,22 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Deep Link Destination', style: theme.textTheme.titleSmall),
+        Text(AppLocalizations.of(context)!.deepLinkDestination, style: theme.textTheme.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         DropdownButtonFormField<String>(
           initialValue: _selectedLinkType,
-          decoration: const InputDecoration(
-            labelText: 'Link Type',
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.linkType,
             border: OutlineInputBorder(),
           ),
-          items: const [
-            DropdownMenuItem(value: 'store', child: Text('Store')),
-            DropdownMenuItem(value: 'product', child: Text('Product')),
-            DropdownMenuItem(value: 'category', child: Text('Category')),
-            DropdownMenuItem(value: 'collection', child: Text('Collection')),
+          items: [
+            DropdownMenuItem(value: 'store', child: Text(AppLocalizations.of(context)!.store, maxLines: 1, overflow: TextOverflow.ellipsis)),
+            DropdownMenuItem(value: 'product', child: Text(AppLocalizations.of(context)!.product, maxLines: 1, overflow: TextOverflow.ellipsis)),
+            DropdownMenuItem(value: 'category', child: Text(AppLocalizations.of(context)!.category, maxLines: 1, overflow: TextOverflow.ellipsis)),
+            DropdownMenuItem(value: 'collection', child: Text(AppLocalizations.of(context)!.collection, maxLines: 1, overflow: TextOverflow.ellipsis)),
             DropdownMenuItem(
               value: 'external_url',
-              child: Text('External URL'),
+              child: Text(AppLocalizations.of(context)!.externalUrl, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ],
           onChanged: (value) {
@@ -388,22 +444,62 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
         if (_selectedLinkType == 'external_url')
           TextFormField(
             controller: _externalUrlController,
-            decoration: const InputDecoration(
-              labelText: 'External URL',
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.externalUrl,
               border: OutlineInputBorder(),
               hintText: 'https://example.com',
             ),
           )
+        else if (_isLoadingOptions)
+          const Center(child: Padding(
+            padding: EdgeInsets.all(16),
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ))
         else
-          TextFormField(
-            initialValue: _linkTargetId,
-            decoration: InputDecoration(
-              labelText: '${_selectedLinkType.toUpperCase()} ID',
-              border: const OutlineInputBorder(),
-            ),
-            onChanged: (value) => _linkTargetId = value,
-          ),
+          _buildLinkTargetDropdown(),
       ],
+    );
+  }
+
+  Widget _buildLinkTargetDropdown() {
+    List<Map<String, dynamic>> options;
+    String label;
+    switch (_selectedLinkType) {
+      case 'store':
+        options = _stores;
+        label = AppLocalizations.of(context)!.selectStore;
+        break;
+      case 'category':
+        options = _categories;
+        label = AppLocalizations.of(context)!.selectCategory;
+        break;
+      case 'product':
+        options = _products;
+        label = AppLocalizations.of(context)!.selectProduct;
+        break;
+      case 'collection':
+        options = _categories;
+        label = AppLocalizations.of(context)!.selectCollection;
+        break;
+      default:
+        options = [];
+        label = AppLocalizations.of(context)!.selectTarget;
+    }
+    if (options.isEmpty) {
+      return Text(AppLocalizations.of(context)!.noItemsFound, style: TextStyle(color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis);
+    }
+    return DropdownButtonFormField<String>(
+      value: options.any((o) => o['id'].toString() == _linkTargetId) ? _linkTargetId : null,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      isExpanded: true,
+      items: options.map((o) => DropdownMenuItem<String>(
+        value: o['id'].toString(),
+        child: Text(o['name'] ?? AppLocalizations.of(context)!.unknown, overflow: TextOverflow.ellipsis),
+      )).toList(),
+      onChanged: (value) => setState(() => _linkTargetId = value),
     );
   }
 
@@ -412,22 +508,22 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Targeting Rules', style: theme.textTheme.titleSmall),
+        Text(AppLocalizations.of(context)!.targetingRules, style: theme.textTheme.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         DropdownButtonFormField<String>(
           initialValue: _selectedTargetType,
-          decoration: const InputDecoration(
-            labelText: 'Target Type',
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.targetType,
             border: OutlineInputBorder(),
           ),
-          items: const [
-            DropdownMenuItem(value: 'global_home', child: Text('Global Home')),
-            DropdownMenuItem(value: 'store', child: Text('Specific Store')),
+          items: [
+            DropdownMenuItem(value: 'global_home', child: Text(AppLocalizations.of(context)!.globalHome, maxLines: 1, overflow: TextOverflow.ellipsis)),
+            DropdownMenuItem(value: 'store', child: Text(AppLocalizations.of(context)!.specificStore, maxLines: 1, overflow: TextOverflow.ellipsis)),
             DropdownMenuItem(
               value: 'category',
-              child: Text('Specific Category'),
+              child: Text(AppLocalizations.of(context)!.specificCategory, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
-            DropdownMenuItem(value: 'product', child: Text('Specific Product')),
+            DropdownMenuItem(value: 'product', child: Text(AppLocalizations.of(context)!.specificProduct, maxLines: 1, overflow: TextOverflow.ellipsis)),
           ],
           onChanged: (value) {
             setState(() => _selectedTargetType = value!);
@@ -435,21 +531,20 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
         ),
         if (_selectedTargetType != 'global_home') ...[
           SizedBox(height: 2.h),
-          TextFormField(
-            initialValue: _targetId,
-            decoration: const InputDecoration(
-              labelText: 'Target ID',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (value) => _targetId = value,
-          ),
+          if (_isLoadingOptions)
+            const Center(child: Padding(
+              padding: EdgeInsets.all(16),
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ))
+          else
+            _buildTargetDropdown(),
         ],
         SizedBox(height: 2.h),
-        Text('Schedule (Optional)', style: theme.textTheme.titleSmall),
+        Text(AppLocalizations.of(context)!.scheduleOptional, style: theme.textTheme.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         ListTile(
-          title: const Text('Start Date'),
-          subtitle: Text(_startDate?.toString().split(' ')[0] ?? 'Not set'),
+          title: Text(AppLocalizations.of(context)!.startDate, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(_startDate?.toString().split(' ')[0] ?? AppLocalizations.of(context)!.notSet, maxLines: 1, overflow: TextOverflow.ellipsis),
           trailing: const CustomIconWidget(
             iconName: 'calendar_today',
             size: 20,
@@ -467,8 +562,8 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
           },
         ),
         ListTile(
-          title: const Text('End Date'),
-          subtitle: Text(_endDate?.toString().split(' ')[0] ?? 'Not set'),
+          title: Text(AppLocalizations.of(context)!.endDate, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(_endDate?.toString().split(' ')[0] ?? AppLocalizations.of(context)!.notSet, maxLines: 1, overflow: TextOverflow.ellipsis),
           trailing: const CustomIconWidget(
             iconName: 'calendar_today',
             size: 20,
@@ -486,7 +581,67 @@ class _AdCreationWizardWidgetState extends State<AdCreationWizardWidget> {
             }
           },
         ),
+
+        // Push notification toggle (only for new ads)
+        if (widget.existingAd == null) ...[
+          SizedBox(height: 2.h),
+          Container(
+            padding: EdgeInsets.all(3.w),
+            decoration: BoxDecoration(
+              color: Colors.blue.withAlpha(26),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.blue.withAlpha(77)),
+            ),
+            child: SwitchListTile(
+              title: Text(AppLocalizations.of(context)!.sendPushNotification, maxLines: 1, overflow: TextOverflow.ellipsis),
+              subtitle: Text(AppLocalizations.of(context)!.notifyAllCustomersAboutThisAd, maxLines: 1, overflow: TextOverflow.ellipsis),
+              value: _sendNotification,
+              activeColor: Colors.blue,
+              contentPadding: EdgeInsets.zero,
+              onChanged: (v) => setState(() => _sendNotification = v),
+              secondary: const Icon(Icons.notifications_active, color: Colors.blue),
+            ),
+          ),
+        ],
       ],
+    );
+  }
+
+  Widget _buildTargetDropdown() {
+    List<Map<String, dynamic>> options;
+    String label;
+    switch (_selectedTargetType) {
+      case 'store':
+        options = _stores;
+        label = AppLocalizations.of(context)!.selectStore;
+        break;
+      case 'category':
+        options = _categories;
+        label = AppLocalizations.of(context)!.selectCategory;
+        break;
+      case 'product':
+        options = _products;
+        label = AppLocalizations.of(context)!.selectProduct;
+        break;
+      default:
+        options = [];
+        label = AppLocalizations.of(context)!.selectTarget;
+    }
+    if (options.isEmpty) {
+      return Text(AppLocalizations.of(context)!.noItemsFound, style: TextStyle(color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis);
+    }
+    return DropdownButtonFormField<String>(
+      value: options.any((o) => o['id'].toString() == _targetId) ? _targetId : null,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+      isExpanded: true,
+      items: options.map((o) => DropdownMenuItem<String>(
+        value: o['id'].toString(),
+        child: Text(o['name'] ?? AppLocalizations.of(context)!.unknown, overflow: TextOverflow.ellipsis),
+      )).toList(),
+      onChanged: (value) => setState(() => _targetId = value),
     );
   }
 }

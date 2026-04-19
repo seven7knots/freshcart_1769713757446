@@ -8,6 +8,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../services/category_service.dart';
 import '../../../services/supabase_service.dart';
 import '../../../models/category_model.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class CategoryEditDialog extends StatefulWidget {
   final Category? existingCategory;
@@ -77,12 +79,12 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
 
   void _snack(String msg, {Color? color}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: color));
   }
 
   String _dialogTitle() {
-    if (_isEdit) return _isSubcategory ? 'Edit Subcategory' : 'Edit Category';
-    return _isSubcategory ? 'Add Subcategory' : 'Add Category';
+    if (_isEdit) return _isSubcategory ? AppLocalizations.of(context)!.editSubcategory : AppLocalizations.of(context)!.editCategory2;
+    return _isSubcategory ? AppLocalizations.of(context)!.addSubcategory2 : AppLocalizations.of(context)!.addCategory2;
   }
 
   String _effectiveType() {
@@ -111,7 +113,7 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
     if (_pickedImage == null) return _existingImageUrl;
     try {
       final user = SupabaseService.client.auth.currentUser;
-      if (user == null) { _snack('You must be logged in', color: Colors.red); return _existingImageUrl; }
+      if (user == null) { _snack(AppLocalizations.of(context)!.youMustBeLoggedIn, color: Colors.red); return _existingImageUrl; }
 
       final uid = user.id;
       final ts = DateTime.now().millisecondsSinceEpoch;
@@ -152,7 +154,7 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
     final type = _effectiveType();
     final sortOrder = int.tryParse(_sortOrderController.text.trim()) ?? 0;
 
-    if (name.isEmpty) { _snack('Name is required'); return; }
+    if (name.isEmpty) { _snack(AppLocalizations.of(context)!.nameIsRequired); return; }
 
     setState(() => _isLoading = true);
 
@@ -216,10 +218,10 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
               padding: EdgeInsets.all(4.w),
               child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600)),
+                  Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                   if (_isSubcategory) ...[
                     SizedBox(height: 0.5.h),
-                    Text('Parent: ${widget.parentCategory!.name}', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                    Text('Parent: ${widget.parentCategory!.name}', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ])),
                 IconButton(icon: const Icon(Icons.close), onPressed: _isLoading ? null : () => Navigator.pop(context)),
@@ -249,24 +251,24 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
                         child: hasPickedImage
                             ? Image.file(File(_pickedImage!.path), fit: BoxFit.cover, width: double.infinity, height: double.infinity)
                             : hasExistingImage
-                                ? Image.network(_existingImageUrl!, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
-                                    errorBuilder: (_, __, ___) => _imagePlaceholder(theme))
+                                ? CachedNetworkImage(imageUrl: _existingImageUrl!, fit: BoxFit.cover, width: double.infinity, height: double.infinity,
+                                    errorWidget: (_, __, ___) => _imagePlaceholder(theme))
                                 : _imagePlaceholder(theme),
                       ),
                     ),
                     SizedBox(height: 0.5.h),
-                    Text(hasPickedImage ? 'Tap to change photo' : 'Tap to add photo',
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w500)),
+                    Text(hasPickedImage ? AppLocalizations.of(context)!.tapToChangePhoto : AppLocalizations.of(context)!.tapToAddPhoto,
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 2.h),
 
                     // Name
                     TextFormField(
                       controller: _nameController,
                       textInputAction: TextInputAction.next,
-                      decoration: InputDecoration(labelText: _isSubcategory ? 'Subcategory Name *' : 'Category Name *'),
+                      decoration: InputDecoration(labelText: _isSubcategory ? AppLocalizations.of(context)!.subcategoryName : AppLocalizations.of(context)!.categoryName2),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Name is required';
-                        if (v.trim().length < 2) return 'Must be at least 2 characters';
+                        if (v == null || v.trim().isEmpty) return AppLocalizations.of(context)!.nameIsRequired;
+                        if (v.trim().length < 2) return AppLocalizations.of(context)!.mustBeAtLeast2Characters;
                         return null;
                       },
                     ),
@@ -278,8 +280,8 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
                       enabled: !_isSubcategory,
                       textInputAction: TextInputAction.next,
                       decoration: InputDecoration(
-                        labelText: 'Type *',
-                        helperText: _isSubcategory ? 'Inherited from parent' : 'Default: $_defaultType',
+                        labelText: AppLocalizations.of(context)!.typeText,
+                        helperText: _isSubcategory ? AppLocalizations.of(context)!.inheritedFromParent : 'Default: $_defaultType',
                       ),
                     ),
                     SizedBox(height: 2.h),
@@ -290,13 +292,13 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
                       keyboardType: TextInputType.number,
                       textInputAction: TextInputAction.done,
                       onFieldSubmitted: (_) => _isLoading ? null : _save(),
-                      decoration: const InputDecoration(labelText: 'Sort Order', hintText: '0'),
+                      decoration: InputDecoration(labelText: AppLocalizations.of(context)!.sortOrder, hintText: '0'),
                       validator: (v) {
                         final s = (v ?? '').trim();
                         if (s.isEmpty) return null;
                         final n = int.tryParse(s);
-                        if (n == null) return 'Must be a number';
-                        if (n < 0) return 'Must be 0 or higher';
+                        if (n == null) return AppLocalizations.of(context)!.mustBeANumber;
+                        if (n < 0) return AppLocalizations.of(context)!.mustBe0OrHigher;
                         return null;
                       },
                     ),
@@ -305,7 +307,7 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
                     // Active toggle
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Active'),
+                      title: Text(AppLocalizations.of(context)!.active, maxLines: 1, overflow: TextOverflow.ellipsis),
                       value: _isActive,
                       onChanged: _isLoading ? null : (v) => setState(() => _isActive = v),
                     ),
@@ -319,13 +321,13 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
             Padding(
               padding: EdgeInsets.all(4.w),
               child: Row(children: [
-                Expanded(child: OutlinedButton(onPressed: _isLoading ? null : () => Navigator.pop(context), child: const Text('Cancel'))),
+                Expanded(child: OutlinedButton(onPressed: _isLoading ? null : () => Navigator.pop(context), child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis))),
                 SizedBox(width: 3.w),
                 Expanded(child: ElevatedButton(
                   onPressed: _isLoading ? null : _save,
                   child: _isLoading
                       ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.onPrimary))
-                      : Text(_isEdit ? 'Update' : 'Create'),
+                      : Text(_isEdit ? AppLocalizations.of(context)!.update : AppLocalizations.of(context)!.create2, maxLines: 1, overflow: TextOverflow.ellipsis),
                 )),
               ]),
             ),
@@ -339,7 +341,7 @@ class _CategoryEditDialogState extends State<CategoryEditDialog> {
     return Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Icon(Icons.add_photo_alternate_outlined, size: 10.w, color: theme.colorScheme.outline),
       SizedBox(height: 1.h),
-      Text('Add Photo', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
+      Text(AppLocalizations.of(context)!.addPhoto, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline), maxLines: 1, overflow: TextOverflow.ellipsis),
     ]);
   }
 }

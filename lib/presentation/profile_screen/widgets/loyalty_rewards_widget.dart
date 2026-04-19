@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class LoyaltyRewardsWidget extends StatelessWidget {
   final Map<String, dynamic> rewardsData;
@@ -50,22 +51,20 @@ class LoyaltyRewardsWidget extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Loyalty Rewards',
+              Flexible(child: Text(
+                AppLocalizations.of(context)!.loyaltyRewards,
                 style: theme.textTheme.titleMedium?.copyWith(
                   color: cs.onSecondary,
                   fontWeight: FontWeight.w700,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
               TextButton(
                 onPressed: onViewAllPressed,
                 child: Text(
-                  'View All',
+                  AppLocalizations.of(context)!.viewAll,
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: cs.onSecondary.withOpacity(0.80),
                     fontWeight: FontWeight.w600,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
@@ -97,15 +96,13 @@ class LoyaltyRewardsWidget extends StatelessWidget {
                       style: theme.textTheme.headlineSmall?.copyWith(
                         color: cs.onSecondary,
                         fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 0.5.h),
                     Text(
                       '${nextTierPoints - currentPoints} points to ${rewardsData["nextTier"]}',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: cs.onSecondary.withOpacity(0.80),
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -118,19 +115,17 @@ class LoyaltyRewardsWidget extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
+                  Flexible(child: Text(
                     'Progress to ${rewardsData["nextTier"]}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: cs.onSecondary.withOpacity(0.80),
-                    ),
-                  ),
-                  Text(
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  Flexible(child: Text(
                     '${(progress * 100).toInt()}%',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: cs.onSecondary,
                       fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ],
               ),
               SizedBox(height: 1.h),
@@ -139,7 +134,7 @@ class LoyaltyRewardsWidget extends StatelessWidget {
                 height: 1.h,
                 decoration: BoxDecoration(
                   color: cs.onSecondary.withOpacity(0.20),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: FractionallySizedBox(
                   alignment: Alignment.centerLeft,
@@ -147,7 +142,7 @@ class LoyaltyRewardsWidget extends StatelessWidget {
                   child: Container(
                     decoration: BoxDecoration(
                       color: cs.onSecondary,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                 ),
@@ -194,7 +189,7 @@ class LoyaltyRewardsWidget extends StatelessWidget {
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
         color: cs.onSecondary.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

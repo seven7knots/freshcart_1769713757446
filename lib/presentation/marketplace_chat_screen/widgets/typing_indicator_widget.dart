@@ -36,8 +36,8 @@ class _TypingIndicatorWidgetState extends State<TypingIndicatorWidget>
         children: [
           CircleAvatar(
             radius: 3.w,
-            backgroundColor: Colors.grey[300],
-            child: Icon(Icons.person, size: 3.w, color: Colors.grey[600]),
+            backgroundColor: Colors.grey.shade300,
+            child: Icon(Icons.person, size: 3.w, color: Colors.grey.shade600),
           ),
           SizedBox(width: 2.w),
           Container(
@@ -46,7 +46,7 @@ class _TypingIndicatorWidgetState extends State<TypingIndicatorWidget>
               vertical: 1.5.h,
             ),
             decoration: BoxDecoration(
-              color: Colors.grey[200],
+              color: Colors.grey.shade200,
               borderRadius: BorderRadius.circular(4.w),
             ),
             child: Row(
@@ -79,7 +79,7 @@ class _TypingIndicatorWidgetState extends State<TypingIndicatorWidget>
             width: 2.w,
             height: 2.w,
             decoration: BoxDecoration(
-              color: Colors.grey[600],
+              color: Colors.grey.shade600,
               shape: BoxShape.circle,
             ),
           ),

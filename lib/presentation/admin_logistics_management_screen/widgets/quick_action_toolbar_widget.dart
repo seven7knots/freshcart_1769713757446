@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class QuickActionToolbarWidget extends StatelessWidget {
   final int onlineDriversCount;
@@ -37,13 +38,13 @@ class QuickActionToolbarWidget extends StatelessWidget {
         children: [
           _buildStatChip(
             icon: Icons.people,
-            label: 'Drivers',
+            label: AppLocalizations.of(context)!.drivers,
             value: '$onlineDriversCount/$totalDriversCount',
             color: Colors.green,
           ),
           _buildStatChip(
             icon: Icons.assignment,
-            label: 'Orders',
+            label: AppLocalizations.of(context)!.orders,
             value: pendingOrdersCount.toString(),
             color: Colors.orange,
           ),
@@ -52,7 +53,7 @@ class QuickActionToolbarWidget extends StatelessWidget {
               IconButton(
                 onPressed: onToggleOrderQueue,
                 icon: const Icon(Icons.list_alt),
-                tooltip: 'Toggle Order Queue',
+                tooltip: AppLocalizations.of(context)!.toggleOrderQueue,
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.blue.shade50,
                 ),
@@ -61,7 +62,7 @@ class QuickActionToolbarWidget extends StatelessWidget {
               IconButton(
                 onPressed: onRefresh,
                 icon: const Icon(Icons.refresh),
-                tooltip: 'Refresh',
+                tooltip: AppLocalizations.of(context)!.refresh,
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.blue.shade50,
                 ),
@@ -97,16 +98,14 @@ class QuickActionToolbarWidget extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11.sp,
                   color: Colors.grey.shade700,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
               Text(
                 value,
                 style: TextStyle(
                   fontSize: 14.sp,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
         ],

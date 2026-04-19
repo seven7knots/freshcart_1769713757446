@@ -45,6 +45,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+android/key.properties
+android/app/kj-delivery-release.jks
 
 # Secrets — NEVER commit these
 env.json
@@ -62,3 +64,31 @@ GoogleService-Info.plist
 
 # Android local
 android/local.properties
+# Secrets - never commit
+.env
+*.env
+env.json
+android/local.properties
+android/app/google-services.json
+
+.vscode/launch.json
+
+# Android NDK / Gradle build artifacts (missing from original .gitignore)
+android/app/.cxx/
+android/build/
+android/.gradle/
+android/app/build/
+
+# Build logs
+build_log*.txt
+gradle_log*.txt
+flutter_run_verbose.txt
+logcat*.txt
+
+# Backup / old duplicate assets
+*_OLD.*
+
+# macOS/Linux/Windows desktop targets (not building for these)
+linux/
+macos/
+windows/

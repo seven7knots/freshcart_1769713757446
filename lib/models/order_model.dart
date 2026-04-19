@@ -142,7 +142,8 @@ class OrderModel {
     if (value is DateTime) return value;
     if (value is String) {
       try {
-        return DateTime.parse(value);
+        final parsed = DateTime.parse(value);
+        return parsed.isUtc ? parsed : DateTime.utc(parsed.year, parsed.month, parsed.day, parsed.hour, parsed.minute, parsed.second, parsed.millisecond);
       } catch (_) {
         return null;
       }

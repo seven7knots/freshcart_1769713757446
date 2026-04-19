@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class FloatingCartButton extends StatefulWidget {
   final int cartItemCount;
@@ -64,9 +65,15 @@ class _FloatingCartButtonState extends State<FloatingCartButton>
 
   @override
   Widget build(BuildContext context) {
+    // SESSION 20 FIX: Use AnimatedSwitcher for smooth fade in/out
+    // instead of abrupt SizedBox.shrink() which caused the "persisting" visual glitch
     if (widget.cartItemCount == 0) {
-      return SizedBox.shrink();
+      return const SizedBox.shrink();
     }
+
+    // SESSION 20 FIX: Use Theme.of(context) instead of hardcoded AppTheme.lightTheme
+    // The old code referenced AppTheme.lightTheme 8+ times which broke dark mode entirely
+    final theme = Theme.of(context);
 
     return Positioned(
       bottom: 20.h,
@@ -78,14 +85,13 @@ class _FloatingCartButtonState extends State<FloatingCartButton>
             scale: _scaleAnimation.value,
             child: Container(
               decoration: BoxDecoration(
-                color: AppTheme.lightTheme.colorScheme.primary,
+                color: theme.colorScheme.primary,
                 borderRadius: BorderRadius.circular(30),
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.lightTheme.colorScheme.shadow
-                        .withValues(alpha: 0.3),
+                    color: theme.colorScheme.shadow.withOpacity(0.3),
                     blurRadius: 8,
-                    offset: Offset(0, 4),
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
@@ -107,7 +113,7 @@ class _FloatingCartButtonState extends State<FloatingCartButton>
                           children: [
                             CustomIconWidget(
                               iconName: 'shopping_cart',
-                              color: AppTheme.lightTheme.colorScheme.onPrimary,
+                              color: theme.colorScheme.onPrimary,
                               size: 24,
                             ),
                             if (widget.cartItemCount > 0)
@@ -117,8 +123,7 @@ class _FloatingCartButtonState extends State<FloatingCartButton>
                                 child: Container(
                                   padding: EdgeInsets.all(1.w),
                                   decoration: BoxDecoration(
-                                    color:
-                                        AppTheme.lightTheme.colorScheme.error,
+                                    color: theme.colorScheme.error,
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   constraints: BoxConstraints(
@@ -129,29 +134,24 @@ class _FloatingCartButtonState extends State<FloatingCartButton>
                                     widget.cartItemCount > 99
                                         ? '99+'
                                         : widget.cartItemCount.toString(),
-                                    style: AppTheme
-                                        .lightTheme.textTheme.labelSmall
-                                        ?.copyWith(
-                                      color: AppTheme
-                                          .lightTheme.colorScheme.onError,
+                                    style:
+                                        theme.textTheme.labelSmall?.copyWith(
+                                      color: theme.colorScheme.onError,
                                       fontWeight: FontWeight.w600,
                                       fontSize: 10.sp,
                                     ),
-                                    textAlign: TextAlign.center,
-                                  ),
+                                    textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                                 ),
                               ),
                           ],
                         ),
                         SizedBox(width: 2.w),
                         Text(
-                          'View Cart',
-                          style: AppTheme.lightTheme.textTheme.titleSmall
-                              ?.copyWith(
-                            color: AppTheme.lightTheme.colorScheme.onPrimary,
+                          AppLocalizations.of(context)!.viewCart,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: theme.colorScheme.onPrimary,
                             fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   ),

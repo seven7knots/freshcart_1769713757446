@@ -5,6 +5,7 @@ import 'package:sizer/sizer.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/merchant_provider.dart';
 import './widgets/merchant_form_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class MerchantProfileScreen extends StatefulWidget {
   const MerchantProfileScreen({super.key});
@@ -34,12 +35,13 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Merchant Profile',
-          style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600),
-        ),
+          AppLocalizations.of(context)!.merchantProfile,
+          style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
         elevation: 0,
       ),
@@ -53,15 +55,18 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                   const CircularProgressIndicator(),
                   SizedBox(height: 2.h),
                   Text(
-                    'Loading merchant profile...',
-                    style: TextStyle(fontSize: 14.sp, color: Colors.grey),
-                  ),
+                    AppLocalizations.of(context)!.loadingMerchantProfile,
+                    style: TextStyle(
+                      fontSize: 14.sp,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             );
           }
 
-          if (merchantProvider.error != null) {
+          if (merchantProvider.error != null &&
+              merchantProvider.merchant == null) {
             return Center(
               child: Padding(
                 padding: EdgeInsets.all(4.w),
@@ -71,26 +76,28 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
                     Icon(
                       Icons.error_outline,
                       size: 48.sp,
-                      color: Colors.red,
+                      color: theme.colorScheme.error,
                     ),
                     SizedBox(height: 2.h),
                     Text(
-                      'Error loading merchant',
+                      AppLocalizations.of(context)!.errorLoadingMerchant,
                       style: TextStyle(
                         fontSize: 16.sp,
                         fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 1.h),
                     Text(
                       merchantProvider.error!,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12.sp, color: Colors.grey),
-                    ),
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 3.h),
-                    ElevatedButton(
+                    ElevatedButton.icon(
                       onPressed: _loadMerchant,
-                      child: const Text('Retry'),
+                      icon: const Icon(Icons.refresh),
+                      label: Text(AppLocalizations.of(context)!.retry, maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ],
                 ),
@@ -102,8 +109,8 @@ class _MerchantProfileScreenState extends State<MerchantProfileScreen> {
           final userId = authProvider.userId;
 
           if (userId == null) {
-            return const Center(
-              child: Text('Please log in to continue'),
+            return Center(
+              child: Text(AppLocalizations.of(context)!.pleaseLogInToContinue, maxLines: 1, overflow: TextOverflow.ellipsis),
             );
           }
 

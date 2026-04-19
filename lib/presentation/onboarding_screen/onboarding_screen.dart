@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../routes/app_routes.dart';
 import '../../services/analytics_service.dart';
 import './widgets/location_permission_widget.dart';
 import './widgets/onboarding_slide_widget.dart';
 import './widgets/page_indicator_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -25,36 +29,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       "description":
           "Hand-picked fresh groceries from trusted local suppliers. Every item meets our quality standards for your family's health.",
       "imageUrl":
-          "https://images.unsplash.com/photo-1730145313984-838b35077667",
+          "assets/images/onboarding/onboarding_1.jpg",
       "semanticLabel":
           "Fresh organic vegetables and fruits displayed in wicker baskets at a farmers market with vibrant colors",
     },
     {
       "title": "30-Minute\nDelivery",
-      "description":
-          "Lightning-fast delivery to your doorstep. Fresh groceries delivered in 30 minutes or less, guaranteed.",
+      "description": 'Lightning-fast delivery to your doorstep. Fresh groceries delivered in 30 minutes or less, guaranteed.',
       "imageUrl":
-          "https://images.unsplash.com/photo-1572504586329-2650fedc583d",
+          "assets/images/onboarding/onboarding_2.jpg",
       "semanticLabel":
           "Delivery person on electric scooter carrying insulated grocery bags through city streets",
     },
     {
       "title": "Personalized\nRecommendations",
-      "description":
-          "Smart suggestions based on your preferences and purchase history. Discover new products tailored just for you.",
-      "imageUrl": "https://images.unsplash.com/photo-1544365712-91cd4904cd07",
+      "description": 'Smart suggestions based on your preferences and purchase history. Discover new products tailored just for you.',
+      "imageUrl": "assets/images/onboarding/onboarding_3.jpg",
       "semanticLabel":
           "Smartphone screen showing grocery app interface with personalized product recommendations and shopping cart",
     },
-    {
-      "title": "Loyalty Rewards\n& Savings",
-      "description":
-          "Earn points with every purchase and unlock exclusive deals. Save more while shopping for premium quality groceries.",
-      "imageUrl":
-          "https://images.unsplash.com/photo-1614110073736-1778d27f588a",
-      "semanticLabel":
-          "Golden loyalty card with reward points and discount badges surrounded by fresh groceries and coins",
-    },
+
   ];
 
   @override
@@ -101,22 +95,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
   }
 
-  void _onLocationPermissionGranted() {
+  void _onLocationPermissionGranted() async {
     HapticFeedback.mediumImpact();
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      '/home-screen',
-      (route) => false,
-    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_seen_onboarding', true);
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.initial,
+        (route) => false,
+      );
+    }
   }
 
-  void _onLocationPermissionDenied() {
+  void _onLocationPermissionDenied() async {
     HapticFeedback.lightImpact();
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      '/home-screen',
-      (route) => false,
-    );
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_seen_onboarding', true);
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(
+        context,
+        AppRoutes.initial,
+        (route) => false,
+      );
+    }
   }
 
   @override
@@ -149,12 +151,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               ),
                             ),
                             child: Text(
-                              "Skip",
+                              AppLocalizations.of(context)!.skip,
                               style: theme.textTheme.titleSmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w500,
-                              ),
-                            ),
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           ),
                         ),
                       ),
@@ -179,11 +180,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
                       // Bottom section with indicators and button
                       Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 6.w,
-                          vertical: 4.h,
+                        padding: EdgeInsets.fromLTRB(
+                          6.w,
+                          2.h,
+                          6.w,
+                          40 + MediaQuery.of(context).padding.bottom,
                         ),
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             // Page indicators
                             PageIndicatorWidget(
@@ -215,10 +219,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w600,
                                     color: theme.colorScheme.onPrimary,
-                                  ),
-                                ),
+                                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                               ),
                             ),
+
+                            const SizedBox(height: 32),
                           ],
                         ),
                       ),

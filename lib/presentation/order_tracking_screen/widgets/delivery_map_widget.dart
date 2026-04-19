@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class DeliveryMapWidget extends StatefulWidget {
   final Map<String, dynamic> orderData;
@@ -95,18 +96,18 @@ class _DeliveryMapWidgetState extends State<DeliveryMapWidget> {
       Marker(
         markerId: const MarkerId('store'),
         position: _storeLocation,
-        infoWindow: const InfoWindow(
-          title: 'KJ Delivery Store',
-          snippet: 'Your order pickup location',
+        infoWindow: InfoWindow(
+          title: AppLocalizations.of(context)!.kjDeliveryStore,
+          snippet: AppLocalizations.of(context)!.yourOrderPickupLocation,
         ),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
       ),
       Marker(
         markerId: const MarkerId('delivery'),
         position: _deliveryLocation,
-        infoWindow: const InfoWindow(
-          title: 'Delivery Address',
-          snippet: 'Your delivery destination',
+        infoWindow: InfoWindow(
+          title: AppLocalizations.of(context)!.deliveryAddress,
+          snippet: AppLocalizations.of(context)!.yourDeliveryDestination,
         ),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
       ),
@@ -115,7 +116,7 @@ class _DeliveryMapWidgetState extends State<DeliveryMapWidget> {
         position: _riderLocation,
         infoWindow: InfoWindow(
           title: widget.orderData['riderInfo']['name'] as String,
-          snippet: 'Delivery partner location',
+          snippet: AppLocalizations.of(context)!.deliveryPartnerLocation,
         ),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
       ),
@@ -127,7 +128,7 @@ class _DeliveryMapWidgetState extends State<DeliveryMapWidget> {
       Polyline(
         polylineId: const PolylineId('delivery_route'),
         points: [_storeLocation, _riderLocation, _deliveryLocation],
-        color: AppTheme.lightTheme.colorScheme.secondary,
+        color: Theme.of(context).colorScheme.secondary,
         width: 4,
         patterns: [PatternItem.dash(20), PatternItem.gap(10)],
       ),
@@ -184,12 +185,12 @@ class _DeliveryMapWidgetState extends State<DeliveryMapWidget> {
       return Container(
         height: 50.h,
         decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Center(
           child: CircularProgressIndicator(
-            color: AppTheme.lightTheme.colorScheme.secondary,
+            color: Theme.of(context).colorScheme.secondary,
           ),
         ),
       );
@@ -198,13 +199,13 @@ class _DeliveryMapWidgetState extends State<DeliveryMapWidget> {
     return Container(
       height: 50.h,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppTheme.lightTheme.colorScheme.outline.withValues(alpha: 0.2),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.2),
         ),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Stack(
           children: [
             GoogleMap(
@@ -233,13 +234,13 @@ class _DeliveryMapWidgetState extends State<DeliveryMapWidget> {
                   _buildMapButton(
                     icon: 'my_location',
                     onPressed: _centerOnCurrentLocation,
-                    tooltip: 'Center on my location',
+                    tooltip: AppLocalizations.of(context)!.centerOnMyLocation,
                   ),
                   SizedBox(height: 2.h),
                   _buildMapButton(
                     icon: 'zoom_out_map',
                     onPressed: _fitMarkersInView,
-                    tooltip: 'Fit all markers',
+                    tooltip: AppLocalizations.of(context)!.fitAllMarkers,
                   ),
                 ],
               ),
@@ -251,12 +252,12 @@ class _DeliveryMapWidgetState extends State<DeliveryMapWidget> {
               child: Container(
                 padding: EdgeInsets.all(3.w),
                 decoration: BoxDecoration(
-                  color: AppTheme.lightTheme.colorScheme.surface
+                  color: Theme.of(context).colorScheme.surface
                       .withValues(alpha: 0.95),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.lightTheme.colorScheme.shadow
+                      color: Theme.of(context).colorScheme.shadow
                           .withValues(alpha: 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
@@ -269,7 +270,7 @@ class _DeliveryMapWidgetState extends State<DeliveryMapWidget> {
                       width: 3.w,
                       height: 3.w,
                       decoration: BoxDecoration(
-                        color: AppTheme.lightTheme.colorScheme.secondary,
+                        color: Theme.of(context).colorScheme.secondary,
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -280,21 +281,19 @@ class _DeliveryMapWidgetState extends State<DeliveryMapWidget> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Estimated Arrival',
-                            style: AppTheme.lightTheme.textTheme.bodySmall
+                            AppLocalizations.of(context)!.estimatedArrival,
+                            style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
-                              color: AppTheme
-                                  .lightTheme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
+                              color: Theme.of(context)
+                                  .colorScheme.onSurfaceVariant,
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           Text(
                             widget.orderData['estimatedArrival'] as String,
-                            style: AppTheme.lightTheme.textTheme.bodyLarge
+                            style: Theme.of(context).textTheme.bodyLarge
                                 ?.copyWith(
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.lightTheme.colorScheme.onSurface,
-                            ),
-                          ),
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ],
                       ),
                     ),
@@ -317,12 +316,12 @@ class _DeliveryMapWidgetState extends State<DeliveryMapWidget> {
       width: 12.w,
       height: 12.w,
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
             color:
-                AppTheme.lightTheme.colorScheme.shadow.withValues(alpha: 0.1),
+                Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -333,7 +332,7 @@ class _DeliveryMapWidgetState extends State<DeliveryMapWidget> {
         tooltip: tooltip,
         icon: CustomIconWidget(
           iconName: icon,
-          color: AppTheme.lightTheme.colorScheme.onSurface,
+          color: Theme.of(context).colorScheme.onSurface,
           size: 5.w,
         ),
       ),

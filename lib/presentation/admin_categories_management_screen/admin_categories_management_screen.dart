@@ -8,6 +8,7 @@ import '../../widgets/admin_layout_wrapper.dart';
 import './widgets/category_form_modal_widget.dart';
 import './widgets/category_list_item_widget.dart';
 import './widgets/category_reorder_list_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class AdminCategoriesManagementScreen extends StatefulWidget {
   const AdminCategoriesManagementScreen({super.key});
@@ -122,18 +123,18 @@ class _AdminCategoriesManagementScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Category'),
+        title: Text(AppLocalizations.of(context)!.deleteCategory, maxLines: 1, overflow: TextOverflow.ellipsis),
         content:
-            const Text('This will permanently remove the category. Continue?'),
+            Text(AppLocalizations.of(context)!.thisWillPermanentlyRemoveTheCategory, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -167,7 +168,7 @@ class _AdminCategoriesManagementScreenState
   void _showError(Object e) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(e.toString())),
+      SnackBar(content: Text(e.toString(), maxLines: 1, overflow: TextOverflow.ellipsis)),
     );
   }
 
@@ -177,8 +178,8 @@ class _AdminCategoriesManagementScreenState
     final theme = Theme.of(context);
 
     if (!admin.isAdmin) {
-      return const Scaffold(
-        body: Center(child: Text('Access denied')),
+      return Scaffold(
+        body: Center(child: Text(AppLocalizations.of(context)!.accessDenied2, maxLines: 1, overflow: TextOverflow.ellipsis)),
       );
     }
 
@@ -186,7 +187,7 @@ class _AdminCategoriesManagementScreenState
       currentRoute: '/admin-categories-management-screen',
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Categories'),
+          title: Text(AppLocalizations.of(context)!.categories, maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [
             IconButton(
               icon: const Icon(Icons.swap_vert),
@@ -208,7 +209,7 @@ class _AdminCategoriesManagementScreenState
                     controller: _searchController,
                     onChanged: (_) => _applyFilters(),
                     decoration: InputDecoration(
-                      hintText: 'Search categories',
+                      hintText: AppLocalizations.of(context)!.searchCategories,
                       prefixIcon: const Icon(Icons.search),
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
@@ -224,7 +225,7 @@ class _AdminCategoriesManagementScreenState
                   SizedBox(height: 2.h),
                   Row(
                     children: [
-                      _filterChip('All', 'all'),
+                      _filterChip(AppLocalizations.of(context)!.all2, 'all'),
                       SizedBox(width: 2.w),
                       _filterChip('Active', 'active'),
                       SizedBox(width: 2.w),
@@ -238,9 +239,9 @@ class _AdminCategoriesManagementScreenState
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _error != null
-                      ? Center(child: Text(_error!))
+                      ? Center(child: Text(_error!, maxLines: 1, overflow: TextOverflow.ellipsis))
                       : _filteredCategories.isEmpty
-                          ? const Center(child: Text('No categories found'))
+                          ? Center(child: Text(AppLocalizations.of(context)!.noCategoriesFound, maxLines: 1, overflow: TextOverflow.ellipsis))
                           : ListView.builder(
                               padding: EdgeInsets.all(3.w),
                               itemCount: _filteredCategories.length,
@@ -260,7 +261,7 @@ class _AdminCategoriesManagementScreenState
         floatingActionButton: FloatingActionButton.extended(
           onPressed: _openCreateModal,
           icon: const Icon(Icons.add),
-          label: const Text('Add Category'),
+          label: Text(AppLocalizations.of(context)!.addCategory, maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ),
     );
@@ -290,7 +291,7 @@ class _AdminCategoriesManagementScreenState
                 : theme.colorScheme.outline,
           ),
         ),
-        child: Text(label),
+        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
     );
   }

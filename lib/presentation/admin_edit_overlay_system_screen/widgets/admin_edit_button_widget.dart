@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class AdminEditButtonWidget extends StatelessWidget {
   final String contentType;
@@ -16,10 +17,12 @@ class AdminEditButtonWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
+        color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(12.0),
         boxShadow: [
           BoxShadow(
@@ -35,34 +38,32 @@ class AdminEditButtonWidget extends StatelessWidget {
           CustomIconWidget(
             iconName: _getIconForContentType(contentType),
             size: 48,
-            color: AppTheme.lightTheme.colorScheme.primary,
+            color: theme.colorScheme.primary,
           ),
           SizedBox(height: 2.h),
           Text(
             'Edit ${_getContentTypeLabel(contentType)}',
-            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+            style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
           Text(
-            'Tap to manage this content',
-            style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-              color: AppTheme.lightTheme.colorScheme.outline,
-            ),
-          ),
+            AppLocalizations.of(context)!.tapToManageThisContent,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.outline,
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 2.h),
           ElevatedButton.icon(
             onPressed: () {
               HapticFeedback.lightImpact();
               onEdit();
             },
-            icon: const CustomIconWidget(
+            icon: CustomIconWidget(
               iconName: 'edit',
-              color: Colors.white,
+              color: theme.colorScheme.surface,
               size: 20,
             ),
-            label: const Text('Edit Now'),
+            label: Text(AppLocalizations.of(context)!.editNow, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),

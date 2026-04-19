@@ -151,15 +151,15 @@ class AppTheme {
       inputDecorationTheme: InputDecorationThemeData(
         filled: true,
         fillColor: cs.surfaceContainerHighest.withOpacity(isLight ? 1.0 : 0.55),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         hintStyle: TextStyle(color: cs.onSurface.withOpacity(0.60)),
         labelStyle: TextStyle(color: cs.onSurface.withOpacity(0.80)),
         floatingLabelStyle: TextStyle(color: cs.primary),
         errorStyle: TextStyle(color: cs.error),
-        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: cs.outline.withOpacity(0.70)), borderRadius: const BorderRadius.all(Radius.circular(12))),
-        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: cs.primary, width: 1.6), borderRadius: const BorderRadius.all(Radius.circular(12))),
-        errorBorder: OutlineInputBorder(borderSide: BorderSide(color: cs.error, width: 1.2), borderRadius: const BorderRadius.all(Radius.circular(12))),
-        focusedErrorBorder: OutlineInputBorder(borderSide: BorderSide(color: cs.error, width: 1.6), borderRadius: const BorderRadius.all(Radius.circular(12))),
+        enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: cs.outline.withOpacity(0.70)), borderRadius: const BorderRadius.all(Radius.circular(16))),
+        focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: cs.primary, width: 1.6), borderRadius: const BorderRadius.all(Radius.circular(16))),
+        errorBorder: OutlineInputBorder(borderSide: BorderSide(color: cs.error, width: 1.2), borderRadius: const BorderRadius.all(Radius.circular(16))),
+        focusedErrorBorder: OutlineInputBorder(borderSide: BorderSide(color: cs.error, width: 1.6), borderRadius: const BorderRadius.all(Radius.circular(16))),
       ),
 
       // AppBar: RED in light, dark surface in dark
@@ -179,23 +179,26 @@ class AppTheme {
         actionsIconTheme: IconThemeData(color: isLight ? Colors.white : cs.onSurface),
       ),
 
-      // Card
+      // Card — modern rounded with soft shadow
       cardTheme: CardThemeData(
         color: cs.surface,
         surfaceTintColor: Colors.transparent,
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        elevation: 0,
+        shadowColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
+        clipBehavior: Clip.antiAlias,
       ),
 
-      // Buttons
+      // Buttons — rounded, taller, modern
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: cs.primary,
           foregroundColor: cs.onPrimary,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+          minimumSize: const Size(0, 50),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
@@ -230,21 +233,23 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         titleTextStyle: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w600, color: cs.onSurface),
         contentTextStyle: GoogleFonts.inter(fontSize: 14, color: cs.onSurface),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
 
       // BottomSheet
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: cs.surface,
         surfaceTintColor: Colors.transparent,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       ),
 
-      // PopupMenu
+      // PopupMenu — rounded
       popupMenuTheme: PopupMenuThemeData(
         color: cs.surface,
         surfaceTintColor: Colors.transparent,
         textStyle: GoogleFonts.inter(fontSize: 14, color: cs.onSurface),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        elevation: 8,
       ),
 
       // ListTile
@@ -254,11 +259,13 @@ class AppTheme {
         subtitleTextStyle: GoogleFonts.inter(fontSize: 13, color: cs.onSurfaceVariant),
       ),
 
-      // Chip
+      // Chip — pill-shaped
       chipTheme: ChipThemeData(
         backgroundColor: cs.surfaceContainerHighest,
         labelStyle: GoogleFonts.inter(fontSize: 13, color: cs.onSurface),
-        side: BorderSide(color: cs.outline.withOpacity(0.5)),
+        side: BorderSide(color: cs.outline.withOpacity(0.3)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       ),
 
       // Switch
@@ -273,19 +280,23 @@ class AppTheme {
         }),
       ),
 
-      // SnackBar
+      // SnackBar — modern floating
       snackBarTheme: SnackBarThemeData(
         backgroundColor: cs.inverseSurface,
         contentTextStyle: GoogleFonts.inter(fontSize: 14, color: cs.onInverseSurface),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         behavior: SnackBarBehavior.floating,
+        elevation: 6,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       ),
 
-      // TabBar
+      // TabBar — rounded pill indicator
       tabBarTheme: TabBarThemeData(
         labelColor: cs.onSurface,
         unselectedLabelColor: cs.onSurfaceVariant,
         indicatorColor: cs.primary,
+        indicatorSize: TabBarIndicatorSize.label,
+        dividerHeight: 0,
       ),
 
       // NavigationBar (M3): RED in light, dark in dark

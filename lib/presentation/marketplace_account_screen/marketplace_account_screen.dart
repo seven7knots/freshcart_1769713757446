@@ -1,10 +1,11 @@
 // ============================================================
 // FILE: lib/presentation/marketplace_account_screen/marketplace_account_screen.dart
 // ============================================================
-// FIX:
-// - If the current user is an admin, do NOT keep them inside marketplace account UI.
-// - Admin should be routed to admin landing/dashboard (Model A: admin > merchant).
-// - Adds an Admin Dashboard menu item as a fallback.
+// SESSION 29 FIX:
+// - Removed all non-functional menu items with empty onTap handlers:
+//   Favorites, Notifications, Language, Help & Support, Privacy Policy.
+// - Kept only working items: My Ads, Messages, Logout.
+// - "My Activity" section header renamed to match trimmed list.
 // ============================================================
 
 import 'package:flutter/material.dart';
@@ -16,6 +17,7 @@ import '../../providers/user_provider.dart';
 import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 import '../marketplace_screen/widgets/marketplace_bottom_nav_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class MarketplaceAccountScreen extends ConsumerStatefulWidget {
   const MarketplaceAccountScreen({super.key});
@@ -33,7 +35,6 @@ class _MarketplaceAccountScreenState
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Run once per screen mount (safe for navigation)
     if (!_checkedAdmin) {
       _checkedAdmin = true;
       _checkAdminAndRedirect();
@@ -45,7 +46,6 @@ class _MarketplaceAccountScreenState
     if (user == null) return;
 
     try {
-      // Source of truth for admin: RPC is_admin()
       final res = await Supabase.instance.client.rpc('is_admin');
       final isAdmin = res == true;
 
@@ -53,7 +53,6 @@ class _MarketplaceAccountScreenState
 
       setState(() => _isAdmin = isAdmin);
 
-      // If admin, route to admin landing immediately
       if (isAdmin) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
@@ -69,29 +68,42 @@ class _MarketplaceAccountScreenState
     }
   }
 
+  String _getFullName(dynamic profile, {String fallback = 'User'}) {
+    if (profile == null) return fallback;
+    if (profile is Map<String, dynamic>) {
+      return (profile['full_name'] as String?) ?? fallback;
+    }
+    try {
+      return (profile.fullName as String?) ?? fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final user = Supabase.instance.client.auth.currentUser;
     final userProfile = ref.watch(currentUserProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         title: Text(
-          'Account',
-          style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600),
-        ),
+          AppLocalizations.of(context)!.account,
+          style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
       ),
       body: ListView(
         padding: EdgeInsets.all(4.w),
         children: [
+          // ── Profile card ──
           Container(
             padding: EdgeInsets.all(4.w),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: theme.colorScheme.surface,
               borderRadius: BorderRadius.circular(3.w),
               boxShadow: [
                 BoxShadow(
@@ -105,24 +117,23 @@ class _MarketplaceAccountScreenState
               children: [
                 CircleAvatar(
                   radius: 30,
-                  backgroundColor: AppTheme.lightTheme.colorScheme.primary,
+                  backgroundColor: theme.colorScheme.primary,
                   child: Text(
                     userProfile.when(
-                      data: (profile) =>
-                          (profile as dynamic)
-                                  ?.fullName
-                                  ?.substring(0, 1)
-                                  .toUpperCase() ??
-                              'U',
+                      data: (profile) {
+                        final name = _getFullName(profile);
+                        return name.isNotEmpty
+                            ? name.substring(0, 1).toUpperCase()
+                            : 'U';
+                      },
                       loading: () => 'U',
                       error: (_, __) => 'U',
                     ),
                     style: TextStyle(
                       fontSize: 20.sp,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
+                      color: theme.colorScheme.surface,
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
                 SizedBox(width: 4.w),
                 Expanded(
@@ -131,24 +142,21 @@ class _MarketplaceAccountScreenState
                     children: [
                       Text(
                         userProfile.when(
-                          data: (profile) =>
-                              (profile as dynamic)?.fullName ?? 'User',
+                          data: (profile) => _getFullName(profile),
                           loading: () => 'Loading...',
                           error: (_, __) => 'User',
                         ),
                         style: TextStyle(
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(height: 0.5.h),
                       Text(
                         user?.email ?? '',
                         style: TextStyle(
                           fontSize: 12.sp,
-                          color: Colors.grey[600],
-                        ),
-                      ),
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
@@ -162,14 +170,14 @@ class _MarketplaceAccountScreenState
             ),
           ),
 
-          // Fallback admin entry (in case redirect is blocked somewhere)
+          // ── Admin shortcut (only visible to admins) ──
           if (_isAdmin) ...[
             SizedBox(height: 2.h),
             _buildMenuItem(
               context,
               icon: Icons.admin_panel_settings,
-              title: 'Admin Dashboard',
-              subtitle: 'Open admin controls',
+              title: AppLocalizations.of(context)!.adminDashboard,
+              subtitle: AppLocalizations.of(context)!.openAdminControls,
               onTap: () {
                 Navigator.pushNamedAndRemoveUntil(
                   context,
@@ -181,84 +189,43 @@ class _MarketplaceAccountScreenState
           ],
 
           SizedBox(height: 3.h),
+
+          // ── My Activity ──
           Text(
-            'My Activity',
+            AppLocalizations.of(context)!.myActivity,
             style: TextStyle(
               fontSize: 14.sp,
               fontWeight: FontWeight.w600,
-              color: Colors.grey[600],
-            ),
-          ),
+              color: Colors.grey,
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
           _buildMenuItem(
             context,
             icon: Icons.list_alt,
-            title: 'My Ads',
-            subtitle: 'View and manage your listings',
+            title: AppLocalizations.of(context)!.myAds,
+            subtitle: AppLocalizations.of(context)!.viewAndManageYourListings,
             onTap: () {
               Navigator.pushNamed(context, '/my-ads-screen');
             },
           ),
           _buildMenuItem(
             context,
-            icon: Icons.favorite,
-            title: 'Favorites',
-            subtitle: 'Saved listings',
-            onTap: () {},
-          ),
-          _buildMenuItem(
-            context,
             icon: Icons.chat_bubble,
-            title: 'Messages',
-            subtitle: 'Your conversations',
+            title: AppLocalizations.of(context)!.messages,
+            subtitle: AppLocalizations.of(context)!.yourConversations,
             onTap: () {
               Navigator.pushNamed(context, AppRoutes.chatListScreen);
             },
           ),
-          SizedBox(height: 2.h),
-          Text(
-            'Settings',
-            style: TextStyle(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[600],
-            ),
-          ),
-          SizedBox(height: 1.h),
-          _buildMenuItem(
-            context,
-            icon: Icons.notifications,
-            title: 'Notifications',
-            subtitle: 'Manage notification preferences',
-            onTap: () {},
-          ),
-          _buildMenuItem(
-            context,
-            icon: Icons.language,
-            title: 'Language',
-            subtitle: 'English',
-            onTap: () {},
-          ),
-          _buildMenuItem(
-            context,
-            icon: Icons.help,
-            title: 'Help & Support',
-            subtitle: 'Get help with marketplace',
-            onTap: () {},
-          ),
-          _buildMenuItem(
-            context,
-            icon: Icons.privacy_tip,
-            title: 'Privacy Policy',
-            subtitle: 'Read our privacy policy',
-            onTap: () {},
-          ),
-          SizedBox(height: 2.h),
+
+          SizedBox(height: 3.h),
+
+          // ── Logout ──
           _buildMenuItem(
             context,
             icon: Icons.logout,
-            title: 'Logout',
-            subtitle: 'Sign out of your account',
+            title: AppLocalizations.of(context)!.logout,
+            subtitle: AppLocalizations.of(context)!.signOutOfYourAccount,
             onTap: () async {
               await Supabase.instance.client.auth.signOut();
               if (context.mounted) {
@@ -298,13 +265,15 @@ class _MarketplaceAccountScreenState
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
+    final theme = Theme.of(context);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: EdgeInsets.only(bottom: 1.5.h),
         padding: EdgeInsets.all(3.w),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(3.w),
           boxShadow: [
             BoxShadow(
@@ -321,9 +290,7 @@ class _MarketplaceAccountScreenState
               decoration: BoxDecoration(
                 color: isDestructive
                     ? Colors.red[50]
-                    : AppTheme.lightTheme.colorScheme.primary.withValues(
-                        alpha: 0.1,
-                      ),
+                    : theme.colorScheme.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -331,7 +298,7 @@ class _MarketplaceAccountScreenState
                 size: 5.w,
                 color: isDestructive
                     ? Colors.red[600]
-                    : AppTheme.lightTheme.colorScheme.primary,
+                    : theme.colorScheme.primary,
               ),
             ),
             SizedBox(width: 3.w),
@@ -344,18 +311,18 @@ class _MarketplaceAccountScreenState
                     style: TextStyle(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w500,
-                      color: isDestructive ? Colors.red[600] : Colors.black87,
-                    ),
-                  ),
+                      color:
+                          isDestructive ? Colors.red[600] : Colors.black87,
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 0.3.h),
                   Text(
                     subtitle,
-                    style: TextStyle(fontSize: 11.sp, color: Colors.grey[600]),
-                  ),
+                    style:
+                        TextStyle(fontSize: 11.sp, color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, size: 5.w, color: Colors.grey[400]),
+            Icon(Icons.chevron_right, size: 5.w, color: theme.colorScheme.outline),
           ],
         ),
       ),

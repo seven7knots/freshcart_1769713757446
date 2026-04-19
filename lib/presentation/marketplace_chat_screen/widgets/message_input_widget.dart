@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class MessageInputWidget extends StatelessWidget {
   final TextEditingController controller;
@@ -36,10 +37,10 @@ class MessageInputWidget extends StatelessWidget {
                 maxLines: null,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
-                  hintText: 'Type a message...',
+                  hintText: AppLocalizations.of(context)!.typeAMessage,
                   hintStyle: TextStyle(fontSize: 12.sp, color: Colors.grey),
                   filled: true,
-                  fillColor: Colors.grey[100],
+                  fillColor: Colors.grey.shade100,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(6.w),
                     borderSide: BorderSide.none,

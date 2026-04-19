@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 import '../../../models/merchant_model.dart';
 import '../../../providers/merchant_provider.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class MerchantFormWidget extends StatefulWidget {
   final Merchant? merchant;
@@ -27,13 +28,27 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
   late TextEditingController _descriptionController;
   String? _selectedBusinessType;
 
-  final List<String> _businessTypes = [
+  static const List<String> _businessTypes = [
     'restaurant',
     'grocery',
     'pharmacy',
     'retail',
     'services',
+    'bakery',
+    'coffee',
+    'marketplace',
+    'electronics',
+    'fashion',
+    'beauty',
+    'sports',
+    'pets',
+    'home',
+    'other',
   ];
+
+  String _businessTypeLabel(String type) {
+    return type[0].toUpperCase() + type.substring(1);
+  }
 
   @override
   void initState() {
@@ -44,7 +59,33 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
         TextEditingController(text: widget.merchant?.address ?? '');
     _descriptionController =
         TextEditingController(text: widget.merchant?.description ?? '');
-    _selectedBusinessType = widget.merchant?.businessType;
+
+    // Ensure the selected business type is in our list, otherwise null
+    final existingType = widget.merchant?.businessType;
+    if (existingType != null && _businessTypes.contains(existingType)) {
+      _selectedBusinessType = existingType;
+    } else {
+      _selectedBusinessType = null;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant MerchantFormWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Refresh controllers if merchant data changed (e.g. after reload)
+    if (widget.merchant != oldWidget.merchant && widget.merchant != null) {
+      _businessNameController.text = widget.merchant!.businessName;
+      _addressController.text = widget.merchant!.address ?? '';
+      _descriptionController.text = widget.merchant!.description ?? '';
+
+      final existingType = widget.merchant!.businessType;
+      setState(() {
+        _selectedBusinessType =
+            (existingType != null && _businessTypes.contains(existingType))
+                ? existingType
+                : null;
+      });
+    }
   }
 
   @override
@@ -72,7 +113,9 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
       // Create new merchant
       success = await merchantProvider.createMerchant(widget.userId, payload);
     } else {
-      // Update existing merchant
+      // Update existing merchant — BUG 4 FIX:
+      // Use merchant.id (the merchants table PK). If PGRST116 persists,
+      // the provider's updateMerchant now also filters by user_id as fallback.
       success =
           await merchantProvider.updateMerchant(widget.merchant!.id, payload);
     }
@@ -84,10 +127,10 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
         SnackBar(
           content: Text(
             widget.merchant == null
-                ? 'Merchant profile created successfully'
-                : 'Merchant profile updated successfully',
-          ),
+                ? AppLocalizations.of(context)!.merchantProfileCreatedSuccessfully
+                : AppLocalizations.of(context)!.merchantProfileUpdatedSuccessfully, maxLines: 1, overflow: TextOverflow.ellipsis),
           backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
         ),
       );
       widget.onSuccess();
@@ -95,9 +138,9 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            merchantProvider.error ?? 'Failed to save merchant profile',
-          ),
+            merchantProvider.error ?? AppLocalizations.of(context)!.failedToSaveMerchantProfile, maxLines: 1, overflow: TextOverflow.ellipsis),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -105,6 +148,7 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final isEditMode = widget.merchant != null;
 
     return Form(
@@ -116,14 +160,14 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
           Container(
             padding: EdgeInsets.all(3.w),
             decoration: BoxDecoration(
-              color: Colors.blue.shade50,
+              color: theme.colorScheme.primaryContainer.withOpacity(0.3),
               borderRadius: BorderRadius.circular(12.0),
             ),
             child: Row(
               children: [
                 Icon(
                   isEditMode ? Icons.edit : Icons.add_business,
-                  color: Colors.blue,
+                  color: theme.colorScheme.primary,
                   size: 24.sp,
                 ),
                 SizedBox(width: 3.w),
@@ -133,23 +177,21 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
                     children: [
                       Text(
                         isEditMode
-                            ? 'Edit Merchant Profile'
-                            : 'Create Merchant Profile',
+                            ? AppLocalizations.of(context)!.editMerchantProfile
+                            : AppLocalizations.of(context)!.createMerchantProfile,
                         style: TextStyle(
                           fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       SizedBox(height: 0.5.h),
                       Text(
                         isEditMode
-                            ? 'Update your business information'
-                            : 'Set up your merchant account',
+                            ? AppLocalizations.of(context)!.updateYourBusinessInformation
+                            : AppLocalizations.of(context)!.setUpYourMerchantAccount,
                         style: TextStyle(
                           fontSize: 12.sp,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
@@ -160,17 +202,17 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
 
           // Business Name
           Text(
-            'Business Name *',
+            AppLocalizations.of(context)!.businessName2,
             style: TextStyle(
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
           TextFormField(
             controller: _businessNameController,
             decoration: InputDecoration(
-              hintText: 'Enter your business name',
+              hintText: AppLocalizations.of(context)!.enterYourBusinessName,
+              prefixIcon: const Icon(Icons.business),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8.0),
               ),
@@ -179,7 +221,7 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
             ),
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Business name is required';
+                return AppLocalizations.of(context)!.businessNameIsRequired;
               }
               return null;
             },
@@ -188,17 +230,17 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
 
           // Business Type
           Text(
-            'Business Type',
+            AppLocalizations.of(context)!.businessType,
             style: TextStyle(
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
           DropdownButtonFormField<String>(
-            initialValue: _selectedBusinessType,
+            value: _selectedBusinessType,
             decoration: InputDecoration(
-              hintText: 'Select business type',
+              hintText: AppLocalizations.of(context)!.selectBusinessType,
+              prefixIcon: const Icon(Icons.category),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8.0),
               ),
@@ -209,9 +251,8 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
               return DropdownMenuItem(
                 value: type,
                 child: Text(
-                  type[0].toUpperCase() + type.substring(1),
-                  style: TextStyle(fontSize: 14.sp),
-                ),
+                  _businessTypeLabel(type),
+                  style: TextStyle(fontSize: 14.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
               );
             }).toList(),
             onChanged: (value) {
@@ -224,17 +265,17 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
 
           // Address
           Text(
-            'Address *',
+            AppLocalizations.of(context)!.address2,
             style: TextStyle(
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
           TextFormField(
             controller: _addressController,
             decoration: InputDecoration(
-              hintText: 'Enter your business address',
+              hintText: AppLocalizations.of(context)!.enterYourBusinessAddress,
+              prefixIcon: const Icon(Icons.location_on),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8.0),
               ),
@@ -244,7 +285,7 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
             maxLines: 2,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Address is required';
+                return AppLocalizations.of(context)!.addressIsRequired;
               }
               return null;
             },
@@ -253,17 +294,20 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
 
           // Description
           Text(
-            'Description',
+            AppLocalizations.of(context)!.description,
             style: TextStyle(
               fontSize: 14.sp,
               fontWeight: FontWeight.w500,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
           TextFormField(
             controller: _descriptionController,
             decoration: InputDecoration(
-              hintText: 'Describe your business (optional)',
+              hintText: AppLocalizations.of(context)!.describeYourBusinessOptional,
+              prefixIcon: const Padding(
+                padding: EdgeInsets.only(bottom: 48),
+                child: Icon(Icons.description),
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8.0),
               ),
@@ -274,45 +318,85 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
           ),
           SizedBox(height: 3.h),
 
-          // Verification Status (Edit mode only)
+          // SESSION 20 FIX: Verification Status — use isApproved (not isVerified)
+          // The merchant's status='approved' is what matters, not the separate
+          // is_verified boolean which may not be set in the DB.
           if (isEditMode) ...[
             Container(
               padding: EdgeInsets.all(3.w),
               decoration: BoxDecoration(
-                color: widget.merchant!.isVerified
+                color: widget.merchant!.isApproved
                     ? Colors.green.shade50
-                    : Colors.orange.shade50,
+                    : widget.merchant!.isRejected
+                        ? Colors.red.shade50
+                        : Colors.orange.shade50,
                 borderRadius: BorderRadius.circular(8.0),
                 border: Border.all(
-                  color: widget.merchant!.isVerified
+                  color: widget.merchant!.isApproved
                       ? Colors.green.shade200
-                      : Colors.orange.shade200,
+                      : widget.merchant!.isRejected
+                          ? Colors.red.shade200
+                          : Colors.orange.shade200,
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
-                    widget.merchant!.isVerified
+                    widget.merchant!.isApproved
                         ? Icons.verified
-                        : Icons.pending,
-                    color: widget.merchant!.isVerified
+                        : widget.merchant!.isRejected
+                            ? Icons.cancel
+                            : Icons.pending,
+                    color: widget.merchant!.isApproved
                         ? Colors.green
-                        : Colors.orange,
+                        : widget.merchant!.isRejected
+                            ? Colors.red
+                            : Colors.orange,
                     size: 20.sp,
                   ),
                   SizedBox(width: 2.w),
                   Expanded(
-                    child: Text(
-                      widget.merchant!.isVerified
-                          ? 'Verified Merchant'
-                          : 'Verification Pending',
-                      style: TextStyle(
-                        fontSize: 14.sp,
-                        fontWeight: FontWeight.w500,
-                        color: widget.merchant!.isVerified
-                            ? Colors.green.shade800
-                            : Colors.orange.shade800,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.merchant!.isApproved
+                              ? AppLocalizations.of(context)!.verifiedMerchant
+                              : widget.merchant!.isRejected
+                                  ? AppLocalizations.of(context)!.applicationRejected
+                                  : AppLocalizations.of(context)!.verificationPending,
+                          style: TextStyle(
+                            fontSize: 14.sp,
+                            fontWeight: FontWeight.w500,
+                            color: widget.merchant!.isApproved
+                                ? Colors.green.shade800
+                                : widget.merchant!.isRejected
+                                    ? Colors.red.shade800
+                                    : Colors.orange.shade800,
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        if (!widget.merchant!.isApproved &&
+                            !widget.merchant!.isRejected)
+                          Padding(
+                            padding: EdgeInsets.only(top: 0.5.h),
+                            child: Text(
+                              AppLocalizations.of(context)!.yourProfileIsUnderReview,
+                              style: TextStyle(
+                                fontSize: 11.sp,
+                                color: Colors.orange.shade700,
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                        if (widget.merchant!.isRejected &&
+                            widget.merchant!.rejectionReason != null)
+                          Padding(
+                            padding: EdgeInsets.only(top: 0.5.h),
+                            child: Text(
+                              'Reason: ${widget.merchant!.rejectionReason}',
+                              style: TextStyle(
+                                fontSize: 11.sp,
+                                color: Colors.red.shade700,
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
+                          ),
+                      ],
                     ),
                   ),
                 ],
@@ -330,7 +414,8 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
                 child: ElevatedButton(
                   onPressed: merchantProvider.isLoading ? null : _handleSubmit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
@@ -339,24 +424,24 @@ class _MerchantFormWidgetState extends State<MerchantFormWidget> {
                       ? SizedBox(
                           height: 20.sp,
                           width: 20.sp,
-                          child: const CircularProgressIndicator(
+                          child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              theme.colorScheme.onPrimary,
+                            ),
                           ),
                         )
                       : Text(
-                          isEditMode ? 'Save Changes' : 'Create Merchant',
+                          isEditMode ? AppLocalizations.of(context)!.saveChanges2 : AppLocalizations.of(context)!.createMerchant,
                           style: TextStyle(
                             fontSize: 14.sp,
                             fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               );
             },
           ),
+          SizedBox(height: 2.h),
         ],
       ),
     );

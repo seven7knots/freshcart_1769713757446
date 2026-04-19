@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class EmptyCartWidget extends StatelessWidget {
   final VoidCallback? onStartShopping;
@@ -42,13 +43,12 @@ class EmptyCartWidget extends StatelessWidget {
                 ),
                 SizedBox(height: 3.h),
                 Text(
-                  'Your cart is empty',
+                  AppLocalizations.of(context)!.yourCartIsEmpty,
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: theme.colorScheme.onSurface,
                   ),
-                  textAlign: TextAlign.center,
-                ),
+                  textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 1.h),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8.w),
@@ -58,8 +58,7 @@ class EmptyCartWidget extends StatelessWidget {
                       color: theme.colorScheme.onSurfaceVariant,
                       height: 1.4,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
+                    textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ],
             ),
@@ -78,7 +77,7 @@ class EmptyCartWidget extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: 2.h),
               decoration: BoxDecoration(
                 gradient: AppTheme.gradientAccent,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
                     color: theme.colorScheme.primary.withValues(alpha: 0.3),
@@ -96,13 +95,12 @@ class EmptyCartWidget extends StatelessWidget {
                     color: theme.colorScheme.onPrimary,
                   ),
                   SizedBox(width: 2.w),
-                  Text(
-                    'Start Shopping',
+                  Flexible(child: Text(
+                    AppLocalizations.of(context)!.startShopping,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: theme.colorScheme.onPrimary,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ],
               ),
             ),
@@ -116,12 +114,11 @@ class EmptyCartWidget extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Recently Viewed',
+                AppLocalizations.of(context)!.recentlyViewed,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
+                  color: Colors.black87,
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
             SizedBox(height: 2.h),
             SizedBox(
@@ -164,7 +161,7 @@ class EmptyCartWidget extends StatelessWidget {
         width: 35.w,
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: theme.colorScheme.outline.withValues(alpha: 0.1),
           ),
@@ -185,12 +182,12 @@ class EmptyCartWidget extends StatelessWidget {
               width: double.infinity,
               decoration: BoxDecoration(
                 borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(12)),
+                    const BorderRadius.vertical(top: Radius.circular(16)),
                 color: theme.colorScheme.surface,
               ),
               child: ClipRRect(
                 borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(12)),
+                    const BorderRadius.vertical(top: Radius.circular(16)),
                 child: CustomImageWidget(
                   imageUrl: product['image'] ?? '',
                   width: double.infinity,
@@ -224,8 +221,7 @@ class EmptyCartWidget extends StatelessWidget {
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: theme.colorScheme.primary,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -242,19 +238,19 @@ class EmptyCartWidget extends StatelessWidget {
     final quickActions = [
       {
         'icon': 'category',
-        'title': 'Browse Categories',
-        'subtitle': 'Explore all product categories',
+        'title': AppLocalizations.of(context)!.browseCategories,
+        'subtitle': AppLocalizations.of(context)!.exploreAllProductCategories,
         'route': '/home-screen',
       },
       {
         'icon': 'local_offer',
         'title': 'Today\'s Deals',
-        'subtitle': 'Check out special offers',
+        'subtitle': AppLocalizations.of(context)!.checkOutSpecialOffers,
         'route': '/home-screen',
       },
       {
         'icon': 'search',
-        'title': 'Search Products',
+        'title': AppLocalizations.of(context)!.searchProducts2,
         'subtitle': 'Find what you\'re looking for',
         'route': '/search-screen',
       },
@@ -264,12 +260,11 @@ class EmptyCartWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Quick Actions',
+          AppLocalizations.of(context)!.quickActions,
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.w600,
             color: theme.colorScheme.onSurface,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 2.h),
         ...quickActions.map((action) {
           return GestureDetector(
@@ -282,7 +277,7 @@ class EmptyCartWidget extends StatelessWidget {
               padding: EdgeInsets.all(3.w),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: theme.colorScheme.outline.withValues(alpha: 0.1),
                 ),
@@ -293,7 +288,7 @@ class EmptyCartWidget extends StatelessWidget {
                     padding: EdgeInsets.all(3.w),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: CustomIconWidget(
                       iconName: action['icon'] as String,
@@ -311,15 +306,13 @@ class EmptyCartWidget extends StatelessWidget {
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: theme.colorScheme.onSurface,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         SizedBox(height: 0.5.h),
                         Text(
                           action['subtitle'] as String,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   ),

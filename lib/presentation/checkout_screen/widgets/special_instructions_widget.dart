@@ -3,6 +3,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
 import '../../../widgets/custom_icon_widget.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class SpecialInstructionsWidget extends StatelessWidget {
   final TextEditingController controller;
@@ -24,7 +25,7 @@ class SpecialInstructionsWidget extends StatelessWidget {
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: colorScheme.shadow.withValues(alpha: 0.1),
@@ -44,22 +45,20 @@ class SpecialInstructionsWidget extends StatelessWidget {
                 size: 24,
               ),
               SizedBox(width: 3.w),
-              Text(
-                'Special Instructions',
+              Flexible(child: Text(
+                AppLocalizations.of(context)!.specialInstructions,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: colorScheme.onSurface,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
             ],
           ),
           SizedBox(height: 1.h),
           Text(
-            'Add delivery notes for the driver (optional)',
+            AppLocalizations.of(context)!.addDeliveryNotesForTheDriver,
             style: theme.textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 2.h),
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: controller,
@@ -81,21 +80,21 @@ class SpecialInstructionsWidget extends StatelessWidget {
                       filled: true,
                       fillColor: colorScheme.surface,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
                           color: colorScheme.outline.withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
                           color: colorScheme.outline.withValues(alpha: 0.3),
                           width: 1,
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
                           color: colorScheme.primary,
                           width: 2,
@@ -115,8 +114,7 @@ class SpecialInstructionsWidget extends StatelessWidget {
                       color: value.text.length > maxLength * 0.8
                           ? colorScheme.error
                           : colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               );
             },

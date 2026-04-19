@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class DietPreferenceWidget extends StatelessWidget {
   final List<String> dietTypes;
@@ -19,13 +20,12 @@ class DietPreferenceWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Diet Type',
+          AppLocalizations.of(context)!.dietType,
           style: TextStyle(
             color: Colors.white,
             fontSize: 15.sp,
             fontWeight: FontWeight.w600,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
         SizedBox(height: 1.h),
         Wrap(
           spacing: 2.w,
@@ -55,8 +55,7 @@ class DietPreferenceWidget extends StatelessWidget {
                     color: Colors.white,
                     fontSize: 12.sp,
                     fontWeight: FontWeight.w500,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             );
           }).toList(),

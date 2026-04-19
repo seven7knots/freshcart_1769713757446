@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class OrderSummaryWidget extends StatelessWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -34,7 +35,7 @@ class OrderSummaryWidget extends StatelessWidget {
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: colorScheme.shadow.withValues(alpha: 0.1),
@@ -59,7 +60,7 @@ class OrderSummaryWidget extends StatelessWidget {
 
     return InkWell(
       onTap: onToggleExpansion,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
       child: Padding(
         padding: EdgeInsets.all(4.w),
         child: Row(
@@ -69,31 +70,28 @@ class OrderSummaryWidget extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Order Summary',
+                    AppLocalizations.of(context)!.orderSummary,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: colorScheme.onSurface,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   SizedBox(height: 0.5.h),
                   Text(
                     '${cartItems.length} items',
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
             TextButton(
               onPressed: onEditCart,
               child: Text(
-                'Edit Cart',
+                AppLocalizations.of(context)!.editCart,
                 style: theme.textTheme.labelLarge?.copyWith(
                   color: colorScheme.primary,
                   fontWeight: FontWeight.w500,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
             CustomIconWidget(
               iconName:
@@ -136,8 +134,7 @@ class OrderSummaryWidget extends StatelessWidget {
               '+${cartItems.length - 3} more items',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
           SizedBox(height: 2.h),
         ],
@@ -152,7 +149,7 @@ class OrderSummaryWidget extends StatelessWidget {
     return Row(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(14),
           child: CustomImageWidget(
             imageUrl: item['image'] as String,
             width: 12.w,
@@ -180,18 +177,16 @@ class OrderSummaryWidget extends StatelessWidget {
                 'Qty: ${item['quantity']}',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
-        Text(
+        Flexible(child: Text(
           '\$${((item['price'] as double) * (item['quantity'] as int)).toStringAsFixed(2)}',
           style: theme.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w600,
             color: colorScheme.onSurface,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis)),
       ],
     );
   }
@@ -204,7 +199,7 @@ class OrderSummaryWidget extends StatelessWidget {
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
         border: Border(
           top: BorderSide(
             color: colorScheme.outline.withValues(alpha: 0.2),
@@ -214,12 +209,12 @@ class OrderSummaryWidget extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _buildPriceRow(context, 'Subtotal', subtotal),
+          _buildPriceRow(context, AppLocalizations.of(context)!.subtotal, subtotal),
           SizedBox(height: 1.h),
-          _buildPriceRow(context, 'Delivery Fee', deliveryFee),
+          _buildPriceRow(context, AppLocalizations.of(context)!.deliveryFee, deliveryFee),
           if (discount > 0) ...[
             SizedBox(height: 1.h),
-            _buildPriceRow(context, 'Discount', -discount, isDiscount: true),
+            _buildPriceRow(context, AppLocalizations.of(context)!.discount, -discount, isDiscount: true),
           ],
           SizedBox(height: 1.h),
           Divider(
@@ -230,20 +225,18 @@ class OrderSummaryWidget extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Total',
+              Flexible(child: Text(
+                AppLocalizations.of(context)!.total,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: colorScheme.onSurface,
-                ),
-              ),
-              Text(
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
+              Flexible(child: Text(
                 '\$${total.toStringAsFixed(2)}',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w700,
                   color: colorScheme.primary,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
             ],
           ),
         ],
@@ -259,21 +252,19 @@ class OrderSummaryWidget extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
+        Flexible(child: Text(
           label,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: colorScheme.onSurfaceVariant,
-          ),
-        ),
-        Text(
+          ), maxLines: 1, overflow: TextOverflow.ellipsis)),
+        Flexible(child: Text(
           isDiscount
               ? '-\$${amount.abs().toStringAsFixed(2)}'
               : '\$${amount.toStringAsFixed(2)}',
           style: theme.textTheme.bodyMedium?.copyWith(
             color: isDiscount ? AppTheme.accentLight : colorScheme.onSurface,
             fontWeight: FontWeight.w500,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis)),
       ],
     );
   }

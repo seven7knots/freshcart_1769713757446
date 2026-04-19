@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:intl/intl.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class CurrentPlanCardWidget extends StatelessWidget {
   final Map<String, dynamic> subscription;
@@ -51,17 +52,16 @@ class CurrentPlanCardWidget extends StatelessWidget {
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: theme.colorScheme.surface.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20.0),
                 ),
                 child: Text(
-                  'CURRENT PLAN',
+                  AppLocalizations.of(context)!.currentPlan2,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white,
+                    color: theme.colorScheme.surface,
                     fontWeight: FontWeight.w700,
                     fontSize: 12.sp,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.5.h),
@@ -72,42 +72,38 @@ class CurrentPlanCardWidget extends StatelessWidget {
                 child: Text(
                   status.toUpperCase(),
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white,
+                    color: theme.colorScheme.surface,
                     fontWeight: FontWeight.w600,
                     fontSize: 10.sp,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
           SizedBox(height: 2.h),
           Text(
-            plan['name'] ?? 'Unknown Plan',
+            plan['name'] ?? AppLocalizations.of(context)!.unknownPlan,
             style: theme.textTheme.headlineSmall?.copyWith(
-              color: Colors.white,
+              color: theme.colorScheme.surface,
               fontWeight: FontWeight.w700,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 1.h),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
+              Flexible(child: Text(
                 '\$${(plan['price'] ?? 0.0).toStringAsFixed(2)}',
                 style: theme.textTheme.headlineMedium?.copyWith(
-                  color: Colors.white,
+                  color: theme.colorScheme.surface,
                   fontWeight: FontWeight.w700,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
               SizedBox(width: 2.w),
               Padding(
                 padding: EdgeInsets.only(bottom: 0.5.h),
                 child: Text(
                   '/${plan['billing_cycle'] ?? 'month'}',
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.8),
-                  ),
-                ),
+                    color: theme.colorScheme.surface.withValues(alpha: 0.8),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
@@ -121,12 +117,11 @@ class CurrentPlanCardWidget extends StatelessWidget {
                   size: 16,
                 ),
                 SizedBox(width: 2.w),
-                Text(
+                Flexible(child: Text(
                   'Next billing: ${DateFormat('MMM dd, yyyy').format(nextBillingDate)}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: Colors.white.withValues(alpha: 0.8),
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis)),
               ],
             ),
           ],
@@ -144,11 +139,10 @@ class CurrentPlanCardWidget extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'Manage Subscription',
+                AppLocalizations.of(context)!.manageSubscription,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w600,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ),
         ],

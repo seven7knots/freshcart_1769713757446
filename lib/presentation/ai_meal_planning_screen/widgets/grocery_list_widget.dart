@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class GroceryListWidget extends StatelessWidget {
   final Map<String, dynamic> groceryList;
@@ -18,7 +19,9 @@ class GroceryListWidget extends StatelessWidget {
       children: [
         ...groceryList.entries.map((category) {
           final categoryName = category.key;
-          final items = category.value as List;
+          final rawItems = category.value;
+          if (rawItems is! List) return const SizedBox.shrink();
+          final items = rawItems;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,17 +32,32 @@ class GroceryListWidget extends StatelessWidget {
                   color: const Color(0xFFE50914),
                   fontSize: 14.sp,
                   fontWeight: FontWeight.bold,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
               SizedBox(height: 1.h),
               ...items.map((item) {
                 final itemData = item as Map<String, dynamic>;
+
+                // SESSION 29 FIX: AI returns 'item' not 'name' — support both
+                final itemName = (itemData['item'] ?? itemData['name'] ?? '').toString().trim();
+                final quantity = (itemData['quantity'] ?? '').toString().trim();
+                final productId = itemData['product_id']?.toString();
+                final isAvailable = productId != null && productId != 'null' && productId.isNotEmpty;
+
+                // Only show if we have a name
+                if (itemName.isEmpty) return const SizedBox.shrink();
+
                 return Container(
                   margin: EdgeInsets.only(bottom: 1.h),
                   padding: EdgeInsets.all(3.w),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1A1A1A),
                     borderRadius: BorderRadius.circular(2.w),
+                    border: Border.all(
+                      color: isAvailable
+                          ? Colors.green.withOpacity(0.25)
+                          : Colors.white.withOpacity(0.06),
+                      width: 1,
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -49,32 +67,47 @@ class GroceryListWidget extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              itemData['name'] ?? '',
+                              itemName,
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 13.sp,
                                 fontWeight: FontWeight.w500,
                               ),
                               overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
+                              maxLines: 2,
                             ),
-                            Text(
-                              itemData['quantity'] ?? '',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 11.sp,
-                              ),
-                            ),
+                            if (quantity.isNotEmpty)
+                              Text(
+                                quantity,
+                                style: TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 11.sp,
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           ],
                         ),
                       ),
-                      Text(
-                        '\$${(itemData['estimated_price'] ?? 0).toStringAsFixed(2)}',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13.sp,
-                          fontWeight: FontWeight.w600,
+                      const SizedBox(width: 8),
+                      // Show availability badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
                         ),
+                        decoration: BoxDecoration(
+                          color: isAvailable
+                              ? Colors.green.withOpacity(0.15)
+                              : Colors.white.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Text(
+                          isAvailable ? AppLocalizations.of(context)!.inStore : AppLocalizations.of(context)!.notAvailable,
+                          style: TextStyle(
+                            color: isAvailable
+                                ? Colors.greenAccent
+                                : Colors.white38,
+                            fontSize: 10.sp,
+                            fontWeight: FontWeight.w500,
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ),
@@ -84,76 +117,7 @@ class GroceryListWidget extends StatelessWidget {
             ],
           );
         }),
-        SizedBox(
-          width: double.infinity,
-          height: 6.h,
-          child: ElevatedButton(
-            onPressed: () {
-              _showAddToCartConfirmation(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFE50914),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(3.w),
-              ),
-            ),
-            child: Text(
-              'Add All to Cart (\$${totalCost.toStringAsFixed(2)})',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 15.sp,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ),
       ],
-    );
-  }
-
-  void _showAddToCartConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1A1A1A),
-          title: const Text(
-            'Add to Cart',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: Text(
-            'Add all grocery items to your cart?\nTotal: \$${totalCost.toStringAsFixed(2)}',
-            style: const TextStyle(color: Colors.white70),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: Colors.white70),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Items added to cart!'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE50914),
-              ),
-              child: const Text(
-                'Confirm',
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }

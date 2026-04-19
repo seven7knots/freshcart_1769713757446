@@ -4,6 +4,7 @@ import '../../../models/category_model.dart';
 import '../../../routes/app_routes.dart';
 import '../../../services/category_service.dart';
 import './category_edit_dialog.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class AdminCategoriesScreen extends StatefulWidget {
   const AdminCategoriesScreen({super.key});
@@ -26,7 +27,6 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
   }
 
   void _setLoading(bool v) {
-    if (!mounted) return;
     setState(() => _loading = v);
   }
 
@@ -39,7 +39,7 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
       );
       setState(() => _items = rows);
     } catch (e) {
-      _showError('Failed to load categories', e);
+      _showError(AppLocalizations.of(context)!.failedToLoadCategories, e);
     } finally {
       _setLoading(false);
     }
@@ -50,12 +50,12 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(e.toString()),
+        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Text(e.toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(AppLocalizations.of(context)!.ok2, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -75,7 +75,7 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
     try {
       await CategoryService.toggleCategoryStatus(c.id, v);
     } catch (e) {
-      _showError('Failed to update active state', e);
+      _showError(AppLocalizations.of(context)!.failedToUpdateActiveState, e);
       await _refresh();
     }
   }
@@ -94,13 +94,13 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
         showDialog<void>(
           context: context,
           builder: (_) => AlertDialog(
-            title: const Text('Cannot delete'),
-            content: const Text(
-                'This category has subcategories. Delete subcategories first.'),
+            title: Text(AppLocalizations.of(context)!.cannotDelete, maxLines: 1, overflow: TextOverflow.ellipsis),
+            content: Text(
+                AppLocalizations.of(context)!.thisCategoryHasSubcategoriesDeleteSubcategories, maxLines: 1, overflow: TextOverflow.ellipsis),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
+                child: Text(AppLocalizations.of(context)!.ok2, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             ],
           ),
@@ -108,7 +108,7 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
         return;
       }
     } catch (e) {
-      _showError('Failed to validate delete', e);
+      _showError(AppLocalizations.of(context)!.failedToValidateDelete, e);
       _setLoading(false);
       return;
     }
@@ -119,16 +119,16 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Delete Category'),
-        content: Text('Delete "${c.name}"? This cannot be undone.'),
+        title: Text(AppLocalizations.of(context)!.deleteCategory, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Text('Delete "${c.name}"? This cannot be undone.', maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -141,7 +141,7 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
       await CategoryService.deleteCategory(c.id);
       await _refresh();
     } catch (e) {
-      _showError('Failed to delete category', e);
+      _showError(AppLocalizations.of(context)!.failedToDeleteCategory, e);
       _setLoading(false);
     }
   }
@@ -161,7 +161,7 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
       }
       await _refresh();
     } catch (e) {
-      _showError('Failed to reorder categories', e);
+      _showError(AppLocalizations.of(context)!.failedToReorderCategories, e);
       await _refresh();
     }
   }
@@ -204,11 +204,11 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Admin • Categories'),
+        title: Text(AppLocalizations.of(context)!.adminCategories2, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           Row(
             children: [
-              const Text('Show inactive'),
+              Flexible(child: Text(AppLocalizations.of(context)!.showInactive, maxLines: 1, overflow: TextOverflow.ellipsis)),
               Switch(
                 value: _includeInactive,
                 onChanged: (v) {
@@ -224,7 +224,7 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _loading ? null : _openCreateDialog,
         icon: const Icon(Icons.add),
-        label: const Text('Add Category'),
+        label: Text(AppLocalizations.of(context)!.addCategory, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
@@ -232,9 +232,9 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
             ? const Center(child: CircularProgressIndicator())
             : _items.isEmpty
                 ? ListView(
-                    children: const [
+                    children: [
                       SizedBox(height: 120),
-                      Center(child: Text('No categories yet')),
+                      Center(child: Text(AppLocalizations.of(context)!.noCategoriesYet, maxLines: 1, overflow: TextOverflow.ellipsis)),
                     ],
                   )
                 : ReorderableListView.builder(
@@ -245,11 +245,11 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
                       final c = _items[index];
                       return ListTile(
                         key: ValueKey(c.id),
-                        title: Text(c.name),
+                        title: Text(c.name, maxLines: 1, overflow: TextOverflow.ellipsis),
                         subtitle: Text(
-                            'type: ${c.type} • sort_order: ${c.sortOrder}'),
+                            'type: ${c.type} • sort_order: ${c.sortOrder}', maxLines: 1, overflow: TextOverflow.ellipsis),
                         leading: IconButton(
-                          tooltip: c.isActive ? 'Active' : 'Inactive',
+                          tooltip: c.isActive ? AppLocalizations.of(context)!.active2 : AppLocalizations.of(context)!.inactive2,
                           icon: Icon(c.isActive
                               ? Icons.visibility
                               : Icons.visibility_off),
@@ -264,18 +264,18 @@ class _AdminCategoriesScreenState extends State<AdminCategoriesScreen> {
                             if (v == 'edit') _openEditDialog(c);
                             if (v == 'delete') _delete(c);
                           },
-                          itemBuilder: (_) => const [
+                          itemBuilder: (_) => [
                             PopupMenuItem(
                               value: 'sub',
-                              child: Text('Manage subcategories'),
+                              child: Text(AppLocalizations.of(context)!.manageSubcategories, maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
                             PopupMenuItem(
                               value: 'edit',
-                              child: Text('Edit'),
+                              child: Text(AppLocalizations.of(context)!.edit, maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
                             PopupMenuItem(
                               value: 'delete',
-                              child: Text('Delete'),
+                              child: Text(AppLocalizations.of(context)!.delete, maxLines: 1, overflow: TextOverflow.ellipsis),
                             ),
                           ],
                         ),

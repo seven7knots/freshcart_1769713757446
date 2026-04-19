@@ -10,6 +10,7 @@ import '../../routes/app_routes.dart';
 import '../../theme/app_theme.dart';
 import './widgets/message_bubble_widget.dart';
 import './widgets/typing_indicator_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Unified AI Mate screen - combines chat assistant + AI-powered search
 /// into a single clean interface. All AI features accessible from here.
@@ -123,7 +124,7 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
     } catch (e) {
       debugPrint('Recording error: $e');
       setState(() => _isRecording = false);
-      _showSnackBar('Failed to start recording. Please try again.');
+      _showSnackBar(AppLocalizations.of(context)!.failedToStartRecordingPleaseTry);
     }
   }
 
@@ -140,7 +141,7 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
       }
     } catch (e) {
       debugPrint('Stop recording error: $e');
-      _showSnackBar('Failed to process recording.');
+      _showSnackBar(AppLocalizations.of(context)!.failedToProcessRecording);
     } finally {
       setState(() => _isProcessingVoice = false);
     }
@@ -171,7 +172,7 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
       );
     } catch (e) {
       debugPrint('Voice processing error: $e');
-      _showSnackBar('Failed to process voice input.');
+      _showSnackBar(AppLocalizations.of(context)!.failedToProcessVoiceInput);
     }
   }
 
@@ -179,10 +180,10 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content:
-            const Text('Microphone permission is required for voice input'),
+            Text(AppLocalizations.of(context)!.microphonePermissionIsRequiredForVoice, maxLines: 1, overflow: TextOverflow.ellipsis),
         backgroundColor: AppTheme.kjRed,
         action: SnackBarAction(
-          label: 'Settings',
+          label: AppLocalizations.of(context)!.settings,
           textColor: Colors.white,
           onPressed: () => openAppSettings(),
         ),
@@ -193,7 +194,7 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(message, maxLines: 1, overflow: TextOverflow.ellipsis),
         backgroundColor: AppTheme.kjRed,
       ),
     );
@@ -223,14 +224,14 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
             margin: const EdgeInsets.only(top: 12),
             decoration: BoxDecoration(
               color: Colors.white24,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(14),
             ),
           ),
           const SizedBox(height: 8),
           _buildPlusMenuItem(
             icon: Icons.restaurant_menu_rounded,
-            label: 'Meal Planning',
-            subtitle: 'Plan meals, get grocery lists & add to cart',
+            label: AppLocalizations.of(context)!.mealPlanning,
+            subtitle: AppLocalizations.of(context)!.planMealsGetGroceryListsAdd,
             onTap: () {
               Navigator.pop(context);
               Navigator.pushNamed(context, AppRoutes.aiMealPlanning);
@@ -238,8 +239,8 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
           ),
           _buildPlusMenuItem(
             icon: Icons.delete_outline_rounded,
-            label: 'Clear Conversation',
-            subtitle: 'Start a fresh chat',
+            label: AppLocalizations.of(context)!.clearConversation,
+            subtitle: AppLocalizations.of(context)!.startAFreshChat,
             onTap: () {
               ref.read(aiConversationProvider.notifier).clearConversation();
               Navigator.pop(context);
@@ -247,8 +248,8 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
           ),
           _buildPlusMenuItem(
             icon: Icons.help_outline_rounded,
-            label: 'Help & Tips',
-            subtitle: 'Learn what AI Mate can do',
+            label: AppLocalizations.of(context)!.helpTips,
+            subtitle: AppLocalizations.of(context)!.learnWhatAiMateCanDo,
             onTap: () {
               Navigator.pop(context);
               _showHelpSheet();
@@ -270,7 +271,7 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.5.h),
           child: Row(
@@ -295,16 +296,14 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
                         color: Colors.white,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.5),
                         fontSize: 12,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -344,18 +343,17 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
                   margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
                     color: Colors.white24,
-                    borderRadius: BorderRadius.circular(2),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
               ),
-              const Text(
-                'What AI Mate can do',
+              Text(
+                AppLocalizations.of(context)!.whatAiMateCanDo,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 20),
               _buildHelpItem(
                 Icons.search_rounded,
@@ -411,7 +409,7 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
             height: 36,
             decoration: BoxDecoration(
               color: AppTheme.kjRed.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: AppTheme.kjRed, size: 18),
           ),
@@ -426,8 +424,7 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
                     color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 4),
                 Text(
                   description,
@@ -435,8 +432,7 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
                     color: Colors.white.withOpacity(0.5),
                     fontSize: 13,
                     height: 1.4,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
@@ -473,8 +469,7 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
                 child: Text(
                   conversationState.error!,
                   style: const TextStyle(color: Colors.redAccent, fontSize: 13),
-                  textAlign: TextAlign.center,
-                ),
+                  textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
             // Input bar
             _buildInputBar(conversationState),
@@ -499,15 +494,14 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
             SizedBox(height: 12.h),
             // Welcome text
             Text(
-              'What can I help with?',
+              AppLocalizations.of(context)!.whatCanIHelpWith,
               style: TextStyle(
                 color: titleColor,
                 fontSize: 26,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.5,
               ),
-              textAlign: TextAlign.center,
-            ),
+              textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 5.h),
             // Quick suggestion chips
             _buildSuggestionChips(),
@@ -522,8 +516,8 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
     final bool isLight = theme.brightness == Brightness.light;
     final Color chipBg = isLight ? Colors.grey.shade100 : Colors.white.withOpacity(0.06);
     final Color chipBorder = isLight ? Colors.grey.shade300 : Colors.white.withOpacity(0.1);
-    final Color chipIconColor = isLight ? Colors.grey.shade600 : Colors.white.withOpacity(0.5);
-    final Color chipTextColor = isLight ? Colors.grey.shade700 : Colors.white.withOpacity(0.7);
+    final Color chipIconColor = isLight ? Colors.grey : Colors.white.withOpacity(0.5);
+    final Color chipTextColor = isLight ? Colors.grey : Colors.white.withOpacity(0.7);
     final suggestions = [
       _SuggestionItem(
         Icons.search_rounded,
@@ -583,8 +577,7 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
                     style: TextStyle(
                       color: chipTextColor,
                       fontSize: 13,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ],
             ),
@@ -627,9 +620,9 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
 
     // Adaptive colors
     final Color outerBg = isLight ? theme.scaffoldBackgroundColor : const Color(0xFF0D0D0D);
-    final Color barBg = isLight ? Colors.grey.shade200 : const Color(0xFF1A1A1A);
+    final Color barBg = isLight ? Colors.grey.shade200 : Colors.black87;
     final Color barBorder = isLight ? Colors.grey.shade300 : Colors.white.withOpacity(0.08);
-    final Color iconColor = isLight ? Colors.grey.shade600 : Colors.white.withOpacity(0.5);
+    final Color iconColor = isLight ? Colors.grey : Colors.white.withOpacity(0.5);
     final Color textColor = isLight ? Colors.black87 : Colors.white;
     final Color hintColor = isLight ? Colors.grey.shade500 : Colors.white.withOpacity(0.35);
     final Color sendBg = isLight
@@ -691,7 +684,7 @@ class _AIChatAssistantScreenState extends ConsumerState<AIChatAssistantScreen>
                     height: 1.4,
                   ),
                   decoration: InputDecoration(
-                    hintText: _isRecording ? 'Listening...' : 'Ask anything',
+                    hintText: _isRecording ? AppLocalizations.of(context)!.listening : AppLocalizations.of(context)!.askAnything,
                     hintStyle: TextStyle(
                       color: _isRecording ? AppTheme.kjRed : hintColor,
                       fontSize: 15,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
@@ -8,6 +9,7 @@ import '../../widgets/admin_layout_wrapper.dart';
 import './widgets/ad_analytics_widget.dart';
 import './widgets/ad_card_widget.dart';
 import './widgets/ad_creation_wizard_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class AdminAdsManagementScreen extends StatefulWidget {
   const AdminAdsManagementScreen({super.key});
@@ -96,9 +98,9 @@ class _AdminAdsManagementScreenState extends State<AdminAdsManagementScreen>
 
     if (!adminProvider.isAdmin) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Access Denied')),
-        body: const Center(
-          child: Text('You do not have permission to access this page'),
+        appBar: AppBar(title: Text(AppLocalizations.of(context)!.accessDenied, maxLines: 1, overflow: TextOverflow.ellipsis)),
+        body: Center(
+          child: Text(AppLocalizations.of(context)!.youDoNotHavePermissionTo, maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       );
     }
@@ -106,27 +108,27 @@ class _AdminAdsManagementScreenState extends State<AdminAdsManagementScreen>
     return AdminLayoutWrapper(
       currentRoute: AppRoutes.adminAdsManagement,
       child: Scaffold(
-        backgroundColor: Colors.grey[100],
+        backgroundColor: Colors.grey.shade100,
         appBar: AppBar(
-          title: const Text('Ads Management'),
+          title: Text(AppLocalizations.of(context)!.adsManagement, maxLines: 1, overflow: TextOverflow.ellipsis),
           actions: [
             IconButton(
               onPressed: _showAnalytics,
               icon: const CustomIconWidget(iconName: 'analytics', size: 24),
-              tooltip: 'View Analytics',
+              tooltip: AppLocalizations.of(context)!.viewAnalytics,
             ),
             IconButton(
               onPressed: _loadAds,
               icon: const CustomIconWidget(iconName: 'refresh', size: 24),
-              tooltip: 'Refresh',
+              tooltip: AppLocalizations.of(context)!.refresh,
             ),
           ],
           bottom: TabBar(
             controller: _tabController,
-            tabs: const [
-              Tab(text: 'Carousel'),
-              Tab(text: 'Rotating'),
-              Tab(text: 'Fixed'),
+            tabs: [
+              Tab(text: AppLocalizations.of(context)!.carousel),
+              Tab(text: AppLocalizations.of(context)!.rotating),
+              Tab(text: AppLocalizations.of(context)!.fixed),
             ],
           ),
         ),
@@ -137,11 +139,11 @@ class _AdminAdsManagementScreenState extends State<AdminAdsManagementScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Error: $_error'),
+                        Text('Error: $_error', maxLines: 1, overflow: TextOverflow.ellipsis),
                         SizedBox(height: 2.h),
                         ElevatedButton(
                           onPressed: _loadAds,
-                          child: const Text('Retry'),
+                          child: Text(AppLocalizations.of(context)!.retry, maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ],
                     ),
@@ -161,7 +163,7 @@ class _AdminAdsManagementScreenState extends State<AdminAdsManagementScreen>
             color: Colors.white,
             size: 24,
           ),
-          label: const Text('Create Ad'),
+          label: Text(AppLocalizations.of(context)!.createAd, maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       ),
     );
@@ -181,15 +183,13 @@ class _AdminAdsManagementScreenState extends State<AdminAdsManagementScreen>
             SizedBox(height: 2.h),
             Text(
               'No ${format.replaceAll('_', ' ')} ads yet',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+              style: Theme.of(context).textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 1.h),
             Text(
-              'Create your first ad to get started',
+              AppLocalizations.of(context)!.createYourFirstAdToGet,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.outline,
-                  ),
-            ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
           ],
         ),
       );
@@ -232,19 +232,19 @@ class _AdminAdsManagementScreenState extends State<AdminAdsManagementScreen>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Ad'),
-        content: const Text('Are you sure you want to delete this ad?'),
+        title: Text(AppLocalizations.of(context)!.deleteAd, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Text(AppLocalizations.of(context)!.areYouSureYouWantTo4, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).colorScheme.error,
             ),
-            child: const Text('Delete'),
+            child: Text(AppLocalizations.of(context)!.delete, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -256,14 +256,14 @@ class _AdminAdsManagementScreenState extends State<AdminAdsManagementScreen>
         _loadAds();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ad deleted successfully')),
+            SnackBar(content: Text(AppLocalizations.of(context)!.adDeletedSuccessfully, maxLines: 1, overflow: TextOverflow.ellipsis)),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(SnackBar(content: Text('Failed to delete ad: $e')));
+          ).showSnackBar(SnackBar(content: Text('Failed to delete ad: $e', maxLines: 1, overflow: TextOverflow.ellipsis)));
         }
       }
     }
@@ -272,16 +272,33 @@ class _AdminAdsManagementScreenState extends State<AdminAdsManagementScreen>
   Future<void> _updateAdStatus(String adId, String status) async {
     try {
       await _adsService.updateAdStatus(adId, status);
+
+      // SESSION 39: Send push notification when ad goes active
+      if (status == 'active') {
+        try {
+          final ad = await _adsService.getAdById(adId);
+          if (ad != null) {
+            await _adsService.notifyCustomersAboutAd(
+              adId: adId,
+              title: ad['title'] ?? AppLocalizations.of(context)!.newPromotion,
+              description: ad['description'],
+            );
+          }
+        } catch (e) {
+          debugPrint('[ADS] Notification send failed (non-fatal): \$e');
+        }
+      }
+
       _loadAds();
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Ad status updated to $status')));
+        ).showSnackBar(SnackBar(content: Text('Ad status updated to \$status', maxLines: 1, overflow: TextOverflow.ellipsis)));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update ad status: $e')),
+          SnackBar(content: Text('Failed to update ad status: $e', maxLines: 1, overflow: TextOverflow.ellipsis)),
         );
       }
     }

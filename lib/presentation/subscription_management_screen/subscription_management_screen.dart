@@ -7,6 +7,7 @@ import '../../providers/wallet_provider.dart';
 import './widgets/current_plan_card_widget.dart';
 import './widgets/plan_card_widget.dart';
 import './widgets/subscription_management_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class SubscriptionManagementScreen extends ConsumerStatefulWidget {
   const SubscriptionManagementScreen({super.key});
@@ -38,12 +39,11 @@ class _SubscriptionManagementScreenState
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Subscription Plans',
+          AppLocalizations.of(context)!.subscriptionPlans,
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w600,
             color: theme.colorScheme.onSurface,
-          ),
-        ),
+          ), maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
       body: plansAsync.when(
         data: (plans) {
@@ -70,12 +70,11 @@ class _SubscriptionManagementScreenState
 
                 // Section Title
                 Text(
-                  'Available Plans',
+                  AppLocalizations.of(context)!.availablePlans,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: theme.colorScheme.onSurface,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 2.h),
 
                 // Available Plans List
@@ -125,13 +124,12 @@ class _SubscriptionManagementScreenState
                           color: theme.colorScheme.primary,
                         ),
                         SizedBox(width: 2.w),
-                        Text(
-                          _showComparison ? 'Hide Comparison' : 'Compare Plans',
+                        Flexible(child: Text(
+                          _showComparison ? AppLocalizations.of(context)!.hideComparison : AppLocalizations.of(context)!.comparePlans,
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.primary,
                             fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                       ],
                     ),
                   ),
@@ -144,14 +142,13 @@ class _SubscriptionManagementScreenState
                   Container(
                     padding: EdgeInsets.all(4.w),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(12.0),
                     ),
                     child: Text(
-                      'Plan comparison feature coming soon',
+                      AppLocalizations.of(context)!.planComparisonFeatureComingSoon,
                       style: theme.textTheme.bodyMedium,
-                      textAlign: TextAlign.center,
-                    ),
+                      textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ],
 
@@ -177,9 +174,8 @@ class _SubscriptionManagementScreenState
               ),
               SizedBox(height: 2.h),
               Text(
-                'Failed to load subscription plans',
-                style: theme.textTheme.bodyMedium,
-              ),
+                AppLocalizations.of(context)!.failedToLoadSubscriptionPlans,
+                style: theme.textTheme.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis),
             ],
           ),
         ),
@@ -206,12 +202,11 @@ class _SubscriptionManagementScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Payment Options',
+            AppLocalizations.of(context)!.paymentOptions,
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
               color: theme.colorScheme.onSurface,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 2.h),
           _buildPaymentOption(
             'wallet',
@@ -279,14 +274,12 @@ class _SubscriptionManagementScreenState
                     style: theme.textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: theme.colorScheme.onSurface,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   Text(
                     subtitle,
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
@@ -324,7 +317,7 @@ class _SubscriptionManagementScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Successfully subscribed to ${plan.name}'),
+              content: Text('Successfully subscribed to ${plan.name}', maxLines: 1, overflow: TextOverflow.ellipsis),
               backgroundColor: theme.colorScheme.primary,
             ),
           );
@@ -333,7 +326,7 @@ class _SubscriptionManagementScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to subscribe: $e'),
+              content: Text('Failed to subscribe: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
               backgroundColor: theme.colorScheme.error,
             ),
           );
@@ -346,18 +339,17 @@ class _SubscriptionManagementScreenState
     return showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Confirm Subscription'),
+        title: Text(AppLocalizations.of(context)!.confirmSubscription, maxLines: 1, overflow: TextOverflow.ellipsis),
         content: Text(
-          'Subscribe to ${plan.name} for \$${plan.price.toStringAsFixed(2)}/${plan.billingCycle ?? "month"}?',
-        ),
+          'Subscribe to ${plan.name} for \$${plan.price.toStringAsFixed(2)}/${plan.billingCycle ?? "month"}?', maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Subscribe'),
+            child: Text(AppLocalizations.of(context)!.subscribe, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -368,14 +360,13 @@ class _SubscriptionManagementScreenState
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Insufficient Balance'),
+        title: Text(AppLocalizations.of(context)!.insufficientBalance, maxLines: 1, overflow: TextOverflow.ellipsis),
         content: Text(
-          'Your wallet balance is insufficient. Please top up or choose cash payment.',
-        ),
+          AppLocalizations.of(context)!.yourWalletBalanceIsInsufficientPlease, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('OK'),
+            child: Text(AppLocalizations.of(context)!.ok2, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -413,7 +404,7 @@ class _SubscriptionManagementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Subscription paused'),
+            content: Text(AppLocalizations.of(context)!.subscriptionPaused, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: theme.colorScheme.primary,
           ),
         );
@@ -422,7 +413,7 @@ class _SubscriptionManagementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to pause subscription'),
+            content: Text(AppLocalizations.of(context)!.failedToPauseSubscription, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: theme.colorScheme.error,
           ),
         );
@@ -439,7 +430,7 @@ class _SubscriptionManagementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Subscription resumed'),
+            content: Text(AppLocalizations.of(context)!.subscriptionResumed, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: theme.colorScheme.primary,
           ),
         );
@@ -448,7 +439,7 @@ class _SubscriptionManagementScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to resume subscription'),
+            content: Text(AppLocalizations.of(context)!.failedToResumeSubscription, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: theme.colorScheme.error,
           ),
         );
@@ -461,19 +452,19 @@ class _SubscriptionManagementScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Cancel Subscription'),
-        content: Text('Are you sure you want to cancel your subscription?'),
+        title: Text(AppLocalizations.of(context)!.cancelSubscription, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Text(AppLocalizations.of(context)!.areYouSureYouWantTo3, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('No'),
+            child: Text(AppLocalizations.of(context)!.no2, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.error,
             ),
-            child: Text('Yes, Cancel'),
+            child: Text(AppLocalizations.of(context)!.yesCancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -487,7 +478,7 @@ class _SubscriptionManagementScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Subscription cancelled'),
+              content: Text(AppLocalizations.of(context)!.subscriptionCancelled, maxLines: 1, overflow: TextOverflow.ellipsis),
               backgroundColor: theme.colorScheme.primary,
             ),
           );
@@ -496,7 +487,7 @@ class _SubscriptionManagementScreenState
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Failed to cancel subscription'),
+              content: Text(AppLocalizations.of(context)!.failedToCancelSubscription, maxLines: 1, overflow: TextOverflow.ellipsis),
               backgroundColor: theme.colorScheme.error,
             ),
           );

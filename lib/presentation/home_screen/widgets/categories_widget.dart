@@ -12,6 +12,8 @@ import '../../../services/supabase_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../widgets/admin_editable_item_wrapper.dart';
 import '../../../widgets/custom_image_widget.dart';
+import '../../../widgets/shimmer_placeholder.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class CategoriesWidget extends StatefulWidget {
   const CategoriesWidget({super.key});
@@ -30,7 +32,10 @@ class _CategoriesWidgetState extends State<CategoriesWidget> {
   void initState() {
     super.initState();
     _loadRootCategories();
-    _loadMarketplaceImage();
+    // Defer marketplace image — it's cosmetic, not critical for first paint
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) _loadMarketplaceImage();
+    });
   }
 
   Future<void> _loadRootCategories() async {
@@ -68,7 +73,7 @@ class _CategoriesWidgetState extends State<CategoriesWidget> {
       if (url.isNotEmpty) {
         if (mounted) setState(() => _marketplaceImageUrl = url);
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('[CATEGORIES_WIDGET] Silent error: $e'); }
   }
 
   /// Save marketplace image URL to app_config (or just storage)
@@ -109,22 +114,22 @@ class _CategoriesWidgetState extends State<CategoriesWidget> {
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.5.h),
           child: Row(children: [
-            Expanded(child: Text('Categories', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700))),
-            if (isEditMode) _adminButton('Manage', Icons.settings, () => Navigator.pushNamed(context, AppRoutes.adminCategories)),
+            Expanded(child: Text(AppLocalizations.of(context)!.categories, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis)),
+            if (isEditMode) _adminButton(AppLocalizations.of(context)!.manage, Icons.settings, () => Navigator.pushNamed(context, AppRoutes.adminCategories)),
             IconButton(onPressed: _loadRootCategories, icon: const Icon(Icons.refresh, size: 20)),
           ]),
         ),
         if (_isLoading)
-          Padding(padding: EdgeInsets.all(4.w), child: const Center(child: CircularProgressIndicator()))
+          const ShimmerCategoriesRow()
         else if (_error != null)
           Padding(padding: EdgeInsets.symmetric(horizontal: 4.w), child: Row(children: [
             Icon(Icons.error_outline, color: theme.colorScheme.error, size: 18),
             SizedBox(width: 2.w),
-            Expanded(child: Text('Failed to load', style: theme.textTheme.bodySmall)),
+            Expanded(child: Text(AppLocalizations.of(context)!.failedToLoad, style: theme.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis)),
             IconButton(onPressed: _loadRootCategories, icon: const Icon(Icons.refresh, size: 18)),
           ]))
         else if (_categories.isEmpty)
-          Padding(padding: EdgeInsets.all(4.w), child: Center(child: Text('No categories yet', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline))))
+          Padding(padding: EdgeInsets.all(4.w), child: Center(child: Text(AppLocalizations.of(context)!.noCategoriesYet, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.outline), maxLines: 1, overflow: TextOverflow.ellipsis)))
         else
           _buildCarousel(theme, isEditMode),
       ]),
@@ -139,7 +144,7 @@ class _CategoriesWidgetState extends State<CategoriesWidget> {
         decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(20)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Icon(icon, color: Colors.white, size: 14), SizedBox(width: 1.w),
-          Text(label, style: TextStyle(color: Colors.white, fontSize: 9.sp, fontWeight: FontWeight.w600)),
+          Flexible(child: Text(label, style: TextStyle(color: Colors.white, fontSize: 9.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
         ]),
       ),
     );
@@ -199,7 +204,7 @@ class _CategoriesWidgetState extends State<CategoriesWidget> {
                     gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
                       colors: [Colors.transparent, AppTheme.kjRed.withOpacity(0.85)]),
                   ),
-                  child: Text('Marketplace', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 9.sp),
+                  child: Text(AppLocalizations.of(context)!.marketplace, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 9.sp),
                     textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                 )),
               ])
@@ -208,8 +213,8 @@ class _CategoriesWidgetState extends State<CategoriesWidget> {
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   Icon(Icons.storefront, color: AppTheme.kjRed, size: 8.w),
                   SizedBox(height: 0.8.h),
-                  Text('Marketplace', style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.kjRed, fontSize: 9.sp),
-                    textAlign: TextAlign.center),
+                  Text(AppLocalizations.of(context)!.marketplace, style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.kjRed, fontSize: 9.sp),
+                    textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
                 ]),
               ),
       ),
@@ -249,7 +254,7 @@ class _CategoriesWidgetState extends State<CategoriesWidget> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Uploading marketplace image...'), duration: Duration(seconds: 2)),
+        SnackBar(content: Text(AppLocalizations.of(context)!.uploadingMarketplaceImage, maxLines: 1, overflow: TextOverflow.ellipsis), duration: Duration(seconds: 2)),
       );
 
       final user = SupabaseService.client.auth.currentUser;
@@ -286,13 +291,13 @@ class _CategoriesWidgetState extends State<CategoriesWidget> {
       if (mounted) {
         setState(() => _marketplaceImageUrl = publicUrl);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Marketplace image updated!'), backgroundColor: Colors.green),
+          SnackBar(content: Text(AppLocalizations.of(context)!.marketplaceImageUpdated, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.green),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Failed to upload: $e', maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red),
         );
       }
     }
@@ -326,7 +331,7 @@ class _CategoriesWidgetState extends State<CategoriesWidget> {
                     gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
                       colors: [Colors.transparent, Colors.black.withOpacity(0.7)]),
                   ),
-                  child: Text(category.name, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 9.sp),
+                  child: Text(category.name, style: TextStyle(color: theme.colorScheme.surface, fontWeight: FontWeight.w700, fontSize: 9.sp),
                     textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
                 )),
               ])

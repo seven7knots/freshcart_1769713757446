@@ -15,6 +15,8 @@ import '../../../services/marketplace_service.dart';
 import '../../../services/product_service.dart';
 import '../../../services/store_service.dart';
 import '../../../services/supabase_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class ContentEditModalWidget extends StatefulWidget {
   final String contentType;
@@ -63,7 +65,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
   bool _searchingCats = false;
   bool _searchingSubs = false;
 
-  // ── Product-in-store: auto-assigned store + store category picker ──
+  // — Product-in-store: auto-assigned store + store category picker —
   bool _storePreAssigned = false;
   String? _preAssignedStoreId;
   String? _preAssignedStoreName;
@@ -123,7 +125,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
       if (mounted && store != null) {
         setState(() => _preAssignedStoreName = store.name);
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('[CONTENT_EDIT_MODAL_WIDGET] Silent error: $e'); }
   }
 
   Future<void> _loadStoreCategoriesForProduct(String storeId) async {
@@ -179,7 +181,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Pick failed: $e')),
+          SnackBar(content: Text('Pick failed: $e', maxLines: 1, overflow: TextOverflow.ellipsis)),
         );
       }
     }
@@ -191,8 +193,8 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
       final user = SupabaseService.client.auth.currentUser;
       if (user == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('You must be logged in to upload images'),
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context)!.youMustBeLoggedInTo, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.red,
           ));
         }
@@ -231,13 +233,13 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
       );
 
       final publicUrl = SupabaseService.client.storage.from(bucket).getPublicUrl(path);
-      debugPrint('[UPLOAD] ✅ Success: $publicUrl');
+      debugPrint('[UPLOAD] Success: $publicUrl');
       return publicUrl;
     } catch (e) {
-      debugPrint('[UPLOAD] ❌ Failed: $e');
+      debugPrint('[UPLOAD] Failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Image upload failed: $e'),
+          content: Text('Image upload failed: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 8),
         ));
@@ -296,22 +298,34 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
   }
 
   // ============================================================
-  // SAVE DISPATCHER
+  // SAVE DISPATCHER — ENHANCED WITH FULL DEBUG LOGGING
   // ============================================================
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    debugPrint('[SAVE] _save() called, contentType=${widget.contentType} isLoading=$_isLoading isCreate=$_isCreate');
+    if (!_formKey.currentState!.validate()) {
+      debugPrint('[SAVE] Form validation FAILED');
+      return;
+    }
+    debugPrint('[SAVE] Form validation passed');
 
     if (_isCreate && widget.contentType == 'product' && !_storePreAssigned && _selectedStore == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a store'), backgroundColor: Colors.red),
-      );
+      debugPrint('[SAVE] ERROR: No store selected for product create');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.pleaseSelectAStore, maxLines: 1, overflow: TextOverflow.ellipsis), backgroundColor: Colors.red),
+        );
+      }
       return;
     }
 
     setState(() => _isLoading = true);
     try {
+      debugPrint('[SAVE] Starting image upload...');
       final imgUrl = await _uploadImage();
+      debugPrint('[SAVE] Image upload result: $imgUrl');
+
+      debugPrint('[SAVE] Dispatching save for type: ${widget.contentType}');
       switch (widget.contentType) {
         case 'ad':
           await _saveAd(imgUrl);
@@ -326,11 +340,22 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
         default:
           throw Exception('Unsupported: ${widget.contentType}');
       }
+      debugPrint('[SAVE] ✅ Save successful! Closing modal and calling onSaved...');
+      // FIX: Close modal FIRST, then trigger refresh callback
+      if (mounted) {
+        Navigator.pop(context);
+      }
       widget.onSaved();
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[SAVE] ❌ ERROR: $e');
+      debugPrint('[SAVE] Stack trace: $stack');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Error: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 6),
+          ),
         );
       }
     } finally {
@@ -345,7 +370,8 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
   Future<void> _saveAd(String? img) async {
     final svc = AdsService();
     if (_isCreate) {
-      await svc.createAd(
+      debugPrint('[SAVE_AD] Creating ad: ${_titleCtrl.text.trim()}');
+      final ad = await svc.createAd(
         title: _titleCtrl.text.trim(),
         description: _descCtrl.text.trim(),
         format: 'banner',
@@ -353,6 +379,20 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
         linkType: 'external',
         externalUrl: _linkCtrl.text.trim().isNotEmpty ? _linkCtrl.text.trim() : null,
       );
+      debugPrint('[SAVE_AD] Ad created: ${ad['id']}');
+      // Send push notification to all customers
+      try {
+        await svc.notifyCustomersAboutAd(
+          adId: ad['id'],
+          title: _titleCtrl.text.trim(),
+          description: _descCtrl.text.trim().isNotEmpty
+              ? _descCtrl.text.trim()
+              : null,
+        );
+        debugPrint('[SAVE_AD] Notifications sent');
+      } catch (notifErr) {
+        debugPrint('[SAVE_AD] Notification failed (non-fatal): $notifErr');
+      }
     } else {
       await svc.updateAd(widget.contentId!, {
         'title': _titleCtrl.text.trim(),
@@ -361,11 +401,12 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
         if (img != null) 'image_url': img,
         if (_linkCtrl.text.trim().isNotEmpty) 'target_route': _linkCtrl.text.trim(),
       });
+      debugPrint('[SAVE_AD] Ad updated');
     }
   }
 
   // ============================================================
-  // SAVE: PRODUCT
+  // SAVE: PRODUCT — ENHANCED WITH FULL DEBUG LOGGING
   // ============================================================
 
   Future<void> _saveProduct(String? img) async {
@@ -373,7 +414,18 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
       final sid = _storePreAssigned
           ? _preAssignedStoreId!
           : (_selectedStore?.id ?? (widget.contentData?['store_id'] ?? '').toString().trim());
-      if (sid.isEmpty) throw Exception('Select a store first');
+      debugPrint('[SAVE_PRODUCT] Creating product:');
+      debugPrint('[SAVE_PRODUCT]   storeId=$sid');
+      debugPrint('[SAVE_PRODUCT]   storePreAssigned=$_storePreAssigned');
+      debugPrint('[SAVE_PRODUCT]   selectedStore=${_selectedStore?.name} (id: ${_selectedStore?.id})');
+      debugPrint('[SAVE_PRODUCT]   name=${_titleCtrl.text.trim()}');
+      debugPrint('[SAVE_PRODUCT]   price=${_priceCtrl.text.trim()}');
+      debugPrint('[SAVE_PRODUCT]   imageUrl=$img');
+
+      if (sid.isEmpty) {
+        debugPrint('[SAVE_PRODUCT] ❌ Store ID is empty!');
+        throw Exception('Select a store first');
+      }
 
       String? categoryName;
       if (_selectedStoreCategoryId != null && _selectedStoreCategoryId!.isNotEmpty) {
@@ -382,7 +434,9 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
             .firstOrNull;
         categoryName = match?.name ?? _selectedStoreCategoryId;
       }
+      debugPrint('[SAVE_PRODUCT]   category=$categoryName');
 
+      debugPrint('[SAVE_PRODUCT] Calling ProductService.createProduct...');
       await ProductService.createProduct(
         storeId: sid,
         name: _titleCtrl.text.trim(),
@@ -392,6 +446,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
         imageUrl: img,
         category: categoryName,
       );
+      debugPrint('[SAVE_PRODUCT] ✅ Product created successfully');
     } else {
       String? categoryName;
       if (_selectedStoreCategoryId != null && _selectedStoreCategoryId!.isNotEmpty) {
@@ -401,6 +456,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
         categoryName = match?.name ?? _selectedStoreCategoryId;
       }
 
+      debugPrint('[SAVE_PRODUCT] Updating product: ${widget.contentId}');
       await ProductService.updateProduct(widget.contentId!, {
         'name': _titleCtrl.text.trim(),
         'description': _descCtrl.text.trim(),
@@ -409,6 +465,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
         if (img != null) 'image_url': img,
         if (categoryName != null) 'category': categoryName,
       });
+      debugPrint('[SAVE_PRODUCT] ✅ Product updated successfully');
     }
   }
 
@@ -418,6 +475,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
 
   Future<void> _saveStore(String? img) async {
     if (_isCreate) {
+      debugPrint('[SAVE_STORE] Creating store: ${_titleCtrl.text.trim()}');
       await StoreService.createStore(
         name: _titleCtrl.text.trim(),
         description: _descCtrl.text.trim(),
@@ -427,6 +485,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
         subcategoryId: _selectedSubcategory?.id,
         category: _storeCategoryType,
       );
+      debugPrint('[SAVE_STORE] ✅ Store created');
     } else {
       await StoreService.updateStore(widget.contentId!, {
         'name': _titleCtrl.text.trim(),
@@ -438,6 +497,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
         if (_selectedSubcategory != null) 'subcategory_id': _selectedSubcategory!.id,
         'category': _storeCategoryType,
       });
+      debugPrint('[SAVE_STORE] ✅ Store updated');
     }
   }
 
@@ -524,7 +584,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
             margin: EdgeInsets.symmetric(vertical: 2.h),
             decoration: BoxDecoration(
               color: theme.colorScheme.outline,
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(14),
             ),
           ),
           // Header
@@ -533,9 +593,8 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
             child: Row(children: [
               Expanded(
                 child: Text(
-                  '${_isCreate ? "Create" : "Edit"} ${widget.contentType.toUpperCase()}',
-                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-                ),
+                  '${_isCreate ? AppLocalizations.of(context)!.create2 : "Edit"} ${widget.contentType.toUpperCase()}',
+                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               IconButton(
                 onPressed: _isLoading ? null : () => Navigator.pop(context),
@@ -556,18 +615,18 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
                   SizedBox(height: 2.h),
                   TextFormField(
                     controller: _titleCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Title / Name',
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.titleName,
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.title),
                     ),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                    validator: (v) => (v == null || v.trim().isEmpty) ? AppLocalizations.of(context)!.required : null,
                   ),
                   SizedBox(height: 2.h),
                   TextFormField(
                     controller: _descCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Description',
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.of(context)!.description,
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.description),
                     ),
@@ -577,8 +636,8 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
                     SizedBox(height: 2.h),
                     TextFormField(
                       controller: _priceCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Price',
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.price,
                         border: OutlineInputBorder(),
                         prefixText: '\$ ',
                         prefixIcon: Icon(Icons.attach_money),
@@ -616,8 +675,8 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
                     SizedBox(height: 2.h),
                     TextFormField(
                       controller: _linkCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Link Target',
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.linkTarget,
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.link),
                       ),
@@ -625,8 +684,8 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
                   ],
                   SizedBox(height: 2.h),
                   SwitchListTile(
-                    title: const Text('Active'),
-                    subtitle: Text(_isActive ? 'Visible' : 'Hidden'),
+                    title: Text(AppLocalizations.of(context)!.active, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    subtitle: Text(_isActive ? AppLocalizations.of(context)!.visible : AppLocalizations.of(context)!.hidden, maxLines: 1, overflow: TextOverflow.ellipsis),
                     value: _isActive,
                     activeThumbColor: theme.colorScheme.primary,
                     onChanged: _isLoading ? null : (v) => setState(() => _isActive = v),
@@ -638,13 +697,13 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
                     child: ElevatedButton.icon(
                       onPressed: _isLoading ? null : _save,
                       icon: _isLoading
-                          ? const SizedBox(
+                          ? SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.surface),
                             )
                           : Icon(_isCreate ? Icons.add : Icons.save),
-                      label: Text(_isCreate ? 'Create' : 'Save Changes'),
+                      label: Text(_isCreate ? AppLocalizations.of(context)!.create2 : AppLocalizations.of(context)!.saveChanges2, maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ),
                   SizedBox(height: 2.h),
@@ -663,7 +722,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
 
   Widget _buildPreAssignedStoreInfo(ThemeData t) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Store', style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+      Text(AppLocalizations.of(context)!.store, style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
       SizedBox(height: 1.h),
       Container(
         padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.5.h),
@@ -677,9 +736,8 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
           SizedBox(width: 2.w),
           Expanded(
             child: Text(
-              _preAssignedStoreName ?? 'Loading...',
-              style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-            ),
+              _preAssignedStoreName ?? AppLocalizations.of(context)!.loading,
+              style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           const Icon(Icons.check_circle, color: Colors.green, size: 20),
         ]),
@@ -688,15 +746,15 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
   }
 
   // ============================================================
-  // STORE CATEGORY PICKER
+  // STORE CATEGORY PICKER — FIX: initialValue → value
   // ============================================================
 
   Widget _buildStoreCategoryPicker(ThemeData t) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Category (optional)', style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+      Text(AppLocalizations.of(context)!.categoryOptional, style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
       SizedBox(height: 0.5.h),
-      Text('Assign to a store category or leave empty',
-          style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant)),
+      Text(AppLocalizations.of(context)!.assignToAStoreCategoryOr,
+          style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
       SizedBox(height: 1.h),
       if (_loadingStoreCategories)
         const Padding(
@@ -717,35 +775,34 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
             SizedBox(width: 2.w),
             Expanded(
               child: Text(
-                'No categories in this store yet. Product will be added without a category.',
-                style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant),
-              ),
+                AppLocalizations.of(context)!.noCategoriesInThisStoreYet,
+                style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ]),
         )
       else
         DropdownButtonFormField<String?>(
-          initialValue: _selectedStoreCategoryId,
+          value: _selectedStoreCategoryId, // FIX: was initialValue (not a valid Flutter parameter)
           decoration: InputDecoration(
             border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.category_outlined),
-            hintText: 'No category (direct to store)',
+            hintText: AppLocalizations.of(context)!.noCategoryDirectToStore,
             hintStyle: t.textTheme.bodyMedium?.copyWith(color: t.colorScheme.onSurfaceVariant),
           ),
           items: [
-            const DropdownMenuItem<String?>(value: null, child: Text('No category (direct to store)')),
+            DropdownMenuItem<String?>(value: null, child: Text(AppLocalizations.of(context)!.noCategoryDirectToStore, maxLines: 1, overflow: TextOverflow.ellipsis)),
             ..._storeCategoriesForProduct.map((cat) => DropdownMenuItem<String?>(
                   value: cat.id,
                   child: Row(children: [
                     if (cat.imageUrl != null && cat.imageUrl!.isNotEmpty) ...[
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: Image.network(
+                        borderRadius: BorderRadius.circular(10),
+                        child: CachedNetworkImage(imageUrl: 
                           cat.imageUrl!,
                           width: 24,
                           height: 24,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
+                          errorWidget: (_, __, ___) =>
                               Icon(Icons.category, size: 20, color: t.colorScheme.primary),
                         ),
                       ),
@@ -754,7 +811,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
                       Icon(Icons.category, size: 20, color: t.colorScheme.primary),
                       SizedBox(width: 2.w),
                     ],
-                    Flexible(child: Text(cat.name)),
+                    Flexible(child: Text(cat.name, maxLines: 1, overflow: TextOverflow.ellipsis)),
                   ]),
                 )),
           ],
@@ -769,7 +826,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
 
   Widget _imgPicker(ThemeData t) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Image', style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+      Text(AppLocalizations.of(context)!.image, style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
       SizedBox(height: 1.h),
       GestureDetector(
         onTap: _pickImage,
@@ -778,12 +835,12 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
           height: 18.h,
           decoration: BoxDecoration(
             color: t.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(color: t.colorScheme.outline.withOpacity(0.4), width: 1.5),
           ),
           child: _pickedImage != null
               ? ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   child: kIsWeb
                       ? FutureBuilder<Uint8List>(
                           future: _pickedImage!.readAsBytes(),
@@ -796,11 +853,11 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
               : _existingImageUrl != null
                   ? Stack(fit: StackFit.expand, children: [
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
+                        borderRadius: BorderRadius.circular(16),
+                        child: CachedNetworkImage(imageUrl: 
                           _existingImageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _imgPlaceholder(t),
+                          errorWidget: (_, __, ___) => _imgPlaceholder(t),
                         ),
                       ),
                       Positioned(
@@ -809,13 +866,13 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.black54,
+                            color: Colors.grey,
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
                             Icon(Icons.edit, color: Colors.white, size: 16),
                             SizedBox(width: 4),
-                            Text('Change', style: TextStyle(color: Colors.white, fontSize: 12)),
+                            Flexible(child: Text(AppLocalizations.of(context)!.change, style: TextStyle(color: Colors.white, fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis)),
                           ]),
                         ),
                       ),
@@ -832,7 +889,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
           Icon(Icons.add_photo_alternate_outlined, size: 10.w, color: t.colorScheme.onSurfaceVariant),
           SizedBox(height: 1.h),
           Text('Tap to select from gallery',
-              style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant)),
+              style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
         ],
       );
 
@@ -947,39 +1004,43 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
             .toList(),
       );
 
+  // ============================================================
+  // STORE CATEGORY TYPE DROPDOWN — FIX: initialValue → value
+  // ============================================================
+
   Widget _buildStoreCategoryTypeDropdown(ThemeData t) {
-    const types = <String, String>{
-      'food': 'Food',
-      'grocery': 'Grocery',
+    final types = <String, String>{
+      'food': AppLocalizations.of(context)!.food,
+      'grocery': AppLocalizations.of(context)!.grocery,
       'pharmacy': 'Pharmacy',
       'retail': 'Retail',
-      'restaurant': 'Restaurant',
+      'restaurant': AppLocalizations.of(context)!.restaurant,
       'marketplace': 'Marketplace',
       'services': 'Services',
-      'electronics': 'Electronics',
-      'fashion': 'Fashion',
-      'beauty': 'Beauty',
-      'sports': 'Sports',
-      'pets': 'Pets',
+      'electronics': AppLocalizations.of(context)!.electronics,
+      'fashion': AppLocalizations.of(context)!.fashion,
+      'beauty': AppLocalizations.of(context)!.beauty,
+      'sports': AppLocalizations.of(context)!.sports,
+      'pets': AppLocalizations.of(context)!.pets,
       'home': 'Home',
-      'bakery': 'Bakery',
-      'coffee': 'Coffee',
+      'bakery': AppLocalizations.of(context)!.bakery,
+      'coffee': AppLocalizations.of(context)!.coffee,
       'other': 'Other',
     };
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Store Type *', style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+      Text(AppLocalizations.of(context)!.storeType, style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
       SizedBox(height: 1.h),
       DropdownButtonFormField<String>(
-        initialValue: _storeCategoryType,
+        value: _storeCategoryType, // FIX: was initialValue (not a valid Flutter parameter)
         decoration: const InputDecoration(
           border: OutlineInputBorder(),
           prefixIcon: Icon(Icons.label_outline),
         ),
-        items: types.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value))).toList(),
+        items: types.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, maxLines: 1, overflow: TextOverflow.ellipsis))).toList(),
         onChanged: (v) {
           if (v != null) setState(() => _storeCategoryType = v);
         },
-        validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+        validator: (v) => (v == null || v.isEmpty) ? AppLocalizations.of(context)!.required : null,
       ),
     ]);
   }
@@ -1003,7 +1064,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
     required List<_SearchItem> results,
   }) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+      Text(label, style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
       SizedBox(height: 1.h),
       if (selected != null) ...[
         Container(
@@ -1017,7 +1078,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
             Icon(selectedIcon, color: selectedColor, size: 20),
             SizedBox(width: 2.w),
             Expanded(
-              child: Text(selected, style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+              child: Text(selected, style: t.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
             IconButton(icon: const Icon(Icons.close, size: 18), onPressed: onClear),
           ]),
@@ -1046,7 +1107,7 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
           margin: EdgeInsets.only(top: 0.5.h),
           decoration: BoxDecoration(
             color: t.colorScheme.surface,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: t.colorScheme.outline.withOpacity(0.3)),
             boxShadow: [BoxShadow(color: t.colorScheme.shadow.withOpacity(0.1), blurRadius: 4)],
           ),
@@ -1057,9 +1118,9 @@ class _ContentEditModalWidgetState extends State<ContentEditModalWidget> {
             itemBuilder: (_, i) => ListTile(
               dense: true,
               leading: Icon(results[i].icon, size: 20),
-              title: Text(results[i].title),
+              title: Text(results[i].title, maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: results[i].subtitle != null
-                  ? Text(results[i].subtitle!, style: t.textTheme.bodySmall)
+                  ? Text(results[i].subtitle!, style: t.textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis)
                   : null,
               onTap: results[i].onTap,
             ),

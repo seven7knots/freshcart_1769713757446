@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class SubcategoryFilterWidget extends StatelessWidget {
   final String? selectedType;
@@ -17,9 +18,9 @@ class SubcategoryFilterWidget extends StatelessWidget {
 
     // Keep these values aligned with your categories.type values if you use them.
     final options = <String, String>{
-      'all': 'All',
+      'all': AppLocalizations.of(context)!.all2,
       'product': 'Products',
-      'service': 'Services',
+      'service': AppLocalizations.of(context)!.services,
       'marketplace': 'Marketplace',
     };
 
@@ -57,8 +58,7 @@ class SubcategoryFilterWidget extends StatelessWidget {
               color: isSelected
                   ? theme.colorScheme.onPrimaryContainer
                   : theme.colorScheme.onSurface,
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       );
     }

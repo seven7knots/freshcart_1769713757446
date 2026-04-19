@@ -13,20 +13,26 @@ class OrderTrackingProvider extends ChangeNotifier {
   Map<String, dynamic>? _driverLocation;
   String? _error;
   bool _isLoading = false;
+  bool _disposed = false;
 
   OrderModel? get currentOrder => _currentOrder;
   Map<String, dynamic>? get driverLocation => _driverLocation;
   String? get error => _error;
   bool get isLoading => _isLoading;
 
+  /// Safe notifyListeners that checks disposed state
+  void _safeNotify() {
+    if (!_disposed) {
+      notifyListeners();
+    }
+  }
+
   /// Subscribe to order status changes.
-  /// Fetches the order with a simple select (no risky joins) and sets up
-  /// real-time listeners for status changes and driver location.
   Future<void> subscribeToOrderUpdates(String orderId) async {
     try {
       _isLoading = true;
       _error = null;
-      notifyListeners();
+      _safeNotify();
 
       // Fetch order — simple select, no joins that might fail
       final orderData = await _client
@@ -37,7 +43,7 @@ class OrderTrackingProvider extends ChangeNotifier {
 
       _currentOrder = OrderModel.fromJson(orderData);
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
 
       // Subscribe to real-time order status changes
       _orderStatusChannel = _client
@@ -52,6 +58,7 @@ class OrderTrackingProvider extends ChangeNotifier {
               value: orderId,
             ),
             callback: (payload) async {
+              if (_disposed) return;
               try {
                 final updatedData = await _client
                     .from('orders')
@@ -60,7 +67,7 @@ class OrderTrackingProvider extends ChangeNotifier {
                     .single();
 
                 _currentOrder = OrderModel.fromJson(updatedData);
-                notifyListeners();
+                _safeNotify();
 
                 // If a driver was just assigned, start listening for location
                 if (_currentOrder?.driverId != null &&
@@ -72,7 +79,9 @@ class OrderTrackingProvider extends ChangeNotifier {
               }
 
               // Log status notification
-              _showOrderStatusNotification(payload.newRecord);
+              if (!_disposed) {
+                _showOrderStatusNotification(payload.newRecord);
+              }
             },
           )
           .subscribe();
@@ -84,7 +93,7 @@ class OrderTrackingProvider extends ChangeNotifier {
     } catch (e) {
       _error = 'Failed to load order: $e';
       _isLoading = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 
@@ -99,7 +108,6 @@ class OrderTrackingProvider extends ChangeNotifier {
           .maybeSingle();
 
       if (delivery == null) {
-        // No delivery record yet — try subscribing to driver table directly
         debugPrint('No delivery record found for order ${_currentOrder!.id}');
         return;
       }
@@ -118,8 +126,9 @@ class OrderTrackingProvider extends ChangeNotifier {
               value: deliveryId,
             ),
             callback: (payload) {
+              if (_disposed) return;
               _driverLocation = payload.newRecord;
-              notifyListeners();
+              _safeNotify();
             },
           )
           .subscribe();
@@ -135,7 +144,7 @@ class OrderTrackingProvider extends ChangeNotifier {
 
       if (locationData != null) {
         _driverLocation = locationData;
-        notifyListeners();
+        _safeNotify();
       }
     } catch (e) {
       debugPrint('Failed to subscribe to driver location: $e');
@@ -189,7 +198,6 @@ class OrderTrackingProvider extends ChangeNotifier {
         break;
     }
 
-    // In a real app, use flutter_local_notifications
     debugPrint('Notification: $title - $body');
   }
 
@@ -203,6 +211,7 @@ class OrderTrackingProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     unsubscribe();
     super.dispose();
   }

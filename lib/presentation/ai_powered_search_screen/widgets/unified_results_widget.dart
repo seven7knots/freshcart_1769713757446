@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class UnifiedResultsWidget extends StatelessWidget {
   final List<Map<String, dynamic>> results;
@@ -33,7 +35,7 @@ class UnifiedResultsWidget extends StatelessWidget {
 
   Widget _buildResultCard(BuildContext context, Map<String, dynamic> item) {
     final itemType = item['item_type'] ?? 'product';
-    final name = item['name'] ?? 'Unknown';
+    final name = item['name'] ?? AppLocalizations.of(context)!.unknown;
     final description = item['description'] ?? '';
     final price = item['price'] ?? 0.0;
     final currency = item['currency'] ?? 'USD';
@@ -56,17 +58,17 @@ class UnifiedResultsWidget extends StatelessWidget {
                 borderRadius: BorderRadius.vertical(
                   top: Radius.circular(3.w),
                 ),
-                child: Image.network(
+                child: CachedNetworkImage(imageUrl: 
                   imageUrl ?? '',
                   height: 20.h,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
+                  errorWidget: (context, error, stackTrace) {
                     return Container(
                       height: 20.h,
                       width: double.infinity,
-                      color: Colors.grey[800],
-                      child: Icon(Icons.image, color: Colors.grey[600]),
+                      color: Colors.grey.shade800,
+                      child: Icon(Icons.image, color: Colors.grey.shade600),
                     );
                   },
                 ),
@@ -84,13 +86,12 @@ class UnifiedResultsWidget extends StatelessWidget {
                     borderRadius: BorderRadius.circular(2.w),
                   ),
                   child: Text(
-                    itemType == 'product' ? 'Product' : 'Service',
+                    itemType == 'product' ? AppLocalizations.of(context)!.product2 : AppLocalizations.of(context)!.service2,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 10.sp,
                       fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
               ),
               if (!availability)
@@ -107,13 +108,12 @@ class UnifiedResultsWidget extends StatelessWidget {
                       borderRadius: BorderRadius.circular(2.w),
                     ),
                     child: Text(
-                      'Unavailable',
+                      AppLocalizations.of(context)!.unavailable2,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 10.sp,
                         fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 ),
             ],
@@ -158,16 +158,14 @@ class UnifiedResultsWidget extends StatelessWidget {
                             color: const Color(0xFFE50914),
                             fontSize: 16.sp,
                             fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         if (category.isNotEmpty)
                           Text(
                             category,
                             style: TextStyle(
                               color: Colors.white54,
                               fontSize: 10.sp,
-                            ),
-                          ),
+                            ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                     ElevatedButton(
@@ -188,12 +186,11 @@ class UnifiedResultsWidget extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        itemType == 'product' ? 'View' : 'Book',
+                        itemType == 'product' ? AppLocalizations.of(context)!.view : AppLocalizations.of(context)!.book,
                         style: TextStyle(
                           fontSize: 12.sp,
                           fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
                   ],
                 ),

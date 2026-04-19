@@ -9,6 +9,8 @@ import '../../services/store_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/admin_editable_item_wrapper.dart';
 import '../../widgets/custom_image_widget.dart';
+import '../../widgets/shimmer_placeholder.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 /// Stores screen — shown when pressing the Stores tab in the bottom bar.
 /// Displays all active stores with search, category filter, and admin edit.
@@ -76,7 +78,7 @@ class _StoresScreenState extends State<StoresScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Stores'),
+        title: Text(AppLocalizations.of(context)!.stores, maxLines: 1, overflow: TextOverflow.ellipsis),
         automaticallyImplyLeading: false,
         actions: [
           if (isAdmin) ...[
@@ -84,16 +86,16 @@ class _StoresScreenState extends State<StoresScreen> {
               TextButton.icon(
                 onPressed: () => adminProvider.setEditMode(false),
                 icon: const Icon(Icons.check, color: Colors.green, size: 18),
-                label: Text('Done', style: TextStyle(color: Colors.green, fontSize: 11.sp)),
+                label: Text(AppLocalizations.of(context)!.done, style: TextStyle(color: Colors.green, fontSize: 11.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
               )
             else
               IconButton(
                 onPressed: () => adminProvider.setEditMode(true),
                 icon: const Icon(Icons.edit, color: Colors.orange),
-                tooltip: 'Enable edit mode',
+                tooltip: AppLocalizations.of(context)!.enableEditMode,
               ),
           ],
-          IconButton(onPressed: _loadStores, icon: const Icon(Icons.refresh), tooltip: 'Refresh'),
+          IconButton(onPressed: _loadStores, icon: Icon(Icons.refresh), tooltip: AppLocalizations.of(context)!.refresh),
         ],
       ),
       body: Column(children: [
@@ -104,12 +106,12 @@ class _StoresScreenState extends State<StoresScreen> {
             controller: _searchCtrl,
             onChanged: (_) => setState(() => _applyFilters()),
             decoration: InputDecoration(
-              hintText: 'Search stores...',
+              hintText: AppLocalizations.of(context)!.searchStores,
               prefixIcon: const Icon(Icons.search),
               suffixIcon: _searchCtrl.text.isNotEmpty
                   ? IconButton(icon: const Icon(Icons.clear), onPressed: () { _searchCtrl.clear(); setState(() => _applyFilters()); })
                   : null,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
             ),
           ),
         ),
@@ -120,7 +122,7 @@ class _StoresScreenState extends State<StoresScreen> {
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(horizontal: 4.w),
             children: [
-              _buildFilterChip(theme, null, 'All'),
+              _buildFilterChip(theme, null, AppLocalizations.of(context)!.all2),
               ..._getAvailableTypes().map((t) => _buildFilterChip(theme, t, _capitalize(t))),
             ],
           ),
@@ -129,15 +131,15 @@ class _StoresScreenState extends State<StoresScreen> {
         Padding(
           padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.5.h),
           child: Row(children: [
-            Text('${_filtered.length} stores', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            Flexible(child: Text('${_filtered.length} stores', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis)),
             const Spacer(),
             if (isEditMode)
-              Text('Edit mode ON', style: TextStyle(color: Colors.orange, fontSize: 10.sp, fontWeight: FontWeight.w600)),
+              Text(AppLocalizations.of(context)!.editModeOn, style: TextStyle(color: Colors.orange, fontSize: 10.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
           ]),
         ),
         // Stores list
         Expanded(
-          child: _isLoading ? const Center(child: CircularProgressIndicator())
+          child: _isLoading ? const ShimmerStoreList()
               : _error != null ? _buildError(theme)
               : _filtered.isEmpty ? _buildEmpty(theme)
               : RefreshIndicator(
@@ -176,7 +178,7 @@ class _StoresScreenState extends State<StoresScreen> {
     return Padding(
       padding: EdgeInsets.only(right: 2.w),
       child: FilterChip(
-        label: Text(label),
+        label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
         selected: selected,
         onSelected: (_) => setState(() { _selectedType = type; _applyFilters(); }),
         selectedColor: theme.colorScheme.primary.withOpacity(0.15),
@@ -218,15 +220,15 @@ class _StoresScreenState extends State<StoresScreen> {
                     color: theme.colorScheme.surface.withOpacity(0.7),
                     child: Center(child: Container(
                       padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
-                      decoration: BoxDecoration(color: theme.colorScheme.error, borderRadius: BorderRadius.circular(8)),
-                      child: Text('Inactive', style: TextStyle(color: Colors.white, fontSize: 8.sp, fontWeight: FontWeight.w600)),
+                      decoration: BoxDecoration(color: theme.colorScheme.error, borderRadius: BorderRadius.circular(14)),
+                      child: Text(AppLocalizations.of(context)!.inactive, style: TextStyle(color: theme.colorScheme.surface, fontSize: 8.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                     )),
                   )),
                 if (store.isFeatured)
                   Positioned(top: 4, left: 4, child: Container(
                     padding: EdgeInsets.symmetric(horizontal: 1.5.w, vertical: 0.2.h),
-                    decoration: BoxDecoration(color: AppTheme.kjRed, borderRadius: BorderRadius.circular(6)),
-                    child: Text('★', style: TextStyle(color: Colors.white, fontSize: 8.sp)),
+                    decoration: BoxDecoration(color: AppTheme.kjRed, borderRadius: BorderRadius.circular(16)),
+                    child: Text('★', style: TextStyle(color: Colors.white, fontSize: 8.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
                   )),
               ]),
             ),
@@ -241,23 +243,23 @@ class _StoresScreenState extends State<StoresScreen> {
                 if (store.category != null)
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.2.h),
-                    decoration: BoxDecoration(color: theme.colorScheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                    child: Text(store.category!, style: TextStyle(color: theme.colorScheme.primary, fontSize: 9.sp, fontWeight: FontWeight.w500)),
+                    decoration: BoxDecoration(color: theme.colorScheme.primary.withOpacity(0.1), borderRadius: BorderRadius.circular(16)),
+                    child: Text(store.category!, style: TextStyle(color: theme.colorScheme.primary, fontSize: 9.sp, fontWeight: FontWeight.w500), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
                 SizedBox(height: 0.5.h),
                 if (store.description != null)
-                  Text(store.description!, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Text(store.description!, style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey), maxLines: 2, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 0.5.h),
                 Row(children: [
                   if (store.rating > 0) ...[
                     Icon(Icons.star, color: Colors.amber, size: 3.5.w),
                     SizedBox(width: 0.5.w),
-                    Text(store.ratingDisplay, style: TextStyle(fontSize: 10.sp, fontWeight: FontWeight.w600)),
+                    Text(store.ratingDisplay, style: TextStyle(fontSize: 10.sp, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(width: 2.w),
                   ],
-                  Icon(Icons.access_time, size: 3.w, color: theme.colorScheme.onSurfaceVariant),
+                  Icon(Icons.access_time, size: 3.w, color: Colors.grey),
                   SizedBox(width: 0.5.w),
-                  Text(store.prepTimeDisplay, style: TextStyle(fontSize: 9.sp, color: theme.colorScheme.onSurfaceVariant)),
+                  Text(store.prepTimeDisplay, style: TextStyle(fontSize: 9.sp, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ]),
               ]),
             ),
@@ -265,7 +267,7 @@ class _StoresScreenState extends State<StoresScreen> {
           // Arrow
           Padding(
             padding: EdgeInsets.only(right: 2.w),
-            child: Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+            child: Icon(Icons.chevron_right, color: Colors.grey),
           ),
         ]),
       ),
@@ -274,13 +276,13 @@ class _StoresScreenState extends State<StoresScreen> {
 
   Widget _buildError(ThemeData t) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
     Icon(Icons.error_outline, size: 48, color: t.colorScheme.error), SizedBox(height: 2.h),
-    Text('Failed to load stores', style: t.textTheme.titleMedium), SizedBox(height: 2.h),
-    ElevatedButton.icon(onPressed: _loadStores, icon: const Icon(Icons.refresh), label: const Text('Retry')),
+    Text('Failed to load stores', style: t.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis), SizedBox(height: 2.h),
+    ElevatedButton.icon(onPressed: _loadStores, icon: Icon(Icons.refresh), label: Text('Retry', maxLines: 1, overflow: TextOverflow.ellipsis)),
   ]));
 
   Widget _buildEmpty(ThemeData t) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
     Icon(Icons.store_outlined, size: 64, color: t.colorScheme.outline), SizedBox(height: 2.h),
-    Text('No stores found', style: t.textTheme.titleMedium), SizedBox(height: 1.h),
-    Text('Stores will appear here once created', style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant)),
+    Text('No stores found', style: t.textTheme.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis), SizedBox(height: 1.h),
+    Text('Stores will appear here once created', style: t.textTheme.bodySmall?.copyWith(color: t.colorScheme.onSurfaceVariant), maxLines: 1, overflow: TextOverflow.ellipsis),
   ]));
 }

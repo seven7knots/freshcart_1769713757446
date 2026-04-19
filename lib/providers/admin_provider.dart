@@ -8,6 +8,18 @@
 // Source of truth for admin: RPC is_admin()
 // Source of truth for merchant: merchants.status == 'approved' for current user
 // UPDATED: Handles driver applications using is_verified/is_active flags
+// ISSUE 2 FIX: Debounced refreshRoles to prevent redundant API calls
+// SESSION 20 FIX: Admin revenue = sum of delivery_fee (not order total)
+// SESSION 27 FIXES:
+// - Removed wallet adjustment method (no wallet system)
+// - loadUsers now fetches order counts per user
+// - Revenue card uses total_revenue consistently
+// SESSION 28 FIXES:
+// - Revenue now counts ALL non-cancelled orders (not just 'delivered')
+//   because delivery fee is earned when order is confirmed, not just on delivery
+// - Cancellation deductions: cancelled orders' delivery_fees are excluded
+// - Added daily / monthly / yearly revenue breakdown
+// - Removed all hardcoded revenue values
 // ============================================================
 
 import 'package:flutter/material.dart';
@@ -25,23 +37,37 @@ class AdminProvider extends ChangeNotifier {
   // ============================================================
 
   bool _isAdmin = false;
-  bool _isMerchant = false; // approved merchant for current user
+  bool _isMerchant = false;
   bool _isLoading = false;
   String? _error;
   bool _isEditMode = false;
 
+  // ISSUE 2 FIX: Debounce tracking for refreshRoles
+  DateTime? _lastRoleRefresh;
+  bool _isRefreshingRoles = false;
+  static const _roleRefreshCooldown = Duration(seconds: 2);
+
   // Dashboard
   Map<String, dynamic>? _dashboardStats;
   List<Map<String, dynamic>> _recentOrders = [];
+
+  // SESSION 28: Revenue breakdown (today / month / year / all-time)
+  // All values are delivery_fee sums from NON-CANCELLED orders only.
+  Map<String, double> _revenueBreakdown = {
+    'today': 0.0,
+    'this_month': 0.0,
+    'this_year': 0.0,
+    'all_time': 0.0,
+  };
 
   // Users
   List<Map<String, dynamic>> _users = [];
 
   // Applications
   List<Merchant> _pendingMerchants = [];
-  List<Driver> _pendingDrivers = []; // Changed to List<Driver>
+  List<Driver> _pendingDrivers = [];
   List<Merchant> _allMerchants = [];
-  List<Driver> _allDrivers = []; // Changed to List<Driver>
+  List<Driver> _allDrivers = [];
 
   // ============================================================
   // GETTERS
@@ -50,7 +76,6 @@ class AdminProvider extends ChangeNotifier {
   bool get isAdmin => _isAdmin;
   bool get isMerchant => _isMerchant;
 
-  /// Effective role (Model A): admin always wins.
   String get effectiveRole {
     if (_isAdmin) return 'admin';
     if (_isMerchant) return 'merchant';
@@ -65,10 +90,13 @@ class AdminProvider extends ChangeNotifier {
   List<Map<String, dynamic>> get recentOrders => _recentOrders;
   List<Map<String, dynamic>> get users => _users;
 
+  // SESSION 28: Revenue breakdown getter
+  Map<String, double> get revenueBreakdown => _revenueBreakdown;
+
   List<Merchant> get pendingMerchants => _pendingMerchants;
-  List<Driver> get pendingDrivers => _pendingDrivers; // Changed type
+  List<Driver> get pendingDrivers => _pendingDrivers;
   List<Merchant> get allMerchants => _allMerchants;
-  List<Driver> get allDrivers => _allDrivers; // Changed type
+  List<Driver> get allDrivers => _allDrivers;
 
   int get pendingApplicationsCount =>
       _pendingMerchants.length + _pendingDrivers.length;
@@ -93,14 +121,28 @@ class AdminProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // ROLE RESOLUTION (Model A)
+  // ROLE RESOLUTION (Model A) — WITH DEBOUNCE
   // ============================================================
 
   Future<void> checkAdminStatus({String reason = 'unknown'}) async {
     await refreshRoles(reason: reason);
   }
 
-  Future<void> refreshRoles({String reason = 'unknown'}) async {
+  Future<void> refreshRoles({String reason = 'unknown', bool force = false}) async {
+    if (_isRefreshingRoles) {
+      debugPrint('[ROLE] refreshRoles SKIPPED (already in progress) - reason: $reason');
+      return;
+    }
+
+    if (!force && _lastRoleRefresh != null) {
+      final elapsed = DateTime.now().difference(_lastRoleRefresh!);
+      if (elapsed < _roleRefreshCooldown) {
+        debugPrint('[ROLE] refreshRoles SKIPPED (cooldown ${elapsed.inMilliseconds}ms) - reason: $reason');
+        return;
+      }
+    }
+
+    _isRefreshingRoles = true;
     debugPrint('[ROLE] refreshRoles - reason: $reason');
 
     final user = _client.auth.currentUser;
@@ -108,6 +150,8 @@ class AdminProvider extends ChangeNotifier {
       debugPrint('[ROLE] No user logged in -> admin=false merchant=false');
       _isAdmin = false;
       _isMerchant = false;
+      _isRefreshingRoles = false;
+      _lastRoleRefresh = DateTime.now();
       notifyListeners();
       return;
     }
@@ -115,9 +159,7 @@ class AdminProvider extends ChangeNotifier {
     bool admin = false;
     bool merchant = false;
 
-    // ----------------------------
     // 1) ADMIN CHECK
-    // ----------------------------
     try {
       final result = await _client.rpc('is_admin');
       admin = (result == true);
@@ -141,9 +183,7 @@ class AdminProvider extends ChangeNotifier {
       }
     }
 
-    // ----------------------------
-    // 2) MERCHANT CHECK (by auth user id)
-    // ----------------------------
+    // 2) MERCHANT CHECK
     try {
       final m = await _client
           .from('merchants')
@@ -161,11 +201,24 @@ class AdminProvider extends ChangeNotifier {
 
     _isAdmin = admin;
     _isMerchant = merchant;
+    _isRefreshingRoles = false;
+    _lastRoleRefresh = DateTime.now();
 
     debugPrint(
       '[ROLE] resolved => isAdmin=$_isAdmin isMerchant=$_isMerchant effectiveRole=$effectiveRole',
     );
     notifyListeners();
+  }
+
+  // ============================================================
+  // ADMIN ACCESS CHECK
+  // ============================================================
+
+  Future<bool> _ensureAdmin() async {
+    if (_lastRoleRefresh == null) {
+      await refreshRoles(reason: 'ensureAdmin-first-check');
+    }
+    return _isAdmin;
   }
 
   // ============================================================
@@ -178,13 +231,13 @@ class AdminProvider extends ChangeNotifier {
     _setError(null);
 
     try {
-      await refreshRoles(reason: 'loadDashboardStats');
-      if (!_isAdmin) {
+      if (!await _ensureAdmin()) {
         _setError('Access denied: not an admin');
         _setLoading(false);
         return;
       }
 
+      // Try RPC first for base stats
       try {
         final result = await _client.rpc('get_admin_dashboard_stats');
         _dashboardStats = _normalizeStats(result);
@@ -194,10 +247,28 @@ class AdminProvider extends ChangeNotifier {
           'total_users': 0,
           'active_users': 0,
           'total_orders': 0,
-          'total_revenue': 0.0,
           'pending_applications': 0,
         };
       }
+
+      // Fix: Query actual online drivers count from drivers table
+      // The RPC may return stale data; the driver toggle writes is_online
+      // directly to the drivers table, so we read from there.
+      try {
+        final onlineResult = await _client
+            .from('drivers')
+            .select('id')
+            .eq('is_online', true);
+        final onlineCount = (onlineResult as List).length;
+        _dashboardStats ??= {};
+        _dashboardStats!['online_drivers'] = onlineCount;
+        debugPrint('[ADMIN] Online drivers (live query): $onlineCount');
+      } catch (e) {
+        debugPrint('[ADMIN] Online drivers query failed: $e');
+      }
+
+      // SESSION 28: Load accurate revenue with full breakdown
+      await _loadAdminRevenue();
 
       _setLoading(false);
       notifyListeners();
@@ -208,12 +279,83 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  // ============================================================
+  // SESSION 28 FIX: Admin revenue calculation
+  //
+  // Revenue model:
+  //   - Delivery fee is EARNED when an order is confirmed (not just delivered).
+  //   - Cancelled orders are EXCLUDED (deducted automatically by not counting them).
+  //   - Formula: SUM(delivery_fee) WHERE status NOT IN ('cancelled')
+  //
+  // Breakdown: today / this month / this year / all-time
+  // All figures are derived from live DB — zero hardcoding.
+  // ============================================================
+  Future<void> _loadAdminRevenue() async {
+    try {
+      final now = DateTime.now();
+      final startOfDay   = DateTime(now.year, now.month, now.day);
+      final startOfMonth = DateTime(now.year, now.month, 1);
+      final startOfYear  = DateTime(now.year, 1, 1);
+
+      // Fetch ALL non-cancelled orders with delivery_fee in one query.
+      // We filter out 'cancelled' status — this naturally handles the
+      // "cancellation deduction" requirement: cancelled orders are never
+      // included in any revenue figure.
+      final rows = await _client
+          .from('orders')
+          .select('delivery_fee, created_at')
+          .neq('status', 'cancelled');
+
+      double today     = 0.0;
+      double thisMonth = 0.0;
+      double thisYear  = 0.0;
+      double allTime   = 0.0;
+
+      for (final row in (rows as List)) {
+        final fee = (row['delivery_fee'] as num?)?.toDouble() ?? 0.0;
+        if (fee <= 0) continue;
+
+        allTime += fee;
+
+        final raw = row['created_at'];
+        if (raw == null) continue;
+        final dt = DateTime.tryParse(raw.toString());
+        if (dt == null) continue;
+
+        if (!dt.isBefore(startOfYear))  thisYear  += fee;
+        if (!dt.isBefore(startOfMonth)) thisMonth += fee;
+        if (!dt.isBefore(startOfDay))   today     += fee;
+      }
+
+      _revenueBreakdown = {
+        'today':      today,
+        'this_month': thisMonth,
+        'this_year':  thisYear,
+        'all_time':   allTime,
+      };
+
+      // Keep dashboardStats total_revenue in sync for metric cards
+      _dashboardStats ??= {};
+      _dashboardStats!['total_revenue'] = allTime;
+
+      debugPrint(
+        '[ADMIN] Revenue — today: \$${today.toStringAsFixed(2)}, '
+        'month: \$${thisMonth.toStringAsFixed(2)}, '
+        'year: \$${thisYear.toStringAsFixed(2)}, '
+        'all-time: \$${allTime.toStringAsFixed(2)} '
+        '(non-cancelled delivery fees only)',
+      );
+    } catch (e) {
+      debugPrint('[ADMIN] Error loading admin revenue: $e');
+      // Non-fatal: keep existing values
+    }
+  }
+
   Future<void> loadRecentOrders({int limit = 5}) async {
     _setLoading(true);
 
     try {
-      await refreshRoles(reason: 'loadRecentOrders');
-      if (!_isAdmin) {
+      if (!await _ensureAdmin()) {
         _recentOrders = [];
         _setLoading(false);
         return;
@@ -238,6 +380,7 @@ class AdminProvider extends ChangeNotifier {
 
   // ============================================================
   // USERS MANAGEMENT
+  // SESSION 27 FIX: Now fetches order counts per user
   // ============================================================
 
   Future<void> loadUsers({
@@ -252,8 +395,7 @@ class AdminProvider extends ChangeNotifier {
     _setError(null);
 
     try {
-      await refreshRoles(reason: 'loadUsers');
-      if (!_isAdmin) {
+      if (!await _ensureAdmin()) {
         _users = [];
         _setLoading(false);
         _setError('Access denied');
@@ -280,6 +422,9 @@ class AdminProvider extends ChangeNotifier {
           .order('created_at', ascending: false);
 
       _users = _normalizeList(result);
+
+      await _loadUserOrderCounts();
+
       _setLoading(false);
       notifyListeners();
     } catch (e) {
@@ -290,13 +435,48 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _loadUserOrderCounts() async {
+    if (_users.isEmpty) return;
+
+    try {
+      final userIds = _users
+          .map((u) => u['id'] as String?)
+          .where((id) => id != null)
+          .cast<String>()
+          .toList();
+
+      if (userIds.isEmpty) return;
+
+      final orders = await _client
+          .from('orders')
+          .select('user_id')
+          .inFilter('user_id', userIds);
+
+      final countMap = <String, int>{};
+      for (var order in (orders as List)) {
+        final uid = order['user_id'] as String?;
+        if (uid != null) {
+          countMap[uid] = (countMap[uid] ?? 0) + 1;
+        }
+      }
+
+      for (var i = 0; i < _users.length; i++) {
+        final uid = _users[i]['id'] as String?;
+        _users[i]['order_count'] = countMap[uid] ?? 0;
+      }
+
+      debugPrint('[ADMIN] Order counts loaded for ${userIds.length} users');
+    } catch (e) {
+      debugPrint('[ADMIN] Error loading order counts: $e');
+    }
+  }
+
   Future<bool> updateUserStatus({
     required String userId,
     required bool isActive,
   }) async {
     try {
-      await refreshRoles(reason: 'updateUserStatus');
-      if (!_isAdmin) return false;
+      if (!await _ensureAdmin()) return false;
 
       await _client
           .from('users')
@@ -317,8 +497,7 @@ class AdminProvider extends ChangeNotifier {
     required String role,
   }) async {
     try {
-      await refreshRoles(reason: 'updateUserRole');
-      if (!_isAdmin) return false;
+      if (!await _ensureAdmin()) return false;
 
       await _client.from('users').update({'role': role}).eq('id', userId);
 
@@ -340,8 +519,7 @@ class AdminProvider extends ChangeNotifier {
     _setLoading(true);
 
     try {
-      await refreshRoles(reason: 'loadPendingMerchants');
-      if (!_isAdmin) {
+      if (!await _ensureAdmin()) {
         _pendingMerchants = [];
         _setLoading(false);
         return;
@@ -372,8 +550,7 @@ class AdminProvider extends ChangeNotifier {
     _setLoading(true);
 
     try {
-      await refreshRoles(reason: 'loadAllMerchants');
-      if (!_isAdmin) {
+      if (!await _ensureAdmin()) {
         _allMerchants = [];
         _setLoading(false);
         return;
@@ -404,8 +581,7 @@ class AdminProvider extends ChangeNotifier {
     debugPrint('[ADMIN] Approving merchant: $merchantId');
 
     try {
-      await refreshRoles(reason: 'approveMerchant');
-      if (!_isAdmin) {
+      if (!await _ensureAdmin()) {
         _setError('Access denied');
         return false;
       }
@@ -421,7 +597,7 @@ class AdminProvider extends ChangeNotifier {
       }
 
       await loadPendingMerchants();
-      await refreshRoles(reason: 'approveMerchant-postRefresh');
+      await refreshRoles(reason: 'approveMerchant-postRefresh', force: true);
       return true;
     } catch (e) {
       debugPrint('[ADMIN] Error approving merchant: $e');
@@ -434,8 +610,7 @@ class AdminProvider extends ChangeNotifier {
     debugPrint('[ADMIN] Rejecting merchant: $merchantId');
 
     try {
-      await refreshRoles(reason: 'rejectMerchant');
-      if (!_isAdmin) {
+      if (!await _ensureAdmin()) {
         _setError('Access denied');
         return false;
       }
@@ -454,7 +629,7 @@ class AdminProvider extends ChangeNotifier {
       }
 
       await loadPendingMerchants();
-      await refreshRoles(reason: 'rejectMerchant-postRefresh');
+      await refreshRoles(reason: 'rejectMerchant-postRefresh', force: true);
       return true;
     } catch (e) {
       debugPrint('[ADMIN] Error rejecting merchant: $e');
@@ -464,23 +639,20 @@ class AdminProvider extends ChangeNotifier {
   }
 
   // ============================================================
-  // DRIVER APPLICATIONS (CORRECTED)
+  // DRIVER APPLICATIONS
   // ============================================================
 
-  /// Load pending drivers (is_active=true AND is_verified=false)
   Future<void> loadPendingDrivers() async {
     debugPrint('[ADMIN] Loading pending drivers...');
     _setLoading(true);
 
     try {
-      await refreshRoles(reason: 'loadPendingDrivers');
-      if (!_isAdmin) {
+      if (!await _ensureAdmin()) {
         _pendingDrivers = [];
         _setLoading(false);
         return;
       }
 
-      // Pending = active but not verified
       final result = await _client
           .from('drivers')
           .select('*, users(email, full_name)')
@@ -508,15 +680,14 @@ class AdminProvider extends ChangeNotifier {
     _setLoading(true);
 
     try {
-      await refreshRoles(reason: 'loadAllDrivers');
-      if (!_isAdmin) {
+      if (!await _ensureAdmin()) {
         _allDrivers = [];
         _setLoading(false);
         return;
       }
 
       var query = _client.from('drivers').select('*, users(email, full_name)');
-      
+
       if (isVerified != null) {
         query = query.eq('is_verified', isVerified);
       }
@@ -537,18 +708,15 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
-  /// Approve driver - sets is_verified=true and optionally updates user role
   Future<bool> approveDriver(String driverId) async {
     debugPrint('[ADMIN] Approving driver: $driverId');
 
     try {
-      await refreshRoles(reason: 'approveDriver');
-      if (!_isAdmin) {
+      if (!await _ensureAdmin()) {
         _setError('Access denied');
         return false;
       }
 
-      // Try RPC first (if it exists)
       try {
         final result = await _client.rpc(
           'admin_approve_driver',
@@ -560,19 +728,15 @@ class AdminProvider extends ChangeNotifier {
         }
       } catch (rpcError) {
         debugPrint('[ADMIN] RPC admin_approve_driver not available, using direct update: $rpcError');
-        
-        // Fallback: Direct database update
-        // 1. Update driver record
+
         await _client
             .from('drivers')
             .update({
               'is_verified': true,
               'is_active': true,
-              'verified_at': DateTime.now().toIso8601String(),
             })
             .eq('id', driverId);
 
-        // 2. Get the driver's user_id and update user role
         final driver = await _client
             .from('drivers')
             .select('user_id')
@@ -588,7 +752,7 @@ class AdminProvider extends ChangeNotifier {
       }
 
       await loadPendingDrivers();
-      await refreshRoles(reason: 'approveDriver-postRefresh');
+      await refreshRoles(reason: 'approveDriver-postRefresh', force: true);
       return true;
     } catch (e) {
       debugPrint('[ADMIN] Error approving driver: $e');
@@ -597,18 +761,15 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
-  /// Reject driver - sets is_active=false and stores reason
   Future<bool> rejectDriver(String driverId, {String? reason}) async {
     debugPrint('[ADMIN] Rejecting driver: $driverId');
 
     try {
-      await refreshRoles(reason: 'rejectDriver');
-      if (!_isAdmin) {
+      if (!await _ensureAdmin()) {
         _setError('Access denied');
         return false;
       }
 
-      // Try RPC first (if it exists)
       try {
         final result = await _client.rpc(
           'admin_reject_driver',
@@ -623,14 +784,13 @@ class AdminProvider extends ChangeNotifier {
         }
       } catch (rpcError) {
         debugPrint('[ADMIN] RPC admin_reject_driver not available, using direct update: $rpcError');
-        
-        // Fallback: Direct database update
+
         final updateData = <String, dynamic>{
           'is_verified': false,
           'is_active': false,
           'rejected_at': DateTime.now().toIso8601String(),
         };
-        
+
         if (reason != null && reason.isNotEmpty) {
           updateData['rejection_reason'] = reason;
         }
@@ -642,7 +802,7 @@ class AdminProvider extends ChangeNotifier {
       }
 
       await loadPendingDrivers();
-      await refreshRoles(reason: 'rejectDriver-postRefresh');
+      await refreshRoles(reason: 'rejectDriver-postRefresh', force: true);
       return true;
     } catch (e) {
       debugPrint('[ADMIN] Error rejecting driver: $e');
@@ -651,7 +811,35 @@ class AdminProvider extends ChangeNotifier {
     }
   }
 
-  /// Load both pending merchants and drivers
+  Future<bool> removeDriver(String driverId) async {
+    debugPrint('[ADMIN] Removing driver: $driverId');
+    try {
+      if (!await _ensureAdmin()) {
+        _setError('Access denied');
+        return false;
+      }
+      final driver = await _client
+          .from('drivers')
+          .select('user_id')
+          .eq('id', driverId)
+          .single();
+      await _client.from('drivers').delete().eq('id', driverId);
+      if (driver['user_id'] != null) {
+        await _client
+            .from('users')
+            .update({'role': 'customer'})
+            .eq('id', driver['user_id']);
+      }
+      debugPrint('[ADMIN] Driver removed successfully');
+      await loadPendingDrivers();
+      return true;
+    } catch (e) {
+      debugPrint('[ADMIN] Error removing driver: $e');
+      _setError(e.toString());
+      return false;
+    }
+  }
+
   Future<void> loadPendingApplications() async {
     await Future.wait([loadPendingMerchants(), loadPendingDrivers()]);
   }
@@ -668,37 +856,6 @@ class AdminProvider extends ChangeNotifier {
   void toggleEditMode() {
     _isEditMode = !_isEditMode;
     notifyListeners();
-  }
-
-  // ============================================================
-  // WALLET ADJUSTMENT
-  // ============================================================
-
-  Future<bool> adjustWalletBalance({
-    required String userId,
-    required num amount,
-    String? note,
-    String? reason,
-  }) async {
-    try {
-      await refreshRoles(reason: 'adjustWalletBalance');
-      if (!_isAdmin) {
-        _setError('Access denied');
-        return false;
-      }
-
-      await _client.rpc('admin_adjust_wallet_balance', params: {
-        'target_user_id': userId,
-        'adjustment_amount': amount.toDouble(),
-        'adjustment_reason': reason ?? note ?? 'Manual adjustment',
-      });
-
-      return true;
-    } catch (e) {
-      debugPrint('[ADMIN] Error adjusting wallet: $e');
-      _setError(e.toString());
-      return false;
-    }
   }
 
   // ============================================================

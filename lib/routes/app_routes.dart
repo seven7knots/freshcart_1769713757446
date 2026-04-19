@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../features/admin/categories/admin_categories_screen.dart';
+import '../presentation/language_selection_screen/language_selection_screen.dart';
 import '../features/admin/categories/admin_subcategories_screen.dart';
 import '../models/product_model.dart';
 import '../presentation/admin_ads_management_screen/admin_ads_management_screen.dart';
@@ -12,8 +13,6 @@ import '../presentation/admin_role_upgrade_management_screen/admin_role_upgrade_
 import '../presentation/admin_users_management_screen/admin_users_management_screen.dart';
 import '../presentation/ai_chat_assistant_screen/ai_chat_assistant_screen.dart';
 import '../presentation/ai_meal_planning_screen/ai_meal_planning_screen.dart';
-// AI Powered Search is now merged into AI Chat Assistant (AI Mate)
-// import '../presentation/ai_powered_search_screen/ai_powered_search_screen.dart';
 import '../presentation/all_categories_screen/all_categories_screen.dart';
 import '../presentation/auth_gate_screen/auth_gate_screen.dart';
 import '../presentation/authentication_screen/authentication_screen.dart';
@@ -25,7 +24,6 @@ import '../presentation/checkout_screen/checkout_screen.dart';
 import '../presentation/create_listing_screen/create_listing_screen.dart';
 import '../presentation/driver_application_screen/driver_application_screen.dart';
 import '../presentation/driver_home_screen/driver_home_screen.dart';
-import '../presentation/driver_login_screen/driver_login_screen.dart';
 import '../presentation/driver_performance_dashboard_screen/driver_performance_dashboard_screen.dart';
 import '../presentation/email_otp_verification_screen/email_otp_verification_screen.dart';
 import '../presentation/enhanced_order_management_screen/enhanced_order_management_screen.dart';
@@ -40,8 +38,13 @@ import '../presentation/merchant_store_screen/merchant_store_screen.dart';
 import '../presentation/my_ads_screen/my_ads_screen.dart';
 import '../presentation/my_bookings_screen/my_bookings_screen.dart';
 import '../presentation/onboarding_screen/onboarding_screen.dart';
+import '../presentation/reset_password_verify_screen/reset_password_verify_screen.dart';
+import '../presentation/reset_password_new_screen/reset_password_new_screen.dart';
+import '../presentation/order_history_screen/order_history_screen.dart';
 import '../presentation/order_tracking_screen/order_tracking_screen.dart';
-import '../presentation/phone_otp_verification_screen/phone_otp_verification_screen.dart';
+// Phone collection and OTP screens retained on disk — reactivated with WhatsApp in v1.1.1
+// import '../presentation/phone_collection_screen/phone_collection_screen.dart';
+// import '../presentation/phone_otp_verification_screen/phone_otp_verification_screen.dart';
 import '../presentation/product_detail_screen/product_detail_screen.dart';
 import '../presentation/role_upgrade_request_screen/role_upgrade_request_screen.dart';
 import '../presentation/service_booking_screen/service_booking_screen.dart';
@@ -51,9 +54,9 @@ import '../presentation/shopping_cart_screen/shopping_cart_screen.dart';
 import '../presentation/splash_screen/splash_screen.dart';
 import '../presentation/store_detail_screen/store_detail_screen.dart';
 import '../presentation/subcategories_screen/subcategories_screen.dart';
-import '../presentation/subscription_management_screen/subscription_management_screen.dart';
 import '../widgets/main_layout_wrapper.dart';
 import '../presentation/admin_edit_overlay_system_screen/admin_edit_standalone_screen.dart';
+import '../l10n/generated/app_localizations.dart';
 
 /// UPDATED TAB INDICES:
 ///   0 = Home
@@ -64,12 +67,16 @@ import '../presentation/admin_edit_overlay_system_screen/admin_edit_standalone_s
 class AppRoutes {
   // Unauthenticated routes
   static const String initial = '/';
+  static const String languageSelection = '/language-selection-screen';
   static const String onboarding = '/onboarding-screen';
   static const String splash = '/splash-screen';
   static const String authentication = '/authentication-screen';
   static const String emailOtpVerification = '/email-otp-verification-screen';
   static const String phoneOtpVerification = '/phone-otp-verification-screen';
+  static const String phoneCollection = '/phone-collection-screen';
   static const String roleUpgradeRequest = '/role-upgrade-request-screen';
+  static const String resetPasswordVerify = '/reset-password-verify-screen';
+  static const String resetPasswordNew = '/reset-password-new-screen';
 
   // Main wrapper
   static const String mainLayout = '/main-layout';
@@ -84,7 +91,7 @@ class AppRoutes {
   // Cart is now a standalone pushed screen (not a tab)
   static const String shoppingCart = '/shopping-cart-screen';
 
-  // Legacy route (kept for backward compatibility)
+  // Order history is now a standalone pushed screen
   static const String orderHistory = '/order-history-screen';
 
   // Detail screens
@@ -93,7 +100,6 @@ class AppRoutes {
   static const String storeDetail = '/store-detail-screen';
   static const String checkout = '/checkout-screen';
   static const String orderTracking = '/order-tracking-screen';
-  static const String subscriptionManagement = '/subscription-management-screen';
 
   // AI routes
   static const String aiChatAssistant = '/ai-chat-assistant-screen';
@@ -119,7 +125,6 @@ class AppRoutes {
   static const String marketplaceChatScreen = '/marketplace-chat-screen';
 
   // Driver routes
-  static const String driverLogin = '/driver-login-screen';
   static const String driverHome = '/driver-home-screen';
   static const String driverPerformanceDashboard = '/driver-performance-dashboard-screen';
   static const String availableOrdersScreen = '/available-orders-screen';
@@ -152,14 +157,22 @@ class AppRoutes {
   static const String adminSubcategories = '/admin-subcategories-screen';
 
   static final Map<String, WidgetBuilder> routes = {
+    // Language selection
+    languageSelection: (context) => const LanguageSelectionScreen(),
     // Auth gate / onboarding
     initial: (context) => const AuthGateScreen(),
     onboarding: (context) => const OnboardingScreen(),
     splash: (context) => const SplashScreen(),
     authentication: (context) => const AuthenticationScreen(),
     emailOtpVerification: (context) => const EmailOtpVerificationScreen(),
-    phoneOtpVerification: (context) => const PhoneOtpVerificationScreen(),
+    // phoneOtpVerification and phoneCollection removed from routing — v1.1.1
+    // Phone is now collected at checkout. OTP reactivated with WhatsApp later.
     roleUpgradeRequest: (context) => const RoleUpgradeRequestScreen(),
+    resetPasswordVerify: (context) {
+      final email = ModalRoute.of(context)?.settings.arguments as String? ?? '';
+      return ResetPasswordVerifyScreen(email: email);
+    },
+    resetPasswordNew: (context) => const ResetPasswordNewScreen(),
 
     // Main layout
     mainLayout: (context) {
@@ -180,8 +193,8 @@ class AppRoutes {
     // Cart is now a standalone pushed route (not in bottom bar)
     shoppingCart: (context) => const ShoppingCartScreen(),
 
-    // Legacy compatibility
-    orderHistory: (context) => const MainLayoutWrapper(initialIndex: 3),
+    // Order history is now a standalone pushed screen
+    orderHistory: (context) => const OrderHistoryScreen(),
 
     // Details
     productDetail: (context) {
@@ -205,12 +218,10 @@ class AppRoutes {
     },
     checkout: (context) => const CheckoutScreen(),
     orderTracking: (context) => const OrderTrackingScreen(),
-    subscriptionManagement: (context) => const SubscriptionManagementScreen(),
 
     // AI (unified - all AI features accessible through AI Mate chat)
     aiChatAssistant: (context) => const AIChatAssistantScreen(),
     aiMealPlanning: (context) => const AIMealPlanningScreen(),
-    // AI Powered Search now redirects to unified AI Mate chat
     aiPoweredSearch: (context) => const AIChatAssistantScreen(),
 
     // Marketplace
@@ -252,7 +263,6 @@ class AppRoutes {
     marketplaceChatScreen: (context) => const MarketplaceChatScreen(),
 
     // Driver
-    driverLogin: (context) => const DriverLoginScreen(),
     driverHome: (context) => const DriverHomeScreen(),
     driverPerformanceDashboard: (context) => const DriverPerformanceDashboardScreen(),
     availableOrdersScreen: (context) => const AvailableOrdersScreen(),

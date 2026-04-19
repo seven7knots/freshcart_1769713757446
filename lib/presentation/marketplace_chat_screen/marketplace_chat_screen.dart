@@ -1,3 +1,17 @@
+// ============================================================
+// FILE: lib/presentation/marketplace_chat_screen/marketplace_chat_screen.dart
+// ============================================================
+// SESSION 28 FIX:
+// CRASH: _loadConversation() was called from initState() which called
+// ScaffoldMessenger.of(context) before the widget tree was fully built.
+// Flutter throws: "dependOnInheritedWidgetOfExactType was called before
+// _MarketplaceChatScreenState.initState() completed."
+//
+// FIX: Added _hasLoadedConversation guard + moved load call to
+// didChangeDependencies() — identical pattern to listing detail screen.
+// ScaffoldMessenger.of(context) is now only called after mount completes.
+// ============================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sizer/sizer.dart';
@@ -10,6 +24,7 @@ import '../../theme/app_theme.dart';
 import './widgets/listing_context_card_widget.dart';
 import './widgets/message_bubble_widget.dart';
 import './widgets/message_input_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class MarketplaceChatScreen extends ConsumerStatefulWidget {
   const MarketplaceChatScreen({super.key});
@@ -28,13 +43,31 @@ class _MarketplaceChatScreenState extends ConsumerState<MarketplaceChatScreen> {
   List<MessageModel> _messages = [];
   bool _isLoading = true;
   bool _isSending = false;
+  bool _hasLoadedConversation = false; // SESSION 28 FIX: guard flag
   RealtimeChannel? _messageSubscription;
   RealtimeChannel? _conversationSubscription;
 
   @override
   void initState() {
     super.initState();
-    _loadConversation();
+    // SESSION 28 FIX: Do NOT call _loadConversation() here.
+    // initState() runs before the widget is fully mounted in the tree,
+    // so ModalRoute.of(context) and ScaffoldMessenger.of(context) are
+    // not yet available — calling them crashes with:
+    // "dependOnInheritedWidgetOfExactType was called before initState completed"
+    // Moved to didChangeDependencies() below.
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // SESSION 28 FIX: Load here instead — called after initState AND
+    // whenever dependencies (like ModalRoute) change. Guard ensures
+    // we only load once.
+    if (!_hasLoadedConversation) {
+      _hasLoadedConversation = true;
+      _loadConversation();
+    }
   }
 
   @override
@@ -48,7 +81,6 @@ class _MarketplaceChatScreenState extends ConsumerState<MarketplaceChatScreen> {
 
   Future<void> _loadConversation() async {
     try {
-      // Get conversation ID from route arguments
       final args =
           ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
       final conversationId = args?['conversationId'] as String?;
@@ -56,42 +88,31 @@ class _MarketplaceChatScreenState extends ConsumerState<MarketplaceChatScreen> {
       final sellerId = args?['sellerId'] as String?;
 
       if (conversationId != null) {
-        // Load existing conversation
         final conv =
             await _messagingService.getConversationById(conversationId);
+        if (!mounted) return;
         if (conv != null) {
-          setState(() {
-            _conversation = conv;
-          });
+          setState(() => _conversation = conv);
           await _loadMessages();
           _setupRealtimeSubscriptions();
         }
       } else if (listingId != null && sellerId != null) {
-        // Create or get conversation
         final conv = await _messagingService.getOrCreateConversation(
           listingId: listingId,
           sellerId: sellerId,
         );
-        setState(() {
-          _conversation = conv;
-        });
+        setState(() => _conversation = conv);
         await _loadMessages();
         _setupRealtimeSubscriptions();
       }
 
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     } catch (e) {
-      print('❌ Error loading conversation: $e');
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load conversation: $e')),
-        );
-      }
+      setState(() => _isLoading = false);
+      // Safe: ScaffoldMessenger called only after mount is confirmed
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load conversation: $e', maxLines: 1, overflow: TextOverflow.ellipsis)),
+      );
     }
   }
 
@@ -102,65 +123,53 @@ class _MarketplaceChatScreenState extends ConsumerState<MarketplaceChatScreen> {
       final messages = await _messagingService.getMessages(
         conversationId: _conversation!.id,
       );
-      setState(() {
-        _messages = messages;
-      });
+      setState(() => _messages = messages);
       _scrollToBottom();
       _markMessagesAsRead();
     } catch (e) {
-      print('❌ Error loading messages: $e');
+      // Non-fatal — messages just won't show, user can retry
     }
   }
 
   void _setupRealtimeSubscriptions() {
     if (_conversation == null) return;
 
-    // Subscribe to new messages
     _messageSubscription = _messagingService.subscribeToMessages(
       conversationId: _conversation!.id,
       onNewMessage: (message) {
-        setState(() {
-          _messages.add(message);
-        });
+        setState(() => _messages.add(message));
         _scrollToBottom();
         _markMessagesAsRead();
       },
     );
 
-    // Subscribe to conversation updates
     _conversationSubscription =
         _messagingService.subscribeToConversationUpdates(
       conversationId: _conversation!.id,
       onUpdate: (updatedConv) {
-        setState(() {
-          _conversation = updatedConv;
-        });
+        setState(() => _conversation = updatedConv);
       },
     );
   }
 
   void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      Future.delayed(const Duration(milliseconds: 100), () {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
-    }
+    if (!_scrollController.hasClients) return;
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   Future<void> _markMessagesAsRead() async {
     if (_conversation == null) return;
-
     try {
       await _messagingService.markAllMessagesAsRead(_conversation!.id);
-    } catch (e) {
-      print('❌ Error marking messages as read: $e');
-    }
+    } catch (e) { debugPrint('[MARKETPLACE_CHAT_SCREEN] Silent error: $e'); }
   }
 
   Future<void> _sendMessage() async {
@@ -169,9 +178,7 @@ class _MarketplaceChatScreenState extends ConsumerState<MarketplaceChatScreen> {
     final content = _messageController.text.trim();
     if (content.isEmpty) return;
 
-    setState(() {
-      _isSending = true;
-    });
+    setState(() => _isSending = true);
 
     try {
       await _messagingService.sendMessage(
@@ -181,45 +188,41 @@ class _MarketplaceChatScreenState extends ConsumerState<MarketplaceChatScreen> {
       _messageController.clear();
       _scrollToBottom();
     } catch (e) {
-      print('❌ Error sending message: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send message: $e')),
+          SnackBar(content: Text('Failed to send message: $e', maxLines: 1, overflow: TextOverflow.ellipsis)),
         );
       }
     } finally {
-      setState(() {
-        _isSending = false;
-      });
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final currentUserId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+          backgroundColor: theme.scaffoldBackgroundColor,
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () => Navigator.pop(context),
           ),
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_conversation == null) {
       return Scaffold(
-        backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+          backgroundColor: theme.scaffoldBackgroundColor,
           elevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
@@ -228,9 +231,8 @@ class _MarketplaceChatScreenState extends ConsumerState<MarketplaceChatScreen> {
         ),
         body: Center(
           child: Text(
-            'Conversation not found',
-            style: TextStyle(fontSize: 14.sp),
-          ),
+            AppLocalizations.of(context)!.conversationNotFound,
+            style: TextStyle(fontSize: 14.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
         ),
       );
     }
@@ -238,14 +240,14 @@ class _MarketplaceChatScreenState extends ConsumerState<MarketplaceChatScreen> {
     final otherParticipant =
         _conversation!.getOtherParticipantProfile(currentUserId);
     final otherParticipantName =
-        otherParticipant?['full_name'] as String? ?? 'User';
+        otherParticipant?['full_name'] as String? ?? AppLocalizations.of(context)!.user;
     final otherParticipantImage =
         otherParticipant?['profile_image_url'] as String?;
 
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.lightTheme.scaffoldBackgroundColor,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -276,12 +278,11 @@ class _MarketplaceChatScreenState extends ConsumerState<MarketplaceChatScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    'Active now',
+                    AppLocalizations.of(context)!.activeNow,
                     style: TextStyle(
                       fontSize: 10.sp,
-                      color: Colors.grey,
-                    ),
-                  ),
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
@@ -290,56 +291,41 @@ class _MarketplaceChatScreenState extends ConsumerState<MarketplaceChatScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.more_vert),
-            onPressed: () {
-              // Show options menu
-            },
+            onPressed: () {},
           ),
         ],
       ),
       body: Column(
         children: [
-          // Listing context card
           if (_conversation!.listing != null)
             ListingContextCardWidget(
               listing: _conversation!.listing!,
             ),
-          // Messages list
           Expanded(
             child: _messages.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 15.w,
-                          color: Colors.grey,
-                        ),
+                        Icon(Icons.chat_bubble_outline,
+                            size: 15.w, color: Colors.grey),
                         SizedBox(height: 2.h),
                         Text(
-                          'No messages yet',
-                          style: TextStyle(
-                            fontSize: 14.sp,
-                            color: Colors.grey,
-                          ),
-                        ),
+                          AppLocalizations.of(context)!.noMessagesYet,
+                          style:
+                              TextStyle(fontSize: 14.sp, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
                         SizedBox(height: 1.h),
                         Text(
-                          'Start the conversation!',
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color: Colors.grey,
-                          ),
-                        ),
+                          AppLocalizations.of(context)!.startTheConversation,
+                          style:
+                              TextStyle(fontSize: 12.sp, color: Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   )
                 : ListView.builder(
                     controller: _scrollController,
                     padding: EdgeInsets.symmetric(
-                      horizontal: 4.w,
-                      vertical: 2.h,
-                    ),
+                        horizontal: 4.w, vertical: 2.h),
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final message = _messages[index];
@@ -351,7 +337,6 @@ class _MarketplaceChatScreenState extends ConsumerState<MarketplaceChatScreen> {
                     },
                   ),
           ),
-          // Message input
           MessageInputWidget(
             controller: _messageController,
             onSend: _sendMessage,

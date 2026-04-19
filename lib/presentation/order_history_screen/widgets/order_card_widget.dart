@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class OrderCardWidget extends StatefulWidget {
   final Map<String, dynamic> order;
@@ -70,9 +71,9 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
+      builder: (sheetContext) => Container(
         decoration: BoxDecoration(
-          color: AppTheme.lightTheme.colorScheme.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SafeArea(
@@ -84,13 +85,13 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
                 height: 4,
                 margin: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppTheme.lightTheme.colorScheme.outline,
-                  borderRadius: BorderRadius.circular(2),
+                  color: Theme.of(context).colorScheme.outline,
+                  borderRadius: BorderRadius.circular(14),
                 ),
               ),
               _buildContextMenuItem(
                 icon: 'download',
-                title: 'Download Receipt',
+                title: AppLocalizations.of(context)!.downloadReceipt,
                 onTap: () {
                   Navigator.pop(context);
                   widget.onDownloadReceipt?.call();
@@ -98,7 +99,7 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
               ),
               _buildContextMenuItem(
                 icon: 'star',
-                title: 'Rate Order',
+                title: AppLocalizations.of(context)!.rateOrder,
                 onTap: () {
                   Navigator.pop(context);
                   widget.onRateOrder?.call();
@@ -106,7 +107,7 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
               ),
               _buildContextMenuItem(
                 icon: 'report',
-                title: 'Report Issue',
+                title: AppLocalizations.of(context)!.reportIssue,
                 onTap: () {
                   Navigator.pop(context);
                   widget.onReportIssue?.call();
@@ -114,7 +115,7 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
               ),
               _buildContextMenuItem(
                 icon: 'share',
-                title: 'Share Order',
+                title: AppLocalizations.of(context)!.shareOrder,
                 onTap: () {
                   Navigator.pop(context);
                   widget.onShareOrder?.call();
@@ -136,13 +137,10 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
     return ListTile(
       leading: CustomIconWidget(
         iconName: icon,
-        color: AppTheme.lightTheme.colorScheme.onSurface,
+        color: Theme.of(context).colorScheme.onSurface,
         size: 24,
       ),
-      title: Text(
-        title,
-        style: AppTheme.lightTheme.textTheme.bodyLarge,
-      ),
+      title: Text(title, style: Theme.of(context).textTheme.bodyLarge, maxLines: 1, overflow: TextOverflow.ellipsis),
       onTap: onTap,
     );
   }
@@ -150,33 +148,35 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
       case 'delivered':
-        return AppTheme.lightTheme.colorScheme.secondary;
+        return Theme.of(context).colorScheme.secondary;
       case 'cancelled':
-        return AppTheme.lightTheme.colorScheme.error;
+        return Theme.of(context).colorScheme.error;
       case 'processing':
-        return AppTheme.lightTheme.colorScheme.tertiary;
+        return Theme.of(context).colorScheme.tertiary;
       default:
-        return AppTheme.lightTheme.colorScheme.outline;
+        return Theme.of(context).colorScheme.outline;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final orderDate = DateTime.parse(widget.order['orderDate'] as String);
-    final items = widget.order['items'] as List<dynamic>;
-    final totalAmount = widget.order['totalAmount'] as double;
-    final status = widget.order['status'] as String;
-    final itemCount = widget.order['itemCount'] as int;
+    // FIX: all casts are null-safe — real Supabase data may be missing mock fields
+    final orderDateStr = widget.order['orderDate'] as String?
+        ?? DateTime.now().toIso8601String();
+    final orderDate = DateTime.tryParse(orderDateStr) ?? DateTime.now();
+    final items = (widget.order['items'] as List<dynamic>?) ?? [];
+    final totalAmount = (widget.order['totalAmount'] as num?)?.toDouble() ?? 0.0;
+    final status = widget.order['status'] as String? ?? 'pending';
+    final itemCount = widget.order['itemCount'] as int? ?? items.length;
 
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
       decoration: BoxDecoration(
-        color: AppTheme.lightTheme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color:
-                AppTheme.lightTheme.colorScheme.shadow.withValues(alpha: 0.1),
+            color: Theme.of(context).colorScheme.shadow.withValues(alpha: 0.1),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -200,17 +200,15 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Order #${widget.order['orderId']}',
-                              style: AppTheme.lightTheme.textTheme.titleMedium
-                                  ?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                              'Order #${widget.order['orderId'] ?? ''}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                             SizedBox(height: 0.5.h),
                             Text(
                               '${orderDate.day}/${orderDate.month}/${orderDate.year}',
-                              style: AppTheme.lightTheme.textTheme.bodySmall,
-                            ),
+                              style: Theme.of(context).textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
                           ],
                         ),
                       ),
@@ -218,17 +216,19 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
                         padding: EdgeInsets.symmetric(
                             horizontal: 3.w, vertical: 0.5.h),
                         decoration: BoxDecoration(
-                          color: _getStatusColor(status).withValues(alpha: 0.1),
+                          color:
+                              _getStatusColor(status).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           status,
-                          style: AppTheme.lightTheme.textTheme.labelSmall
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
                               ?.copyWith(
-                            color: _getStatusColor(status),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                                color: _getStatusColor(status),
+                                fontWeight: FontWeight.w600,
+                              ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ),
@@ -241,54 +241,77 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
                         children: [
                           Text(
                             '\$${totalAmount.toStringAsFixed(2)}',
-                            style: AppTheme.lightTheme.textTheme.titleLarge
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
                                 ?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.lightTheme.colorScheme.primary,
-                            ),
-                          ),
+                                  fontWeight: FontWeight.w700,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis),
                           Text(
-                            '$itemCount items',
-                            style: AppTheme.lightTheme.textTheme.bodySmall,
-                          ),
+                            '$itemCount item${itemCount != 1 ? 's' : ''}',
+                            style: Theme.of(context).textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
                         ],
                       ),
+                      // FIX: item image thumbnails — gracefully skip if no image
                       Row(
                         children: [
                           if (items.isNotEmpty)
-                            ...items.take(3).map((item) => Container(
-                                  margin: EdgeInsets.only(left: 1.w),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: CustomImageWidget(
-                                      imageUrl: item['image'] as String,
-                                      width: 12.w,
-                                      height: 12.w,
-                                      fit: BoxFit.cover,
-                                      semanticLabel:
-                                          item['semanticLabel'] as String,
-                                    ),
-                                  ),
-                                )),
+                            ...items.take(3).map((item) {
+                              final imageUrl =
+                                  (item as Map<String, dynamic>)['image']
+                                      as String?;
+                              return Container(
+                                margin: EdgeInsets.only(left: 1.w),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: imageUrl != null && imageUrl.isNotEmpty
+                                      ? CustomImageWidget(
+                                          imageUrl: imageUrl,
+                                          width: 12.w,
+                                          height: 12.w,
+                                          fit: BoxFit.cover,
+                                          semanticLabel: item['product_name']
+                                                  as String? ??
+                                              'Product',
+                                        )
+                                      : Container(
+                                          width: 12.w,
+                                          height: 12.w,
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .outline
+                                              .withValues(alpha: 0.1),
+                                          child: Icon(
+                                            Icons.shopping_bag_outlined,
+                                            size: 5.w,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .outline,
+                                          ),
+                                        ),
+                                ),
+                              );
+                            }),
                           if (items.length > 3)
                             Container(
                               margin: EdgeInsets.only(left: 1.w),
                               width: 12.w,
                               height: 12.w,
                               decoration: BoxDecoration(
-                                color: AppTheme.lightTheme.colorScheme.outline
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .outline
                                     .withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                               child: Center(
                                 child: Text(
                                   '+${items.length - 3}',
-                                  style: AppTheme
-                                      .lightTheme.textTheme.labelSmall
-                                      ?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                               ),
                             ),
                         ],
@@ -304,18 +327,19 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
                           style: OutlinedButton.styleFrom(
                             padding: EdgeInsets.symmetric(vertical: 1.5.h),
                             side: BorderSide(
-                              color: AppTheme.lightTheme.colorScheme.primary,
+                              color: Theme.of(context).colorScheme.primary,
                               width: 1,
                             ),
                           ),
                           child: Text(
-                            'Reorder All',
-                            style: AppTheme.lightTheme.textTheme.labelLarge
+                            AppLocalizations.of(context)!.reorderAll,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelLarge
                                 ?.copyWith(
-                              color: AppTheme.lightTheme.colorScheme.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                       ),
                       SizedBox(width: 3.w),
@@ -324,16 +348,18 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
                         child: Container(
                           padding: EdgeInsets.all(2.w),
                           decoration: BoxDecoration(
-                            color: AppTheme.lightTheme.colorScheme.outline
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outline
                                 .withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(14),
                           ),
                           child: AnimatedRotation(
                             turns: _isExpanded ? 0.5 : 0,
                             duration: const Duration(milliseconds: 300),
                             child: CustomIconWidget(
                               iconName: 'keyboard_arrow_down',
-                              color: AppTheme.lightTheme.colorScheme.onSurface,
+                              color: Theme.of(context).colorScheme.onSurface,
                               size: 20,
                             ),
                           ),
@@ -361,12 +387,15 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
               child: Column(
                 children: [
                   Divider(
-                    color: AppTheme.lightTheme.colorScheme.outline
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outline
                         .withValues(alpha: 0.2),
                     thickness: 1,
                   ),
                   SizedBox(height: 2.h),
-                  ...items.map((item) => _buildOrderItem(item)),
+                  ...items.map((item) =>
+                      _buildOrderItem(item as Map<String, dynamic>)),
                 ],
               ),
             ),
@@ -377,23 +406,48 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
   }
 
   Widget _buildOrderItem(Map<String, dynamic> item) {
+    // FIX: all fields null-safe — map real Supabase order_items columns
     final isAvailable = item['isAvailable'] as bool? ?? true;
+    final imageUrl = item['image'] as String?; // may be null from real data
+    // Real Supabase columns: product_name, unit_price, quantity
+    final name = item['name'] as String?
+        ?? item['product_name'] as String?
+        ?? AppLocalizations.of(context)!.unknownItem;
+    final price = (item['price'] as num?)?.toDouble()
+        ?? (item['unit_price'] as num?)?.toDouble()
+        ?? 0.0;
+    final quantity = item['quantity'] as int? ?? 1;
 
     return Container(
       margin: EdgeInsets.only(bottom: 2.h),
       child: Row(
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(14),
             child: Stack(
               children: [
-                CustomImageWidget(
-                  imageUrl: item['image'] as String,
-                  width: 15.w,
-                  height: 15.w,
-                  fit: BoxFit.cover,
-                  semanticLabel: item['semanticLabel'] as String,
-                ),
+                // FIX: show placeholder icon when no image URL
+                imageUrl != null && imageUrl.isNotEmpty
+                    ? CustomImageWidget(
+                        imageUrl: imageUrl,
+                        width: 15.w,
+                        height: 15.w,
+                        fit: BoxFit.cover,
+                        semanticLabel: name,
+                      )
+                    : Container(
+                        width: 15.w,
+                        height: 15.w,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .outline
+                            .withValues(alpha: 0.1),
+                        child: Icon(
+                          Icons.shopping_bag_outlined,
+                          size: 6.w,
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
+                      ),
                 if (!isAvailable)
                   Container(
                     width: 15.w,
@@ -416,41 +470,39 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item['name'] as String,
-                  style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: isAvailable
-                        ? AppTheme.lightTheme.colorScheme.onSurface
-                        : AppTheme.lightTheme.colorScheme.onSurface
-                            .withValues(alpha: 0.5),
-                  ),
-                ),
+                  name,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: isAvailable
+                            ? Theme.of(context).colorScheme.onSurface
+                            : Theme.of(context)
+                                .colorScheme
+                                .onSurface
+                                .withValues(alpha: 0.5),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 0.5.h),
                 Row(
                   children: [
                     Text(
-                      'Qty: ${item['quantity']}',
-                      style: AppTheme.lightTheme.textTheme.bodySmall,
-                    ),
+                      'Qty: $quantity',
+                      style: Theme.of(context).textTheme.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(width: 3.w),
                     Text(
-                      '\$${(item['price'] as double).toStringAsFixed(2)}',
-                      style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.lightTheme.colorScheme.primary,
-                      ),
-                    ),
+                      '\$${price.toStringAsFixed(2)}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
                 if (!isAvailable) ...[
                   SizedBox(height: 0.5.h),
                   Text(
-                    'Out of stock',
-                    style: AppTheme.lightTheme.textTheme.labelSmall?.copyWith(
-                      color: AppTheme.lightTheme.colorScheme.error,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                    AppLocalizations.of(context)!.outOfStock3,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.error,
+                          fontWeight: FontWeight.w500,
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ],
             ),
@@ -465,12 +517,12 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
                   child: Container(
                     padding: EdgeInsets.all(2.w),
                     decoration: BoxDecoration(
-                      color: AppTheme.lightTheme.colorScheme.primary,
-                      borderRadius: BorderRadius.circular(8),
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: CustomIconWidget(
                       iconName: 'add_shopping_cart',
-                      color: AppTheme.lightTheme.colorScheme.onPrimary,
+                      color: Theme.of(context).colorScheme.onPrimary,
                       size: 18,
                     ),
                   ),
@@ -478,13 +530,15 @@ class _OrderCardWidgetState extends State<OrderCardWidget>
               : Container(
                   padding: EdgeInsets.all(2.w),
                   decoration: BoxDecoration(
-                    color: AppTheme.lightTheme.colorScheme.outline
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outline
                         .withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: CustomIconWidget(
                     iconName: 'block',
-                    color: AppTheme.lightTheme.colorScheme.outline,
+                    color: Theme.of(context).colorScheme.outline,
                     size: 18,
                   ),
                 ),

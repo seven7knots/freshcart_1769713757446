@@ -13,6 +13,8 @@ import 'package:sizer/sizer.dart';
 import '../../core/app_export.dart';
 import '../../models/product_model.dart';
 import '../../services/supabase_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -115,8 +117,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Removed from favorites'),
+          SnackBar(
+            content: Text(AppLocalizations.of(context)!.removedFromFavorites, maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -126,7 +128,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to remove: $e'),
+            content: Text('Failed to remove: $e', maxLines: 1, overflow: TextOverflow.ellipsis),
             backgroundColor: Colors.red,
           ),
         );
@@ -140,7 +142,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Favorites'),
+        title: Text(AppLocalizations.of(context)!.favorites, maxLines: 1, overflow: TextOverflow.ellipsis),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -151,11 +153,11 @@ class _FavoritesScreenState extends State<FavoritesScreen>
           tabs: [
             Tab(
               icon: const Icon(Icons.local_shipping_outlined, size: 20),
-              text: 'Delivery',
+              text: AppLocalizations.of(context)!.delivery,
             ),
             Tab(
               icon: const Icon(Icons.storefront_outlined, size: 20),
-              text: 'Marketplace',
+              text: AppLocalizations.of(context)!.marketplace,
             ),
           ],
         ),
@@ -183,9 +185,9 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       return _buildEmptyState(
         theme: theme,
         icon: Icons.local_shipping_outlined,
-        title: 'No delivery favorites yet',
-        subtitle: 'Browse stores and tap the heart icon to save products here',
-        buttonText: 'Browse Stores',
+        title: AppLocalizations.of(context)!.noDeliveryFavoritesYet,
+        subtitle: AppLocalizations.of(context)!.browseStoresAndTapTheHeart,
+        buttonText: AppLocalizations.of(context)!.browseStores,
         onPressed: () => Navigator.pop(context),
       );
     }
@@ -207,8 +209,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             theme: theme,
             favoriteId: fav['id'] as String,
             type: 'delivery',
-            name: product['name'] ?? 'Unknown Product',
-            subtitle: product['store_name'] ?? 'Store',
+            name: product['name'] ?? AppLocalizations.of(context)!.unknownProduct,
+            subtitle: product['store_name'] ?? AppLocalizations.of(context)!.store2,
             price: _formatPrice(product['price']),
             imageUrl: product['image_url'] as String?,
             onTap: () {
@@ -217,7 +219,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 Navigator.pushNamed(context, AppRoutes.productDetail, arguments: p);
               } catch (_) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Could not open product')),
+                  SnackBar(content: Text(AppLocalizations.of(context)!.couldNotOpenProduct, maxLines: 1, overflow: TextOverflow.ellipsis)),
                 );
               }
             },
@@ -240,9 +242,9 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       return _buildEmptyState(
         theme: theme,
         icon: Icons.storefront_outlined,
-        title: 'No marketplace favorites yet',
-        subtitle: 'Browse the marketplace and save listings you like',
-        buttonText: 'Browse Marketplace',
+        title: AppLocalizations.of(context)!.noMarketplaceFavoritesYet,
+        subtitle: AppLocalizations.of(context)!.browseTheMarketplaceAndSaveListings,
+        buttonText: AppLocalizations.of(context)!.browseMarketplace,
         onPressed: () {
           Navigator.pop(context);
           Navigator.pushNamed(context, AppRoutes.marketplaceScreen);
@@ -267,8 +269,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             theme: theme,
             favoriteId: fav['id'] as String,
             type: 'marketplace',
-            name: listing['title'] ?? 'Unknown Listing',
-            subtitle: listing['seller_name'] ?? 'Seller',
+            name: listing['title'] ?? AppLocalizations.of(context)!.unknownListing,
+            subtitle: listing['seller_name'] ?? AppLocalizations.of(context)!.seller,
             price: _formatPrice(listing['price']),
             imageUrl: listing['image_url'] as String?,
             onTap: () {
@@ -318,10 +320,10 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                   height: 20.w,
                   color: theme.colorScheme.surfaceContainerHighest,
                   child: imageUrl != null && imageUrl.isNotEmpty
-                      ? Image.network(
+                      ? CachedNetworkImage(imageUrl: 
                           imageUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Icon(
+                          errorWidget: (_, __, ___) => Icon(
                             Icons.image_outlined,
                             color: theme.colorScheme.onSurfaceVariant,
                             size: 8.w,
@@ -355,9 +357,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                     Text(
                       subtitle,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                        color: Colors.grey,
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                     SizedBox(height: 0.5.h),
                     Text(
                       price,
@@ -365,8 +366,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.kjRed,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),
               ),
@@ -375,7 +375,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               IconButton(
                 onPressed: () => _confirmRemove(favoriteId, type, name),
                 icon: const Icon(Icons.favorite, color: Colors.red),
-                tooltip: 'Remove from favorites',
+                tooltip: AppLocalizations.of(context)!.removeFromFavorites,
               ),
             ],
           ),
@@ -410,16 +410,14 @@ class _FavoritesScreenState extends State<FavoritesScreen>
             Text(
               title,
               style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center,
-            ),
+              textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 1.h),
             Text(
               subtitle,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurfaceVariant,
               ),
-              textAlign: TextAlign.center,
-            ),
+              textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 4.h),
             ElevatedButton(
               onPressed: onPressed,
@@ -428,10 +426,10 @@ class _FavoritesScreenState extends State<FavoritesScreen>
                 foregroundColor: Colors.white,
                 padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 1.5.h),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              child: Text(buttonText, style: const TextStyle(fontWeight: FontWeight.w600)),
+              child: Text(buttonText, style: const TextStyle(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ],
         ),
@@ -447,12 +445,12 @@ class _FavoritesScreenState extends State<FavoritesScreen>
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Remove Favorite'),
-        content: Text('Remove "$name" from your favorites?'),
+        title: Text(AppLocalizations.of(context)!.removeFavorite, maxLines: 1, overflow: TextOverflow.ellipsis),
+        content: Text('Remove "$name" from your favorites?', maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(AppLocalizations.of(context)!.cancel, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
           TextButton(
             onPressed: () {
@@ -460,7 +458,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               _removeFavorite(favoriteId, type);
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Remove'),
+            child: Text(AppLocalizations.of(context)!.remove, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -468,7 +466,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   }
 
   String _formatPrice(dynamic price) {
-    if (price == null) return 'N/A';
+    if (price == null) return AppLocalizations.of(context)!.nA;
     final p = double.tryParse(price.toString()) ?? 0;
     return 'USD ${p.toStringAsFixed(2)}';
   }

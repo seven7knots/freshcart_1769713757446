@@ -3,6 +3,7 @@ import 'package:sizer/sizer.dart';
 
 import '../../core/app_export.dart';
 import '../../providers/auth_provider.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class MerchantApplicationScreen extends StatefulWidget {
   const MerchantApplicationScreen({super.key});
@@ -62,7 +63,7 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Become a Merchant'),
+        title: Text(AppLocalizations.of(context)!.becomeAMerchant, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
@@ -83,25 +84,25 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
                   SizedBox(height: 3.h),
 
                   // Business Type Selection
-                  _buildSectionTitle('Business Type *'),
+                  _buildSectionTitle(AppLocalizations.of(context)!.businessType2),
                   SizedBox(height: 1.h),
                   _buildBusinessTypeSelector(),
                   SizedBox(height: 3.h),
 
                   // Business Information
-                  _buildSectionTitle('Business Information'),
+                  _buildSectionTitle(AppLocalizations.of(context)!.businessInformation),
                   SizedBox(height: 1.h),
                   _buildTextField(
                     controller: _businessNameController,
-                    label: 'Business Name *',
-                    hint: 'Enter your business name',
+                    label: AppLocalizations.of(context)!.businessName2,
+                    hint: AppLocalizations.of(context)!.enterYourBusinessName,
                     icon: Icons.business,
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Business name is required';
+                        return AppLocalizations.of(context)!.businessNameIsRequired;
                       }
                       if (value.trim().length < 3) {
-                        return 'Business name must be at least 3 characters';
+                        return AppLocalizations.of(context)!.businessNameMustBeAtLeast;
                       }
                       return null;
                     },
@@ -109,20 +110,20 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
                   SizedBox(height: 2.h),
                   _buildTextField(
                     controller: _descriptionController,
-                    label: 'Business Description',
-                    hint: 'Describe your business (products, services, etc.)',
+                    label: AppLocalizations.of(context)!.businessDescription,
+                    hint: AppLocalizations.of(context)!.describeYourBusinessProductsServicesEtc,
                     icon: Icons.description,
                     maxLines: 3,
                   ),
                   SizedBox(height: 2.h),
                   _buildTextField(
                     controller: _addressController,
-                    label: 'Business Address *',
-                    hint: 'Enter your business address',
+                    label: AppLocalizations.of(context)!.businessAddress2,
+                    hint: AppLocalizations.of(context)!.enterYourBusinessAddress,
                     icon: Icons.location_on,
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Business address is required';
+                        return AppLocalizations.of(context)!.businessAddressIsRequired;
                       }
                       return null;
                     },
@@ -130,20 +131,20 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
                   SizedBox(height: 3.h),
 
                   // Contact Information
-                  _buildSectionTitle('Contact Information'),
+                  _buildSectionTitle(AppLocalizations.of(context)!.contactInformation),
                   SizedBox(height: 1.h),
                   _buildTextField(
                     controller: _emailController,
-                    label: 'Email Address *',
-                    hint: 'your@email.com',
+                    label: AppLocalizations.of(context)!.emailAddress,
+                    hint: AppLocalizations.of(context)!.yourEmailCom,
                     icon: Icons.email,
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Email is required';
+                        return AppLocalizations.of(context)!.emailIsRequired;
                       }
                       if (!value.contains('@')) {
-                        return 'Enter a valid email';
+                        return AppLocalizations.of(context)!.enterAValidEmail;
                       }
                       return null;
                     },
@@ -151,13 +152,13 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
                   SizedBox(height: 2.h),
                   _buildTextField(
                     controller: _phoneController,
-                    label: 'Phone Number *',
+                    label: AppLocalizations.of(context)!.phoneNumber2,
                     hint: '+1 (555) 123-4567',
                     icon: Icons.phone,
                     keyboardType: TextInputType.phone,
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Phone number is required';
+                        return AppLocalizations.of(context)!.phoneNumberIsRequired;
                       }
                       return null;
                     },
@@ -204,7 +205,7 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
             padding: EdgeInsets.all(3.w),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(
               Icons.store,
@@ -218,21 +219,19 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Start Selling Today',
+                  AppLocalizations.of(context)!.startSellingToday,
                   style: TextStyle(
                     fontSize: 18.sp,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 0.5.h),
                 Text(
-                  'Join our marketplace and reach thousands of customers',
+                  AppLocalizations.of(context)!.joinOurMarketplaceAndReachThousands,
                   style: TextStyle(
                     fontSize: 12.sp,
                     color: Colors.white.withOpacity(0.9),
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
@@ -247,8 +246,7 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
       style: TextStyle(
         fontSize: 14.sp,
         fontWeight: FontWeight.w600,
-      ),
-    );
+      ), maxLines: 1, overflow: TextOverflow.ellipsis);
   }
 
   Widget _buildBusinessTypeSelector() {
@@ -267,7 +265,7 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
                 color: isSelected ? Colors.white : null,
               ),
               SizedBox(width: 1.w),
-              Text(type['label'] as String),
+              Flexible(child: Text(type['label'] as String, maxLines: 1, overflow: TextOverflow.ellipsis)),
             ],
           ),
           selected: isSelected,
@@ -300,7 +298,7 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
         hintText: hint,
         prefixIcon: Icon(icon),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
       ),
     );
@@ -327,26 +325,26 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
                 text: TextSpan(
                   style: TextStyle(
                     fontSize: 12.sp,
-                    color: theme.colorScheme.onSurface,
+                    color: Colors.black87,
                   ),
                   children: [
-                    const TextSpan(text: 'I agree to the '),
+                    TextSpan(text: AppLocalizations.of(context)!.iAgreeToThe),
                     TextSpan(
-                      text: 'Terms of Service',
+                      text: AppLocalizations.of(context)!.termsOfService,
                       style: TextStyle(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const TextSpan(text: ' and '),
+                    TextSpan(text: AppLocalizations.of(context)!.andText),
                     TextSpan(
-                      text: 'Merchant Agreement',
+                      text: AppLocalizations.of(context)!.merchantAgreement,
                       style: TextStyle(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const TextSpan(text: ', and I understand that my application will be reviewed by the admin team.'),
+                    TextSpan(text: AppLocalizations.of(context)!.andIUnderstandThatMyApplication),
                   ],
                 ),
               ),
@@ -369,7 +367,7 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
           backgroundColor: Colors.green,
           disabledBackgroundColor: Colors.grey.shade300,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
         child: authProvider.isLoading
@@ -384,16 +382,15 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.send, color: Colors.white),
+                  Icon(Icons.send, color: Colors.white),
                   SizedBox(width: 2.w),
-                  Text(
-                    'Submit Application',
+                  Flexible(child: Text(
+                    AppLocalizations.of(context)!.submitApplication,
                     style: TextStyle(
                       fontSize: 14.sp,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ],
               ),
       ),
@@ -407,7 +404,7 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
         color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.blue.shade200),
       ),
       child: Row(
@@ -420,13 +417,12 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'What happens next?',
+                  AppLocalizations.of(context)!.whatHappensNext,
                   style: TextStyle(
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w600,
                     color: Colors.blue.shade800,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 0.5.h),
                 Text(
                   '1. Our team will review your application\n'
@@ -436,8 +432,7 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
                     fontSize: 11.sp,
                     color: Colors.blue.shade700,
                     height: 1.5,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
               ],
             ),
           ),
@@ -469,27 +464,25 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
             ),
             SizedBox(height: 3.h),
             Text(
-              'Application Under Review',
+              AppLocalizations.of(context)!.applicationUnderReview,
               style: TextStyle(
                 fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
                 color: Colors.orange,
-              ),
-            ),
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 1.h),
             Text(
               'Your merchant application is being reviewed by our team. We\'ll notify you once it\'s processed.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14.sp,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
+                color: Colors.grey,
+              ), maxLines: 1, overflow: TextOverflow.ellipsis),
             SizedBox(height: 4.h),
             OutlinedButton.icon(
               onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.arrow_back),
-              label: const Text('Go Back'),
+              label: Text(AppLocalizations.of(context)!.goBack, maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
           ],
         ),
@@ -502,8 +495,8 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
 
     if (!_acceptedTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please accept the terms and conditions'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.pleaseAcceptTheTermsAndConditions, maxLines: 1, overflow: TextOverflow.ellipsis),
           backgroundColor: Colors.orange,
         ),
       );
@@ -523,8 +516,8 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
 
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Application submitted successfully!'),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.applicationSubmittedSuccessfully, maxLines: 1, overflow: TextOverflow.ellipsis),
           backgroundColor: Colors.green,
         ),
       );
@@ -532,7 +525,7 @@ class _MerchantApplicationScreenState extends State<MerchantApplicationScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(authProvider.errorMessage ?? 'Failed to submit application'),
+          content: Text(authProvider.errorMessage ?? AppLocalizations.of(context)!.failedToSubmitApplication, maxLines: 1, overflow: TextOverflow.ellipsis),
           backgroundColor: Colors.red,
         ),
       );

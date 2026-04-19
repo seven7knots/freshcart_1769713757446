@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class OrderStatusTimelineWidget extends StatelessWidget {
   final List<Map<String, dynamic>> orderStatuses;
@@ -21,12 +22,11 @@ class OrderStatusTimelineWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Order Progress',
-            style: AppTheme.lightTheme.textTheme.titleMedium?.copyWith(
+            AppLocalizations.of(context)!.orderProgress,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
-              color: AppTheme.lightTheme.colorScheme.onSurface,
-            ),
-          ),
+              color: Theme.of(context).colorScheme.onSurface,
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 3.h),
           ...orderStatuses.asMap().entries.map((entry) {
             final index = entry.key;
@@ -55,7 +55,7 @@ class OrderStatusTimelineWidget extends StatelessWidget {
     required bool isActive,
     required bool isLast,
   }) {
-    final colorScheme = AppTheme.lightTheme.colorScheme;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,11 +68,11 @@ class OrderStatusTimelineWidget extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isCompleted
-                    ? AppTheme.lightTheme.colorScheme.secondary
+                    ? Theme.of(context).colorScheme.secondary
                     : colorScheme.outline.withValues(alpha: 0.3),
                 border: Border.all(
                   color: isActive
-                      ? AppTheme.lightTheme.colorScheme.secondary
+                      ? Theme.of(context).colorScheme.secondary
                       : colorScheme.outline.withValues(alpha: 0.5),
                   width: isActive ? 2 : 1,
                 ),
@@ -80,7 +80,7 @@ class OrderStatusTimelineWidget extends StatelessWidget {
               child: isCompleted
                   ? CustomIconWidget(
                       iconName: 'check',
-                      color: AppTheme.lightTheme.colorScheme.onSecondary,
+                      color: Theme.of(context).colorScheme.onSecondary,
                       size: 3.w,
                     )
                   : null,
@@ -90,7 +90,7 @@ class OrderStatusTimelineWidget extends StatelessWidget {
                 width: 2,
                 height: 8.h,
                 color: isCompleted
-                    ? AppTheme.lightTheme.colorScheme.secondary
+                    ? Theme.of(context).colorScheme.secondary
                         .withValues(alpha: 0.3)
                     : colorScheme.outline.withValues(alpha: 0.2),
               ),
@@ -105,30 +105,27 @@ class OrderStatusTimelineWidget extends StatelessWidget {
               children: [
                 Text(
                   status['title'] as String,
-                  style: AppTheme.lightTheme.textTheme.bodyLarge?.copyWith(
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                     color: isCompleted
                         ? colorScheme.onSurface
                         : colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 1.h),
                 if (status['timestamp'] != null)
                   Text(
                     status['timestamp'] as String,
-                    style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                    ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 if (status['description'] != null)
                   Padding(
                     padding: EdgeInsets.only(top: 0.5.h),
                     child: Text(
                       status['description'] as String,
-                      style: AppTheme.lightTheme.textTheme.bodySmall?.copyWith(
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                      ), maxLines: 1, overflow: TextOverflow.ellipsis),
                   ),
               ],
             ),

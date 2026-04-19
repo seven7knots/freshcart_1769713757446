@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 
 import '../../../core/app_export.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class DeliveryTimeWidget extends StatelessWidget {
   final List<Map<String, dynamic>> timeSlots;
@@ -25,7 +26,7 @@ class DeliveryTimeWidget extends StatelessWidget {
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
         color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
             color: colorScheme.shadow.withValues(alpha: 0.1),
@@ -45,13 +46,12 @@ class DeliveryTimeWidget extends StatelessWidget {
                 size: 24,
               ),
               SizedBox(width: 3.w),
-              Text(
-                'Delivery Time',
+              Flexible(child: Text(
+                AppLocalizations.of(context)!.deliveryTime,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: colorScheme.onSurface,
-                ),
-              ),
+                ), maxLines: 1, overflow: TextOverflow.ellipsis)),
             ],
           ),
           SizedBox(height: 2.h),
@@ -75,7 +75,7 @@ class DeliveryTimeWidget extends StatelessWidget {
                       color: isSelected
                           ? colorScheme.primary.withValues(alpha: 0.1)
                           : colorScheme.surface,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: isSelected
                             ? colorScheme.primary
@@ -94,16 +94,15 @@ class DeliveryTimeWidget extends StatelessWidget {
                                     horizontal: 1.5.w, vertical: 0.3.h),
                                 decoration: BoxDecoration(
                                   color: Colors.orange,
-                                  borderRadius: BorderRadius.circular(4),
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
                                   'EXPRESS',
                                   style: theme.textTheme.labelSmall?.copyWith(
-                                    color: Colors.white,
+                                    color: theme.colorScheme.surface,
                                     fontWeight: FontWeight.w700,
                                     fontSize: 8.sp,
-                                  ),
-                                ),
+                                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                               ),
                               SizedBox(width: 1.w),
                             ],
@@ -128,20 +127,18 @@ class DeliveryTimeWidget extends StatelessWidget {
                             color: isSelected
                                 ? colorScheme.primary
                                 : colorScheme.onSurface,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                         SizedBox(height: 0.5.h),
                         Text(
                           slot['fee'] as double > 0
                               ? '+\$${(slot['fee'] as double).toStringAsFixed(2)}'
-                              : 'Free',
+                              : AppLocalizations.of(context)!.free,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: slot['fee'] as double > 0
                                 ? Colors.orange
                                 : AppTheme.accentLight,
                             fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       ],
                     ),
                   ),

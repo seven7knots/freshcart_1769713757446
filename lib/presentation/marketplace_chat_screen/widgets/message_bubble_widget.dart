@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:sizer/sizer.dart';
 import '../../../models/message_model.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../l10n/generated/app_localizations.dart';
 
 class MessageBubbleWidget extends StatelessWidget {
   final MessageModel message;
@@ -14,8 +15,21 @@ class MessageBubbleWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bool isLight = theme.brightness == Brightness.light;
+
+    final Color bubbleBg = isCurrentUser
+        ? const Color(0xFFE50914)
+        : (isLight ? Colors.grey.shade200 : Colors.black87);
+    final Color textColor = isCurrentUser
+        ? Colors.white
+        : (isLight ? Colors.black87 : Colors.white.withOpacity(0.9));
+    final Color timestampColor = isCurrentUser
+        ? Colors.white.withOpacity(0.65)
+        : (isLight ? Colors.grey.shade500 : Colors.white.withOpacity(0.35));
+
     return Padding(
-      padding: EdgeInsets.only(bottom: 1.5.h),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Row(
         mainAxisAlignment:
             isCurrentUser ? MainAxisAlignment.end : MainAxisAlignment.start,
@@ -23,98 +37,125 @@ class MessageBubbleWidget extends StatelessWidget {
         children: [
           if (!isCurrentUser) ...[
             CircleAvatar(
-              radius: 3.w,
-              backgroundColor: Colors.grey[300],
-              child: Icon(Icons.person, size: 3.w, color: Colors.grey[600]),
+              radius: 14,
+              backgroundColor: isLight
+                  ? Colors.grey.shade300
+                  : Colors.white.withOpacity(0.1),
+              child: Icon(
+                Icons.person,
+                size: 16,
+                color: isLight ? Colors.grey : Colors.white54,
+              ),
             ),
-            SizedBox(width: 2.w),
+            const SizedBox(width: 8),
           ],
           Flexible(
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: 4.w,
-                vertical: 1.5.h,
-              ),
-              decoration: BoxDecoration(
-                color:
-                    isCurrentUser ? const Color(0xFFE50914) : Colors.grey[200],
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(4.w),
-                  topRight: Radius.circular(4.w),
-                  bottomLeft:
-                      isCurrentUser ? Radius.circular(4.w) : Radius.zero,
-                  bottomRight:
-                      isCurrentUser ? Radius.zero : Radius.circular(4.w),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    message.content,
-                    style: TextStyle(
-                      color: isCurrentUser ? Colors.white : Colors.black,
-                      fontSize: 13.sp,
-                      height: 1.4,
+            child: Column(
+              crossAxisAlignment: isCurrentUser
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
+              children: [
+                // Message bubble
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: bubbleBg,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(18),
+                      topRight: const Radius.circular(18),
+                      bottomLeft: Radius.circular(isCurrentUser ? 18 : 4),
+                      bottomRight: Radius.circular(isCurrentUser ? 4 : 18),
                     ),
                   ),
-                  SizedBox(height: 0.5.h),
-                  Row(
+                  child: _buildMessageContent(textColor),
+                ),
+                // Timestamp + read status
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, left: 4, right: 4),
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         _formatTime(message.createdAt),
                         style: TextStyle(
-                          color:
-                              isCurrentUser ? Colors.white70 : Colors.grey[600],
-                          fontSize: 10.sp,
-                        ),
-                      ),
+                          color: timestampColor,
+                          fontSize: 11,
+                        ), maxLines: 1, overflow: TextOverflow.ellipsis),
                       if (isCurrentUser) ...[
-                        SizedBox(width: 1.w),
+                        const SizedBox(width: 4),
                         Icon(
-                          message.isRead ? Icons.done_all : Icons.done,
-                          size: 3.w,
+                          message.isRead
+                              ? Icons.done_all_rounded
+                              : Icons.done_rounded,
+                          size: 14,
                           color: message.isRead
-                              ? Colors.blue[300]
-                              : Colors.white70,
+                              ? const Color(0xFFE50914)
+                              : timestampColor,
                         ),
                       ],
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          if (isCurrentUser) ...[
-            SizedBox(width: 2.w),
-            CircleAvatar(
-              radius: 3.w,
-              backgroundColor: const Color(0xFFE50914),
-              child: Icon(Icons.person, size: 3.w, color: Colors.white),
-            ),
-          ],
+          if (isCurrentUser) const SizedBox(width: 8),
         ],
       ),
     );
   }
 
+  Widget _buildMessageContent(Color textColor) {
+    // Image attachment
+    if (message.messageType == 'image' &&
+        message.attachmentUrl != null &&
+        message.attachmentUrl!.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: CachedNetworkImage(imageUrl: 
+              message.attachmentUrl!,
+              width: 200,
+              fit: BoxFit.cover,
+              errorWidget: (_, __, ___) => Container(
+                width: 200,
+                height: 120,
+                color: Colors.white12,
+                child: const Icon(Icons.broken_image, color: Colors.white38),
+              ),
+            ),
+          ),
+          if (message.content.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              message.content,
+              style: TextStyle(color: textColor, fontSize: 14, height: 1.4), maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ],
+      );
+    }
+
+    // Text message
+    return Text(
+      message.content,
+      style: TextStyle(color: textColor, fontSize: 14, height: 1.4), maxLines: 1, overflow: TextOverflow.ellipsis);
+  }
+
   String _formatTime(DateTime? timestamp) {
     if (timestamp == null) return '';
-
     final now = DateTime.now();
-    final difference = now.difference(timestamp);
-
-    if (difference.inMinutes < 1) {
-      return 'Just now';
-    } else if (difference.inHours < 1) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inDays < 1) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays == 1) {
-      return 'Yesterday';
-    } else {
-      return '${timestamp.day}/${timestamp.month}/${timestamp.year}';
+    final diff = now.difference(timestamp);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) {
+      final local = timestamp.toLocal();
+    return '${local.hour}:${local.minute.toString().padLeft(2, '0')}';
     }
+    return '${timestamp.day}/${timestamp.month}';
   }
 }

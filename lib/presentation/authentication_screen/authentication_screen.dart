@@ -1,12 +1,12 @@
 // ============================================================
 // FILE: lib/presentation/authentication_screen/authentication_screen.dart
 // ============================================================
-// REDESIGNED: Full background KJ logo image, glassmorphism form
-// overlay, elegant white-on-dark text, all form logic preserved.
+// REDESIGNED: Gradient background, glassmorphism form overlay,
+// elegant white-on-dark text, all form logic preserved.
 //
-// REQUIREMENT: Add the KJ logo background image to your assets:
-//   assets/images/kj_auth_background.png
-// And register it in pubspec.yaml under assets.
+// UPDATED: Removed OTP verification redirect after signup.
+// After signup → AuthGate → checks phone → home.
+// After Google sign-in → AuthGate → checks phone → home.
 // ============================================================
 
 import 'dart:ui';
@@ -20,6 +20,7 @@ import '../../services/analytics_service.dart';
 import './widgets/login_form_widget.dart';
 import './widgets/signup_form_widget.dart';
 import './widgets/social_login_widget.dart';
+import '../../l10n/generated/app_localizations.dart';
 
 class AuthenticationScreen extends StatefulWidget {
   const AuthenticationScreen({super.key});
@@ -67,37 +68,37 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
     }
   }
 
+  /// Called after successful signup or Google sign-in.
+  /// Routes through AuthGate which checks if phone is present.
+  void _navigateToAuthGate() {
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      AppRoutes.initial, // AuthGate route
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // No AppBar — full bleed background
       body: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Stack(
           children: [
-            // ========================================
-            // LAYER 1: Full-screen background image
-            // ========================================
+            // LAYER 1: Full-screen gradient background
             Positioned.fill(
-              child: Image.asset(
-                'assets/images/kj_auth_background.png',
-                fit: BoxFit.cover,
-                // Fallback if image not found
-                errorBuilder: (_, __, ___) => Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFFB71C1C), Color(0xFFE53935), Color(0xFFFF6F00)],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFFB71C1C), Color(0xFFE53935), Color(0xFFFF6F00)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                   ),
                 ),
               ),
             ),
 
-            // ========================================
             // LAYER 2: Dark gradient overlay for readability
-            // ========================================
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -116,9 +117,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
               ),
             ),
 
-            // ========================================
             // LAYER 3: Content
-            // ========================================
             SafeArea(
               child: Column(
                 children: [
@@ -135,17 +134,12 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
     );
   }
 
-  // ============================================================
-  // HEADER — Simplified, no duplicate logo (it's the background)
-  // ============================================================
-
   Widget _buildHeader() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 3.h),
       child: Column(
         children: [
           SizedBox(height: 2.h),
-          // Subtle small logo badge
           Container(
             width: 18.w,
             height: 18.w,
@@ -175,7 +169,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
           ),
           SizedBox(height: 2.h),
           Text(
-            'KJ Delivery',
+            AppLocalizations.of(context)!.kjDelivery,
             style: TextStyle(
               fontSize: 24.sp,
               fontWeight: FontWeight.w800,
@@ -184,11 +178,10 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
               shadows: [
                 Shadow(color: Colors.black.withOpacity(0.5), blurRadius: 8, offset: const Offset(0, 2)),
               ],
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
           SizedBox(height: 0.5.h),
           Text(
-            'A world of choice, delivered.',
+            AppLocalizations.of(context)!.aWorldOfChoiceDelivered,
             style: TextStyle(
               fontSize: 13.sp,
               fontWeight: FontWeight.w400,
@@ -197,16 +190,11 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
               shadows: [
                 Shadow(color: Colors.black.withOpacity(0.4), blurRadius: 6),
               ],
-            ),
-          ),
+            ), maxLines: 1, overflow: TextOverflow.ellipsis),
         ],
       ),
     );
   }
-
-  // ============================================================
-  // TAB BAR — Glassmorphism style
-  // ============================================================
 
   Widget _buildTabBar() {
     return Container(
@@ -226,9 +214,9 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
               HapticFeedback.lightImpact();
               setState(() => _currentIndex = index);
             },
-            tabs: const [
-              Tab(text: 'Login'),
-              Tab(text: 'Sign Up'),
+            tabs: [
+              Tab(text: AppLocalizations.of(context)!.login),
+              Tab(text: AppLocalizations.of(context)!.signUp),
             ],
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white.withOpacity(0.55),
@@ -236,7 +224,7 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
             unselectedLabelStyle: TextStyle(fontSize: 14.sp, fontWeight: FontWeight.w500),
             indicator: BoxDecoration(
               color: AppTheme.kjRed,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(color: AppTheme.kjRed.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 2)),
               ],
@@ -251,10 +239,6 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
       ),
     );
   }
-
-  // ============================================================
-  // TAB CONTENT
-  // ============================================================
 
   Widget _buildTabContent() {
     return PageView(
@@ -273,31 +257,29 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Glass card container for the form
           _buildGlassCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Welcome back!',
+                  AppLocalizations.of(context)!.welcomeBack,
                   style: TextStyle(
                     fontSize: 20.sp,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 0.5.h),
                 Text(
-                  'Sign in to your account to continue',
+                  AppLocalizations.of(context)!.signInToYourAccountTo,
                   style: TextStyle(
                     fontSize: 12.sp,
                     color: Colors.white.withOpacity(0.7),
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 3.h),
                 LoginFormWidget(
                   onLoginPressed: () {
-                    debugPrint('[AUTH_SCREEN] Login success');
+                    debugPrint('[AUTH_SCREEN] Login success → AuthGate');
+                    _navigateToAuthGate();
                   },
                 ),
               ],
@@ -323,25 +305,27 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Create Account',
+                  AppLocalizations.of(context)!.createAccount,
                   style: TextStyle(
                     fontSize: 20.sp,
                     fontWeight: FontWeight.w700,
                     color: Colors.white,
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 0.5.h),
                 Text(
-                  'Join KJ Delivery and start your journey',
+                  AppLocalizations.of(context)!.joinKjDeliveryAndStartYour,
                   style: TextStyle(
                     fontSize: 12.sp,
                     color: Colors.white.withOpacity(0.7),
-                  ),
-                ),
+                  ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 SizedBox(height: 3.h),
                 SignupFormWidget(
                   onSignupPressed: () {
-                    Navigator.of(context).pushReplacementNamed(AppRoutes.emailOtpVerification);
+                    // UPDATED: Go to AuthGate instead of OTP screen.
+                    // AuthGate will check if phone is present (it is,
+                    // since signup form requires it) and route to home.
+                    debugPrint('[AUTH_SCREEN] Signup success → AuthGate');
+                    _navigateToAuthGate();
                   },
                 ),
               ],
@@ -354,10 +338,6 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
       ),
     );
   }
-
-  // ============================================================
-  // GLASS CARD — Frosted glass container
-  // ============================================================
 
   Widget _buildGlassCard({required Widget child}) {
     return ClipRRect(
@@ -384,7 +364,4 @@ class _AuthenticationScreenState extends State<AuthenticationScreen>
       ),
     );
   }
-
-  // ============================================================
-  // Demo credentials removed for production
 }
