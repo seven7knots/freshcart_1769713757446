@@ -190,23 +190,101 @@ class AppTheme {
         clipBehavior: Clip.antiAlias,
       ),
 
-      // Buttons — rounded, taller, modern
+      // Buttons — rounded, modern, brand-aware pressed state.
+      // overlayColor/backgroundColor resolve states so press darkens to #B8070F
+      // instead of Flutter's default white-wash tint on bright red.
       elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: cs.primary,
-          foregroundColor: cs.onPrimary,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-          minimumSize: const Size(0, 50),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
+        style: ButtonStyle(
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          ),
+          minimumSize: WidgetStateProperty.all(const Size(double.infinity, 56)),
+          tapTargetSize: MaterialTapTargetSize.padded,
+          textStyle: WidgetStateProperty.all(
+            GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+          elevation: WidgetStateProperty.all(0),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return cs.onSurface.withOpacity(0.5);
+            }
+            return cs.onPrimary;
+          }),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return cs.onSurface.withOpacity(0.12);
+            }
+            if (states.contains(WidgetState.pressed)) {
+              return const Color(0xFFB8070F);
+            }
+            return cs.primary;
+          }),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) {
+              return const Color(0xFFB8070F).withOpacity(0.15);
+            }
+            if (states.contains(WidgetState.hovered)) {
+              return const Color(0xFFB8070F).withOpacity(0.08);
+            }
+            return null;
+          }),
+        ),
+      ),
+
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: ButtonStyle(
+          padding: WidgetStateProperty.all(
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          ),
+          minimumSize: WidgetStateProperty.all(const Size(double.infinity, 52)),
+          tapTargetSize: MaterialTapTargetSize.padded,
+          textStyle: WidgetStateProperty.all(
+            GoogleFonts.inter(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+          shape: WidgetStateProperty.all(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) {
+              return const Color(0xFFB8070F).withOpacity(0.12);
+            }
+            return null;
+          }),
         ),
       ),
 
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(
-          foregroundColor: cs.primary,
-          textStyle: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600),
+        style: ButtonStyle(
+          textStyle: WidgetStateProperty.all(
+            GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) {
+              return const Color(0xFFB8070F);
+            }
+            return cs.primary;
+          }),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) {
+              return const Color(0xFFB8070F).withOpacity(0.1);
+            }
+            return null;
+          }),
         ),
       ),
 

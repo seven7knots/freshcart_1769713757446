@@ -318,27 +318,36 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
               SizedBox(height: 3.h),
               _buildCuisineSelector(),
               SizedBox(height: 4.h),
-              SizedBox(
-                width: double.infinity,
-                height: 6.h,
-                child: ElevatedButton(
-                  onPressed: _isGenerating ? null : _generateMealPlan,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFE50914),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(3.w),
-                    ),
+              ElevatedButton(
+                onPressed: _isGenerating ? null : _generateMealPlan,
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 56),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: _isGenerating
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(
-                          AppLocalizations.of(context)!.generateMealPlan,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15.sp,
-                            fontWeight: FontWeight.w600,
-                          ), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ),
+                child: _isGenerating
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.2,
+                        ),
+                      )
+                    : Text(
+                        AppLocalizations.of(context)!.generateMealPlan,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                      ),
               ),
               if (_mealPlanData != null) ...[
                 SizedBox(height: 4.h),
@@ -573,48 +582,82 @@ class _AIMealPlanningScreenState extends ConsumerState<AIMealPlanningScreen> {
             totalCost: totalCost is num ? totalCost.toDouble() : 0.0,
           ),
         SizedBox(height: 3.h),
-        // Add to Cart button
-        SizedBox(
-          width: double.infinity,
-          height: 6.h,
-          child: ElevatedButton.icon(
-            onPressed: _isAddingToCart ? null : _addAllToCart,
-            icon: _isAddingToCart
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2),
-                  )
-                : const Icon(Icons.shopping_cart, color: Colors.white),
-            label: Text(
-              _isAddingToCart ? AppLocalizations.of(context)!.addingToCart : AppLocalizations.of(context)!.addGroceryListToCart,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14.sp,
-                fontWeight: FontWeight.w600,
-              ), maxLines: 1, overflow: TextOverflow.ellipsis),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green.shade700,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(3.w)),
+        // Add to Cart bar — Container + InkWell so press feedback is a clean white overlay,
+        // not a wash-out. minHeight 56 for proper tap target; Expanded label with ellipsis.
+        Material(
+          color: Colors.green.shade700,
+          borderRadius: BorderRadius.circular(14),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: _isAddingToCart ? null : _addAllToCart,
+            splashColor: Colors.white.withOpacity(0.2),
+            highlightColor: Colors.white.withOpacity(0.1),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 56),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _isAddingToCart
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.shopping_cart, color: Colors.white),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _isAddingToCart
+                            ? AppLocalizations.of(context)!.addingToCart
+                            : AppLocalizations.of(context)!.addGroceryListToCart,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: false,
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
         SizedBox(height: 2.h),
-        SizedBox(
-          width: double.infinity,
-          height: 5.h,
-          child: OutlinedButton.icon(
-            onPressed: _isGenerating ? null : _generateMealPlan,
-            icon: const Icon(Icons.refresh, color: Colors.white70),
-            label: Text(
-              AppLocalizations.of(context)!.regeneratePlan,
-              style: TextStyle(color: Colors.white70, fontSize: 13.sp), maxLines: 1, overflow: TextOverflow.ellipsis),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.white24),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(3.w)),
+        OutlinedButton.icon(
+          onPressed: _isGenerating ? null : _generateMealPlan,
+          icon: const Icon(Icons.refresh, color: Colors.white70),
+          label: Text(
+            AppLocalizations.of(context)!.regeneratePlan,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+          ),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(double.infinity, 52),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            side: const BorderSide(color: Colors.white24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
             ),
           ),
         ),

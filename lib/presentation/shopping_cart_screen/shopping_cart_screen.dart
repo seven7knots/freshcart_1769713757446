@@ -232,7 +232,7 @@ class _ShoppingCartScreenState extends ConsumerState<ShoppingCartScreen> {
           return Padding(
             padding: EdgeInsets.fromLTRB(4.w, 1.h, 4.w, 2.h),
             child: ElevatedButton(
-              style: ElevatedButton.styleFrom(minimumSize: Size(double.infinity, 52)),
+              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 56)),
               onPressed: () => _proceedToCheckout(items),
               child: Text('Checkout • \$${total.toStringAsFixed(2)}',
                   style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onPrimary, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
